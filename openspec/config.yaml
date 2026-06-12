@@ -1,0 +1,35 @@
+# openspec/config.yaml
+schema: spec-driven
+
+context: |
+  Project: Proyecto_1
+  Tech stack: Empty project (no source files detected)
+  Runtime available: Node.js v24.16.0, Go 1.26.4
+  Python: Not installed
+  User stated intent: Python + Tkinter/PyQt (desktop POS app)
+  Architecture: Not yet established
+  Testing: None (no Python runtime, no test framework installed)
+  Style: Not yet established
+
+rules:
+  proposal:
+    - Include rollback plan for risky changes
+  specs:
+    - Use Given/When/Then for scenarios
+    - Use RFC 2119 keywords (MUST, SHALL, SHOULD, MAY)
+  design:
+    - Include sequence diagrams for complex flows
+    - Document architecture decisions with rationale
+  tasks:
+    - Group by phase, use hierarchical numbering
+    - Keep tasks completable in one session
+  apply:
+    - Follow existing code patterns
+    tdd: false
+    test_command: ""
+  verify:
+    test_command: ""
+    build_command: ""
+    coverage_threshold: 0
+  archive:
+    - Warn before merging destructive deltas
