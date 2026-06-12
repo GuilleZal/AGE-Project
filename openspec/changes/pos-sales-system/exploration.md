@@ -605,6 +605,17 @@ class TestStockService:
 
 ---
 
+## UX Principle: Maximum Fluidity During Sales
+
+**During sale: maximum fluidity. No stock alerts interrupt the cashier. Stock management happens in reports/admin, not during sales.**
+
+This principle governs ALL sale flows:
+- No stock validation blocks or warns during sale
+- Non-existent products trigger instant creation (no navigation away from sale view)
+- The cashier's flow is never interrupted — every scanned barcode results in an item in the cart
+
+---
+
 ## USER FLOWS
 
 ### PRIORITY 1 — Critical for operations
@@ -612,15 +623,18 @@ class TestStockService:
 #### Flow 1.1: Product Sale (P1)
 1. Cashier opens "Sales" view (default main screen)
 2. Scans barcode OR enters code manually
-3. System finds product, shows name + price + available stock
-4. If product not found or insufficient stock → shows alert
-5. Cashier can adjust quantity (default: 1)
-6. System adds item to cart, updates subtotal and total
-7. Repeats steps 2-6 until sale is complete
-8. Cashier selects payment method (cash/card/transfer/mixed)
-9. If cash: enters amount received → system calculates change
-10. Cashier confirms sale → system deducts stock, registers in cash register, prints receipt
-11. Cart clears for next sale
+3. System searches product:
+   - If found → shows name + price
+   - If NOT found → **quick creation flow**: reuses scanned barcode, asks only name + sale price, auto-adds to cart and returns to sale
+4. Cashier can adjust quantity (default: 1)
+5. System adds item to cart, updates subtotal and total
+6. Repeats steps 2-5 until sale is complete
+7. Cashier selects payment method (cash/card/transfer/mixed)
+8. If cash: enters amount received → system calculates change
+9. Cashier confirms sale → system registers sale, deducts stock, registers in cash register, prints receipt
+10. Cart clears for next sale
+
+> **Note**: Stock is NEVER validated during sale. Sales succeed regardless of stock level (even stock = 0). Stock tracks entries (purchases) and exits (sales) for reports/admin only.
 
 #### Flow 1.2: Direct Return (P1)
 1. Cashier opens "Returns" view
@@ -702,7 +716,13 @@ class TestStockService:
 
 #### Flow 2.6: Sales Report by Period (P2)
 1. User opens "Reports" view
-2. Selects date range (from/to)
+2. Selects period from predefined options:
+   - Today
+   - This week
+   - This month
+   - Custom months (select which months)
+   - Custom years (select which years)
+   - Custom date range (manual from/to as fallback)
 3. Optionally filters by: payment method, product category
 4. System generates report:
    - Total sold (breakdown by payment method)
@@ -714,7 +734,7 @@ class TestStockService:
 
 #### Flow 2.7: Profit Report (P2)
 1. User opens "Reports" view → "Profits" tab
-2. Selects date range
+2. Selects period from predefined options (same as Sales Report: Today, This week, This month, Custom months, Custom years, Custom date range)
 3. System calculates:
    - Total revenue (sum of sales)
    - Total cost (sum of cost of products sold)
@@ -760,8 +780,8 @@ class TestStockService:
 #### Sales Module (P1)
 - [ ] Barcode search works with USB scanner (keyboard wedge)
 - [ ] Manual code search works if scanner unavailable
-- [ ] Scanning non-existent product → shows clear alert
-- [ ] Scanning product with insufficient stock → shows alert with current stock
+- [ ] Scanning non-existent product → quick creation flow (reuses barcode, asks name + sale price only)
+- [ ] Sales always succeed regardless of stock level (stock = 0 or insufficient stock does NOT block the sale)
 - [ ] Cart shows: product name, quantity, unit price, subtotal
 - [ ] Total updates in real-time when adding/removing items
 - [ ] Can modify quantity of an already-added item
@@ -773,6 +793,16 @@ class TestStockService:
 - [ ] On sale confirmation: registers cash movement (if cash payment)
 - [ ] Thermal receipt prints automatically (optional, can be disabled)
 - [ ] Cart clears automatically after successful sale
+
+#### Quick Product Creation (P1)
+- [ ] Triggered automatically when scanned barcode does not match any existing product
+- [ ] Pre-fills barcode field with the scanned code (non-editable during creation)
+- [ ] Prompts ONLY for: product name (required) and sale price (required, default = 0)
+- [ ] No other fields required at sale time (category, cost_price, stock, unit_type, low_stock_threshold all use defaults)
+- [ ] Confirmation creates the product and auto-adds it to the current cart
+- [ ] After creation, item appears in cart without requiring re-scan or re-search
+- [ ] Remaining fields (category, cost_price, unit_type, low_stock_threshold) editable later via Products CRUD
+- [ ] Post-sale, user can complete product details from Products view
 
 #### Direct Return (P1)
 - [ ] Product lookup by barcode scan (same as sales flow)
@@ -836,11 +866,18 @@ class TestStockService:
 - [ ] Post-import summary: "X products created, Y skipped"
 
 #### Reports (P2)
-- [ ] Sales report: filter by date range (mandatory)
+- [ ] Sales report: predefined period selection (Today, This week, This month)
+- [ ] Sales report: multi-month selection (pick specific months)
+- [ ] Sales report: multi-year selection (pick specific years)
+- [ ] Sales report: custom date range (manual from/to fallback)
 - [ ] Sales report: optional filter by payment method
 - [ ] Sales report: optional filter by product category
 - [ ] Metrics: total sold, number of sales, average ticket
 - [ ] Metrics: top 10 best-selling products (by quantity and by amount)
+- [ ] Profit report: predefined period selection (Today, This week, This month)
+- [ ] Profit report: multi-month selection (pick specific months)
+- [ ] Profit report: multi-year selection (pick specific years)
+- [ ] Profit report: custom date range (manual from/to fallback)
 - [ ] Profit report: total revenue, total cost, gross profit, margin %
 - [ ] Profit breakdown by product or category
 - [ ] Export to CSV (Excel compatible)
