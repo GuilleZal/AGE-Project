@@ -706,13 +706,21 @@ This principle governs ALL sale flows:
 
 #### Flow 2.5: Excel Mass Import (P2)
 1. User opens "Products" view → "Import from Excel" button
-2. Selects .xlsx file
-3. System reads file, validates required columns (barcode, name, sale_price, cost_price, stock, unit_type)
-4. Shows preview of data to import (first 10 rows)
-5. Validates: duplicate codes, negative prices, invalid unit types
-6. If errors → shows list of problematic rows
-7. If all OK → confirms import → system creates products in batch
-8. Shows summary: "X products imported, Y skipped (duplicates)"
+2. System offers template download (.xlsx with exact columns: barcode, name, sale_price, cost_price, stock, unit_type)
+3. User selects .xlsx file with data prepared in template format
+4. System reads file, validates headers match template EXACTLY:
+   - Hard-Stop: if headers don't match exactly → reject entire file with "Invalid template format"
+5. If headers pass → validates row by row:
+   - Data types: sale_price, cost_price, stock must be numeric
+   - Required fields: barcode, name, sale_price, cost_price, stock, unit_type cannot be null
+   - unit_type must be one of: 'unit', 'weight_kg', 'pack'
+6. Shows preview of data to import (first 10 rows)
+7. If validation errors → shows list of problematic rows with details
+8. Upsert logic:
+   - If barcode does NOT exist → CREATE new product
+   - If barcode EXISTS → UPDATE product fields (sale_price, cost_price, stock, unit_type)
+9. Batch import (transaction: all or nothing for valid rows)
+10. Shows summary: "X products created, Y updated, Errors in rows: Z, W"
 
 #### Flow 2.6: Sales Report by Period (P2)
 1. User opens "Reports" view
@@ -855,15 +863,17 @@ This principle governs ALL sale flows:
 - [ ] Category list: shows product count per category
 
 #### Excel Import (P2)
-- [ ] Accepts .xlsx files (modern Excel format)
-- [ ] Required columns: barcode, name, sale_price, cost_price, stock, unit_type
-- [ ] Optional columns: category_name, description, low_stock_threshold
-- [ ] Validates data types: prices >= 0, stock >= 0, unit_type in ('unit', 'weight_kg', 'pack')
+- [ ] Template download generates .xlsx with exact columns: barcode, name, sale_price, cost_price, stock, unit_type
+- [ ] Hard-Stop: If uploaded file headers don't match template exactly → reject with error "Invalid template format"
+- [ ] Row-by-Row validation: prices must be numeric (>= 0)
+- [ ] Row-by-Row validation: stock must be numeric (>= 0)
+- [ ] Row-by-Row validation: unit_type must be in ('unit', 'weight_kg', 'pack')
+- [ ] Row-by-Row validation: no nulls in required fields (barcode, name, sale_price, cost_price, stock, unit_type)
+- [ ] Upsert: If barcode does not exist → create new product
+- [ ] Upsert: If barcode exists → update sale_price, cost_price, stock, unit_type
+- [ ] Return summary: "X created, Y updated, Errors in rows: Z, W"
 - [ ] Preview of first 10 rows before confirming import
-- [ ] Detects duplicate barcodes (in file or in database)
-- [ ] Shows errors per row: "Row 5: negative price", "Row 12: duplicate code"
-- [ ] Batch import (transaction: all or nothing)
-- [ ] Post-import summary: "X products created, Y skipped"
+- [ ] Batch import (transaction: all or nothing for valid rows)
 
 #### Reports (P2)
 - [ ] Sales report: predefined period selection (Today, This week, This month)
@@ -903,6 +913,20 @@ This principle governs ALL sale flows:
 - [ ] On confirmation: adds stock to products
 - [ ] On confirmation: optionally registers cash movement (if paid immediately)
 - [ ] Purchase list: filter by supplier, date range
+
+---
+
+## NON-FUNCTIONAL REQUIREMENTS
+
+### Backup System
+- **Daily backup** of SQLite database file (`.db`) via automated script
+- **Backup compressed** as `.zip` with timestamp in filename (`pos_YYYY-MM-DD_HHMM.zip`)
+- **Retention policy**: automatically delete backups older than 30 days (configurable)
+- **Implementation**: standalone Python script (can run independently or integrate into Service layer)
+- **Automation target**: Windows Task Scheduler (Programador de tareas) for daily execution
+- **Storage**: local directory (`data/backups/`) with optional external drive sync
+- **No backup UI required** in MVP — backup runs headless via scheduled task
+- **Restore procedure**: manual — copy `.db` file from backup zip to `data/pos.db`
 
 ---
 
