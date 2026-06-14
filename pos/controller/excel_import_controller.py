@@ -296,8 +296,11 @@ def _validate_single_row(row: dict, row_num: int) -> list[dict]:
     except (ValueError, TypeError):
         errs.append({"row": row_num, "field": "stock", "value": row.get("stock"), "error": "Stock no numérico"})
 
-    # unit_type: must be one of the valid values
+    # unit_type: must be one of the valid values (normalize common abbreviations)
+    _UNIT_ALIASES = {"u": "unit", "uni": "unit", "kg": "weight_kg", "p": "pack", "paq": "pack"}
     ut = str(row.get("unit_type", "") or "").strip().lower()
+    ut = _UNIT_ALIASES.get(ut, ut)
+    row["unit_type"] = ut
     valid_units = {"unit", "weight_kg", "pack"}
     if ut not in valid_units:
         errs.append({"row": row_num, "field": "unit_type", "value": ut, "error": f"Tipo inválido. Use: {', '.join(sorted(valid_units))}"})

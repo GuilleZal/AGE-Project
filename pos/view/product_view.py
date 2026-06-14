@@ -204,7 +204,7 @@ class ProductView(ctk.CTkFrame):
             barcode = getattr(p, "barcode", "") or p.get("barcode", "") or ""
             name = getattr(p, "name", "") or p.get("name", "")
             price = getattr(p, "sale_price", 0) or p.get("sale_price", 0)
-            stock = getattr(p, "stock", 0) or p.get("stock", 0)
+            stock = getattr(p, "stock", 0) if not isinstance(p, dict) else p.get("stock", 0)
             pid = getattr(p, "id", None) or p.get("id")
 
             self._tree.insert(

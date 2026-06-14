@@ -95,8 +95,19 @@ class SaleView(ctk.CTkFrame):
         )
         self._total_label.grid(row=0, column=0, sticky="w", padx=10, pady=10)
 
+        self._remove_btn = ctk.CTkButton(
+            self._bottom_frame,
+            text="Eliminar",
+            width=100,
+            fg_color="#993333",
+            hover_color="#772222",
+            font=ctk.CTkFont(size=14, weight="bold"),
+            command=self._handle_remove_button,
+        )
+        self._remove_btn.grid(row=0, column=1, sticky="e", padx=(10, 5), pady=10)
+
         self._payment_frame = ctk.CTkFrame(self._bottom_frame)
-        self._payment_frame.grid(row=0, column=1, sticky="e", padx=10, pady=10)
+        self._payment_frame.grid(row=0, column=2, sticky="e", padx=10, pady=10)
 
         for idx, (label, method) in enumerate(self.PAYMENT_BUTTONS):
             btn = ctk.CTkButton(
@@ -284,6 +295,13 @@ class SaleView(ctk.CTkFrame):
     def _handle_remove(self, product_id: int) -> None:
         if self._on_remove_item is not None:
             self._on_remove_item(product_id)
+
+    def _handle_remove_button(self) -> None:
+        selected = self._cart_tree.get_selected_item()
+        if selected is None:
+            messagebox.showwarning("Eliminar", "Seleccione un producto del carrito")
+            return
+        self._handle_remove(selected["product_id"])
 
     def _handle_payment(self, method: str) -> None:
         """Open PaymentDialog and, if confirmed, invoke the on_payment callback."""

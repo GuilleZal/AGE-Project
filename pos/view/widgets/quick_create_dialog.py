@@ -26,7 +26,7 @@ class QuickCreateDialog(ctk.CTkToplevel):
     def __init__(self, master: tk.Widget, barcode: str, **kwargs) -> None:
         super().__init__(master, **kwargs)
         self.title("Nuevo producto")
-        self.geometry("400x250")
+        self.geometry("400x380")
         self.resizable(False, False)
 
         self.grab_set()
