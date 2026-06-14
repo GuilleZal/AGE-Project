@@ -150,3 +150,24 @@ class TestReturnHistory:
         result = return_ctrl.get_return_history(product_id=sample_products[0])
         assert len(result["data"]) == 1
         assert result["data"][0]["product_name"] == "Coca-Cola 1.5L"
+
+
+class TestLookupProduct:
+    """Lookup product by barcode for return processing."""
+
+    def test_lookup_found(self, return_ctrl, sample_products):
+        result = return_ctrl.lookup_product("7790895000782")  # Coca-Cola
+        assert result["success"] is True
+        assert result["data"]["id"] == sample_products[0]
+        assert result["data"]["name"] == "Coca-Cola 1.5L"
+        assert result["data"]["sale_price"] == 800
+
+    def test_lookup_not_found(self, return_ctrl):
+        result = return_ctrl.lookup_product("9999999999999")
+        assert result["success"] is False
+        assert result["error"] == "Producto no encontrado"
+
+    def test_lookup_weight_product(self, return_ctrl, sample_products):
+        result = return_ctrl.lookup_product("7791234000100")  # Queso
+        assert result["success"] is True
+        assert result["data"]["unit_type"] == "weight_kg"

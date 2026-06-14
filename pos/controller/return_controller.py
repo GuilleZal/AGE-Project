@@ -27,6 +27,40 @@ class ReturnController:
         self._cash_movement_repo = CashMovementRepo(db)
         self._stock_service = StockService(db)
 
+    # ---------------------------------------------------------- lookup product ---
+
+    def lookup_product(self, barcode: str) -> dict:
+        """Look up a product by barcode for return processing.
+
+        Args:
+            barcode: The product barcode to search.
+
+        Returns:
+            ``{"success": True, "data": {product info}, "error": None}``
+            or an error dict if not found.
+        """
+        try:
+            product = self._product_repo.find_by_barcode(barcode)
+            if product is None:
+                return {
+                    "success": False,
+                    "data": None,
+                    "error": "Producto no encontrado",
+                }
+            return {
+                "success": True,
+                "data": {
+                    "id": product.id,
+                    "barcode": product.barcode,
+                    "name": product.name,
+                    "sale_price": product.sale_price,
+                    "unit_type": product.unit_type,
+                },
+                "error": None,
+            }
+        except POSException as e:
+            return {"success": False, "data": None, "error": str(e)}
+
     # ---------------------------------------------------------- process return --
 
     def process_return(

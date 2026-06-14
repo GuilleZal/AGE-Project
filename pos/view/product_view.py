@@ -7,7 +7,7 @@ Category CRUD is available inline via a dropdown that includes a
 """
 
 import tkinter as tk
-from tkinter import messagebox, ttk
+from tkinter import filedialog, messagebox, ttk
 from typing import Any, Callable
 
 import customtkinter as ctk
@@ -278,6 +278,143 @@ class ProductView(ctk.CTkFrame):
     ) -> None:
         """Wire the create-category callback (receives category name)."""
         self._on_create_category = callback
+
+    # ------------------------------------------------------- controller wire ---
+
+    def set_controller(self, controller: Any) -> None:
+        """Wire a ``ProductController`` instance and set up all event handlers.
+
+        After calling this, all view events are automatically routed to
+        the controller, and the initial product list is loaded.
+        """
+        self._controller = controller
+
+        # Wire internal handlers to callback slots
+        self._on_create = self._controller_create
+        self._on_edit = self._controller_edit
+        self._on_delete = self._controller_delete
+        self._on_import = self._controller_import
+        self._on_search = self._controller_search
+        self._on_create_category = self._controller_create_category
+
+        # Update search bar callback so live typing hits the controller
+        self._search_bar.set_on_search(self._controller_search)
+
+        # Initial load
+        self._refresh_products()
+        self._refresh_categories()
+
+    # ---------------------------------------------------- controller handlers ---
+
+    def _controller_create(self) -> None:
+        """Open product form dialog for creation."""
+        from pos.view.widgets.product_form_dialog import ProductFormDialog
+
+        dialog = ProductFormDialog(self, categories=self._categories)
+        self.wait_window(dialog)
+        product_data = dialog.result
+        if product_data:
+            result = self._controller.create_product(product_data)
+            if result["success"]:
+                self._refresh_products()
+            else:
+                messagebox.showerror("Error", result["error"])
+
+    def _controller_edit(self, product_id: int) -> None:
+        """Open product form dialog pre-filled for editing."""
+        from pos.view.widgets.product_form_dialog import ProductFormDialog
+
+        get_result = self._controller.get_product(product_id)
+        if not get_result["success"]:
+            messagebox.showerror("Error", get_result["error"])
+            return
+
+        product = get_result["data"]
+        # Convert domain object to dict for the dialog
+        product_dict = {
+            "id": product.id,
+            "barcode": product.barcode,
+            "name": product.name,
+            "category_id": product.category_id,
+            "sale_price": product.sale_price,
+            "cost_price": product.cost_price,
+            "stock": product.stock,
+            "unit_type": product.unit_type,
+            "description": getattr(product, "description", None),
+            "low_stock_threshold": getattr(product, "low_stock_threshold", 5),
+        }
+
+        dialog = ProductFormDialog(
+            self, product=product_dict, categories=self._categories
+        )
+        self.wait_window(dialog)
+        product_data = dialog.result
+        if product_data:
+            result = self._controller.update_product(product_id, product_data)
+            if result["success"]:
+                self._refresh_products()
+            else:
+                messagebox.showerror("Error", result["error"])
+
+    def _controller_delete(self, product_id: int) -> None:
+        """Delete the selected product via controller."""
+        result = self._controller.delete_product(product_id)
+        if result["success"]:
+            self._refresh_products()
+        else:
+            messagebox.showerror("Error", result["error"])
+
+    def _controller_import(self) -> None:
+        """Open file dialog and trigger Excel import via controller."""
+        filepath = filedialog.askopenfilename(
+            title="Importar productos desde Excel",
+            filetypes=[("Excel", "*.xlsx")],
+        )
+        if filepath:
+            result = self._controller.import_from_excel(filepath)
+            if result["success"]:
+                data = result.get("data", {})
+                created = data.get("created", 0)
+                updated = data.get("updated", 0)
+                errors = data.get("errors", [])
+                msg = f"Importados: {created}, Actualizados: {updated}"
+                if errors:
+                    msg += f"\nErrores: {len(errors)} fila(s)"
+                messagebox.showinfo("Importación completada", msg)
+                self._refresh_products()
+            else:
+                messagebox.showerror("Error", result["error"])
+
+    def _controller_search(self, query: str, category_id: int | None = None) -> None:
+        """Search products via controller and update the treeview."""
+        result = self._controller.list_products({
+            "search": query,
+            "category_id": category_id,
+        })
+        if result["success"]:
+            self.update_products(result["data"])
+        else:
+            messagebox.showerror("Error", result["error"])
+
+    def _controller_create_category(self, name: str) -> None:
+        """Create a new category via controller and refresh the dropdown."""
+        result = self._controller.create_category(name)
+        if result["success"]:
+            self._refresh_categories()
+        else:
+            messagebox.showerror("Error", result["error"])
+
+    def _refresh_products(self) -> None:
+        """Reload the full product list from the controller."""
+        result = self._controller.list_products()
+        if result["success"]:
+            self.update_products(result["data"])
+
+    def _refresh_categories(self) -> None:
+        """Reload categories from the controller and update dropdowns."""
+        result = self._controller.list_categories()
+        if result["success"]:
+            self.set_categories(result["data"])
 
     # --------------------------------------------------------------- private ---
 

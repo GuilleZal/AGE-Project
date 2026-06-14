@@ -7,7 +7,7 @@ a top-10 products treeview, and an export-to-CSV button.
 """
 
 import tkinter as tk
-from tkinter import messagebox, ttk
+from tkinter import filedialog, messagebox, ttk
 from typing import Any, Callable
 
 import customtkinter as ctk
@@ -56,6 +56,9 @@ class ReportView(ctk.CTkFrame):
         self._on_export: Callable[[], None] | None = callbacks.get(
             "on_export"
         )
+
+        # Cache the last report data for CSV export
+        self._report_data: dict[str, Any] = {}
 
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(2, weight=1)  # treeview row
@@ -266,6 +269,64 @@ class ReportView(ctk.CTkFrame):
     def set_on_export(self, callback: Callable[[], None]) -> None:
         """Wire the CSV export callback."""
         self._on_export = callback
+
+    # ------------------------------------------------------- controller wire ---
+
+    def set_controller(self, controller: Any) -> None:
+        """Wire a ``ReportController`` instance and set up all event handlers.
+
+        After calling this, report generation and CSV export are
+        automatically routed to the controller.
+        """
+        self._controller = controller
+
+        # Wire internal handlers
+        self._on_generate = self._controller_generate
+        self._on_export = self._controller_export
+
+    # ---------------------------------------------------- controller handlers ---
+
+    def _controller_generate(self, start: str, end: str) -> None:
+        """Generate a sales report via controller and update the UI."""
+        result = self._controller.generate_sales_report(start, end)
+        if result["success"]:
+            data = result["data"]
+            self._report_data = data
+            self.update_report(data)
+        else:
+            messagebox.showerror("Error", result["error"])
+
+    def _controller_export(self) -> None:
+        """Export the last report to CSV via file dialog."""
+        if not self._report_data:
+            messagebox.showwarning(
+                "Sin datos",
+                "Genere un reporte antes de exportar.",
+            )
+            return
+
+        filepath = filedialog.asksaveasfilename(
+            title="Exportar reporte",
+            defaultextension=".csv",
+            filetypes=[("CSV", "*.csv")],
+        )
+        if not filepath:
+            return
+
+        # Build exportable data from the cached report
+        top_products = self._report_data.get("top_products", [])
+        if not top_products:
+            messagebox.showwarning(
+                "Sin datos",
+                "No hay datos de productos para exportar.",
+            )
+            return
+
+        result = self._controller.export_to_csv(top_products, filepath)
+        if result["success"]:
+            messagebox.showinfo("Exportación", "Reporte exportado correctamente")
+        else:
+            messagebox.showerror("Error", result["error"])
 
     # --------------------------------------------------------------- private ---
 

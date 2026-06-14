@@ -365,6 +365,87 @@ class CashRegisterView(ctk.CTkFrame):
         """Wire the refresh callback."""
         self._on_refresh = callback
 
+    # ------------------------------------------------------- controller wire ---
+
+    def set_controller(self, controller: Any) -> None:
+        """Wire a ``CashRegisterController`` instance and set up all handlers.
+
+        After calling this, open/close/outflow/refresh actions are
+        automatically routed to the controller, and the initial status
+        and history are loaded.
+        """
+        self._controller = controller
+
+        # Wire internal handlers
+        self._on_open = self._controller_open
+        self._on_close = self._controller_close
+        self._on_outflow = self._controller_outflow
+        self._on_refresh = self._controller_refresh
+
+        # Initial load
+        self._refresh_status()
+        self._refresh_history()
+
+    # ---------------------------------------------------- controller handlers ---
+
+    def _controller_open(self, amount: int) -> None:
+        """Open the cash register via controller."""
+        result = self._controller.open_register(amount)
+        if result["success"]:
+            messagebox.showinfo("Caja", "Caja abierta correctamente")
+            self._refresh_status()
+            self._refresh_history()
+        else:
+            messagebox.showerror("Error", result["error"])
+
+    def _controller_close(self, amount: int, notes: str) -> None:
+        """Close the cash register via controller."""
+        result = self._controller.close_register(amount, notes)
+        if result["success"]:
+            data = result["data"]
+            diff = data.get("diff", 0)
+            messagebox.showinfo(
+                "Caja cerrada",
+                f"Caja cerrada correctamente.\nDiferencia: ${diff:,}",
+            )
+            self._refresh_status()
+            self._refresh_history()
+        else:
+            messagebox.showerror("Error", result["error"])
+
+    def _controller_outflow(
+        self, type_: str, amount: int, description: str | None
+    ) -> None:
+        """Register a manual outflow via controller."""
+        result = self._controller.register_outflow(type_, amount, description)
+        if result["success"]:
+            messagebox.showinfo("Egreso", "Egreso registrado correctamente")
+            self._refresh_status()
+            self._refresh_history()
+        else:
+            messagebox.showerror("Error", result["error"])
+
+    def _controller_refresh(self) -> None:
+        """Refresh both status and history."""
+        self._refresh_status()
+        self._refresh_history()
+
+    def _refresh_status(self) -> None:
+        """Reload register status from controller and update UI."""
+        result = self._controller.get_register_status()
+        if result["success"]:
+            self.update_register_status(result["data"])
+        else:
+            messagebox.showerror("Error", result["error"])
+
+    def _refresh_history(self) -> None:
+        """Reload register history from controller and update treeview."""
+        result = self._controller.get_history()
+        if result["success"]:
+            self.update_history(result["data"])
+        else:
+            messagebox.showerror("Error", result["error"])
+
     # --------------------------------------------------------------- private ---
 
     def _configure_style(self) -> None:

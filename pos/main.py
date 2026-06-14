@@ -1,7 +1,8 @@
 """POS Sales System — Entry point.
 
 Initializes the SQLite database (schema creation is idempotent) and
-launches the CustomTkinter main window.
+launches the CustomTkinter main window with all controllers wired
+to their respective views.
 
 Usage:
     python -m pos.main
@@ -21,14 +22,27 @@ from pos.model.database import get_connection, init_db
 
 
 def main() -> None:
-    """Bootstrap the application: init DB, launch UI."""
+    """Bootstrap the application: init DB, instantiate controllers, launch UI."""
     conn = get_connection()
     try:
         init_db(conn)
         conn.commit()
         print("Database initialized successfully at pos/data/pos.db")
 
-        # --- Launch UI (views only — controller wiring in Batch 7) ---
+        # ------- Controllers ------------------------------------------------
+        from pos.controller.sale_controller import SaleController
+        from pos.controller.product_controller import ProductController
+        from pos.controller.cash_register_controller import CashRegisterController
+        from pos.controller.return_controller import ReturnController
+        from pos.controller.report_controller import ReportController
+
+        sale_ctrl = SaleController(conn)
+        product_ctrl = ProductController(conn)
+        cash_register_ctrl = CashRegisterController(conn)
+        return_ctrl = ReturnController(conn)
+        report_ctrl = ReportController(conn)
+
+        # ------- Views ------------------------------------------------------
         from pos.view.main_window import MainWindow
         from pos.view.sale_view import SaleView
         from pos.view.product_view import ProductView
@@ -38,26 +52,36 @@ def main() -> None:
 
         app = MainWindow()
 
-        # Embed all views into their respective tabs
+        # Embed and wire each view into its tab
         sales_tab = app.get_tab_frame("Ventas")
         if sales_tab is not None:
-            SaleView(sales_tab).pack(fill="both", expand=True)
+            sale_view = SaleView(sales_tab)
+            sale_view.pack(fill="both", expand=True)
+            sale_view.set_controller(sale_ctrl)
 
         products_tab = app.get_tab_frame("Productos")
         if products_tab is not None:
-            ProductView(products_tab).pack(fill="both", expand=True)
+            product_view = ProductView(products_tab)
+            product_view.pack(fill="both", expand=True)
+            product_view.set_controller(product_ctrl)
 
         returns_tab = app.get_tab_frame("Devoluciones")
         if returns_tab is not None:
-            ReturnView(returns_tab).pack(fill="both", expand=True)
+            return_view = ReturnView(returns_tab)
+            return_view.pack(fill="both", expand=True)
+            return_view.set_controller(return_ctrl)
 
         cash_tab = app.get_tab_frame("Caja")
         if cash_tab is not None:
-            CashRegisterView(cash_tab).pack(fill="both", expand=True)
+            cash_register_view = CashRegisterView(cash_tab)
+            cash_register_view.pack(fill="both", expand=True)
+            cash_register_view.set_controller(cash_register_ctrl)
 
         reports_tab = app.get_tab_frame("Reportes")
         if reports_tab is not None:
-            ReportView(reports_tab).pack(fill="both", expand=True)
+            report_view = ReportView(reports_tab)
+            report_view.pack(fill="both", expand=True)
+            report_view.set_controller(report_ctrl)
 
         app.mainloop()
 

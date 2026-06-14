@@ -6,6 +6,7 @@ payment-method buttons.  All business logic lives in
 """
 
 import tkinter as tk
+from tkinter import messagebox
 from typing import Any, Callable
 
 import customtkinter as ctk
@@ -173,6 +174,106 @@ class SaleView(ctk.CTkFrame):
     def set_on_payment(self, callback: Callable[[str, int], None]) -> None:
         """Wire the payment callback."""
         self._on_payment = callback
+
+    # ------------------------------------------------------- controller wire ---
+
+    def set_controller(self, controller: Any) -> None:
+        """Wire a ``SaleController`` instance and set up all event handlers.
+
+        This is a convenience method that replaces manual callback wiring.
+        After calling this, all view events are automatically routed to
+        the controller and the cart view is refreshed.
+        """
+        self._controller = controller
+
+        # Wire internal handlers that call controller methods
+        self._on_scan = self._controller_scan
+        self._on_update_qty = self._controller_update_qty
+        self._on_remove_item = self._controller_remove_item
+        self._on_payment = self._controller_payment
+
+        # Initial cart display
+        self._update_cart()
+
+    # ---------------------------------------------------- controller handlers ---
+
+    def _controller_scan(self, barcode: str) -> None:
+        """Handle barcode scan by looking up product via controller."""
+        from pos.view.widgets.quick_create_dialog import QuickCreateDialog
+
+        result = self._controller.add_by_barcode(barcode)
+        if result["success"]:
+            self._update_cart()
+            return
+
+        # Check if it is the "not found" flow (not an error)
+        data = result.get("data") or {}
+        if data.get("barcode") == barcode and result.get("error") is None:
+            # Product not found — open QuickCreateDialog
+            dialog = QuickCreateDialog(self, barcode)
+            self.wait_window(dialog)
+            product_data = dialog.result
+            if product_data:
+                create_result = self._controller.create_quick_product(
+                    barcode=barcode,
+                    name=product_data["name"],
+                    sale_price=product_data["sale_price"],
+                )
+                if create_result["success"]:
+                    self._update_cart()
+                else:
+                    messagebox.showerror("Error", create_result["error"])
+        else:
+            messagebox.showerror("Error", result.get("error", "Error desconocido"))
+
+        self._barcode_entry.focus_set()
+
+    def _controller_update_qty(self, product_id: int, quantity: float) -> None:
+        """Handle quantity update via controller."""
+        result = self._controller.update_item_quantity(product_id, quantity)
+        if result["success"]:
+            self._update_cart()
+        else:
+            messagebox.showerror("Error", result["error"])
+
+    def _controller_remove_item(self, product_id: int) -> None:
+        """Handle item removal via controller."""
+        result = self._controller.remove_item(product_id)
+        if result["success"]:
+            self._update_cart()
+        else:
+            messagebox.showerror("Error", result["error"])
+
+    def _controller_payment(self, method: str, received: int) -> None:
+        """Process payment via controller and show receipt on success."""
+        from pos.view.widgets.receipt_preview import ReceiptPreview
+
+        result = self._controller.complete_sale(
+            payment_method=method,
+            amount_received=received,
+        )
+        if result["success"]:
+            # Show receipt preview
+            ReceiptPreview(self, result["data"])
+            self._clear_cart()
+        else:
+            messagebox.showerror("Error", result["error"])
+
+    def _update_cart(self) -> None:
+        """Refresh cart treeview and total label from controller."""
+        cart_result = self._controller.get_cart()
+        if cart_result["success"]:
+            items = cart_result["data"]["items"]
+            total = cart_result["data"]["total"]
+            self.update_cart(items)
+            self.update_total(total)
+
+    def _clear_cart(self) -> None:
+        """Clear the cart via controller and reset UI."""
+        self._controller.clear_cart()
+        self.update_cart([])
+        self.update_total(0)
+        self._barcode_entry.focus_set()
 
     # --------------------------------------------------------------- private ---
 

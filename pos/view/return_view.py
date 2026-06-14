@@ -5,6 +5,7 @@ once found, and provides quantity and reason fields with a confirm button.
 """
 
 import tkinter as tk
+from tkinter import messagebox
 from typing import Any, Callable
 
 import customtkinter as ctk
@@ -228,6 +229,58 @@ class ReturnView(ctk.CTkFrame):
         Callback receives ``(product_id, quantity, reason)``.
         """
         self._on_return = callback
+
+    # ------------------------------------------------------- controller wire ---
+
+    def set_controller(self, controller: Any) -> None:
+        """Wire a ``ReturnController`` instance and set up all event handlers.
+
+        After calling this, the barcode search and return confirmation are
+        automatically routed to the controller.
+        """
+        self._controller = controller
+
+        # Wire internal handlers
+        self._on_search = self._controller_search
+        self._on_return = self._controller_confirm_return
+
+        # Update barcode entry callback
+        self._barcode_entry.set_callback(self._controller_search)
+
+    # ---------------------------------------------------- controller handlers ---
+
+    def _controller_search(self, barcode: str) -> None:
+        """Look up product by barcode via controller (no direct repo access)."""
+        self.clear_error()
+        self.clear_product()
+
+        # Delegate to controller — view has NO access to repositories
+        result = self._controller.lookup_product(barcode)
+
+        if not result["success"]:
+            self.show_error(result["error"])
+            self.focus_barcode()
+            return
+
+        product = result["data"]
+        self.show_product(product)
+
+    def _controller_confirm_return(
+        self, product_id: int, quantity: float, reason: str | None
+    ) -> None:
+        """Process the return via controller and show the result."""
+        result = self._controller.process_return(product_id, quantity, reason)
+        if result["success"]:
+            data = result["data"]
+            refund = data.get("refund_amount", 0)
+            messagebox.showinfo(
+                "Devolución procesada",
+                f"Devolución registrada correctamente.\nReintegro: ${refund:,}",
+            )
+            self.clear_product()
+            self.focus_barcode()
+        else:
+            self.show_error(result["error"])
 
     # --------------------------------------------------------------- private ---
 

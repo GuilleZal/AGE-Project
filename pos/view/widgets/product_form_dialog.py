@@ -1,0 +1,354 @@
+"""Product form dialog — create / edit product with full field set.
+
+A ``CTkToplevel`` modal dialog that collects all product fields for
+both creation and editing workflows.  When a *product* is passed (edit
+mode) the fields are pre-populated; otherwise the form starts empty
+(create mode).
+"""
+
+import tkinter as tk
+from typing import Any
+
+import customtkinter as ctk
+
+
+class ProductFormDialog(ctk.CTkToplevel):
+    """Modal dialog to create or edit a product.
+
+    Parameters
+    ----------
+    master : tk.Widget
+        Parent window.
+    product : dict[str, Any] | None
+        Existing product data for edit mode (must include keys like
+        ``barcode``, ``name``, ``category_id``, ``sale_price``,
+        ``cost_price``, ``stock``, ``unit_type``, ``description``,
+        ``low_stock_threshold``).  ``None`` for create mode.
+    categories : list[dict[str, Any]] | None
+        Category list with keys ``id`` and ``name``.  If provided, a
+        category dropdown is shown.
+    **kwargs :
+        Forwarded to ``ctk.CTkToplevel``.
+    """
+
+    UNIT_TYPES: list[tuple[str, str]] = [
+        ("Unidad", "unit"),
+        ("Peso (kg)", "weight_kg"),
+        ("Pack", "pack"),
+    ]
+
+    def __init__(
+        self,
+        master: tk.Widget,
+        product: dict[str, Any] | None = None,
+        categories: list[dict[str, Any]] | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(master, **kwargs)
+        self.title("Editar producto" if product else "Nuevo producto")
+        self.resizable(False, False)
+
+        self.grab_set()
+        self.transient(master)
+
+        self._result: dict[str, Any] | None = None
+
+        # Build category lookup
+        if categories:
+            self._cat_map: dict[str, int | None] = {"— Sin categoría —": None}
+            for c in categories:
+                self._cat_map[c["name"]] = c["id"]
+        else:
+            self._cat_map = {"— Sin categoría —": None}
+
+        cat_names = list(self._cat_map.keys())
+        unit_labels = [label for label, _ in self.UNIT_TYPES]
+        unit_values = {label: value for label, value in self.UNIT_TYPES}
+
+        # Determine current values for edit mode
+        prev = product or {}
+        prev_barcode = prev.get("barcode", "") or ""
+        prev_name = prev.get("name", "") or ""
+        prev_cat_name = "— Sin categoría —"
+        if categories and prev.get("category_id"):
+            for c in categories:
+                if c["id"] == prev["category_id"]:
+                    prev_cat_name = c["name"]
+                    break
+        prev_sale = str(prev.get("sale_price", ""))
+        prev_cost = str(prev.get("cost_price", ""))
+        prev_stock = str(prev.get("stock", ""))
+        prev_unit_label = "Unidad"
+        for label, value in self.UNIT_TYPES:
+            if value == prev.get("unit_type", "unit"):
+                prev_unit_label = label
+                break
+        prev_desc = prev.get("description", "") or ""
+        prev_threshold = str(prev.get("low_stock_threshold", "5"))
+
+        # --- form body (scrollable if many fields) ---
+        body = ctk.CTkScrollableFrame(self, width=450, height=380)
+        body.pack(fill="both", expand=True, padx=10, pady=10)
+        body.grid_columnconfigure(0, weight=1)
+
+        row = 0
+
+        # Barcode
+        ctk.CTkLabel(body, text="Código de barras", font=ctk.CTkFont(size=12)).grid(
+            row=row, column=0, sticky="w", padx=15, pady=(10, 0)
+        )
+        row += 1
+        self._barcode_entry = ctk.CTkEntry(
+            body, width=400, placeholder_text="Opcional"
+        )
+        self._barcode_entry.insert(0, prev_barcode)
+        self._barcode_entry.grid(row=row, column=0, sticky="ew", padx=15, pady=(0, 5))
+        row += 1
+
+        # Name
+        ctk.CTkLabel(body, text="Nombre *", font=ctk.CTkFont(size=12)).grid(
+            row=row, column=0, sticky="w", padx=15, pady=(5, 0)
+        )
+        row += 1
+        self._name_entry = ctk.CTkEntry(
+            body, width=400, placeholder_text="Nombre del producto"
+        )
+        self._name_entry.insert(0, prev_name)
+        self._name_entry.grid(row=row, column=0, sticky="ew", padx=15, pady=(0, 5))
+        row += 1
+
+        # Category + Unit Type (side by side)
+        cat_unit_frame = ctk.CTkFrame(body, fg_color="transparent")
+        cat_unit_frame.grid(row=row, column=0, sticky="ew", padx=15, pady=5)
+        cat_unit_frame.grid_columnconfigure(0, weight=1)
+        cat_unit_frame.grid_columnconfigure(1, weight=1)
+        row += 1
+
+        ctk.CTkLabel(cat_unit_frame, text="Categoría", font=ctk.CTkFont(size=12)).grid(
+            row=0, column=0, sticky="w", padx=(0, 5)
+        )
+        ctk.CTkLabel(cat_unit_frame, text="Tipo de unidad", font=ctk.CTkFont(size=12)).grid(
+            row=0, column=1, sticky="w", padx=(5, 0)
+        )
+
+        self._category_var = tk.StringVar(value=prev_cat_name)
+        self._category_menu = ctk.CTkOptionMenu(
+            cat_unit_frame,
+            values=cat_names,
+            variable=self._category_var,
+            width=180,
+        )
+        self._category_menu.grid(row=1, column=0, sticky="w", padx=(0, 5), pady=(2, 0))
+
+        self._unit_var = tk.StringVar(value=prev_unit_label)
+        self._unit_menu = ctk.CTkOptionMenu(
+            cat_unit_frame,
+            values=unit_labels,
+            variable=self._unit_var,
+            width=140,
+        )
+        self._unit_menu.grid(row=1, column=1, sticky="w", padx=(5, 0), pady=(2, 0))
+
+        # Sale price + Cost price (side by side)
+        price_frame = ctk.CTkFrame(body, fg_color="transparent")
+        price_frame.grid(row=row, column=0, sticky="ew", padx=15, pady=5)
+        price_frame.grid_columnconfigure(0, weight=1)
+        price_frame.grid_columnconfigure(1, weight=1)
+        row += 1
+
+        ctk.CTkLabel(price_frame, text="Precio venta ($) *", font=ctk.CTkFont(size=12)).grid(
+            row=0, column=0, sticky="w", padx=(0, 5)
+        )
+        ctk.CTkLabel(price_frame, text="Precio costo ($) *", font=ctk.CTkFont(size=12)).grid(
+            row=0, column=1, sticky="w", padx=(5, 0)
+        )
+
+        self._sale_price_entry = ctk.CTkEntry(
+            price_frame, width=180, placeholder_text="0"
+        )
+        self._sale_price_entry.insert(0, prev_sale)
+        self._sale_price_entry.grid(row=1, column=0, sticky="w", padx=(0, 5), pady=(2, 0))
+
+        self._cost_price_entry = ctk.CTkEntry(
+            price_frame, width=180, placeholder_text="0"
+        )
+        self._cost_price_entry.insert(0, prev_cost)
+        self._cost_price_entry.grid(row=1, column=1, sticky="w", padx=(5, 0), pady=(2, 0))
+
+        # Stock + Low stock threshold (side by side)
+        stock_frame = ctk.CTkFrame(body, fg_color="transparent")
+        stock_frame.grid(row=row, column=0, sticky="ew", padx=15, pady=5)
+        stock_frame.grid_columnconfigure(0, weight=1)
+        stock_frame.grid_columnconfigure(1, weight=1)
+        row += 1
+
+        ctk.CTkLabel(stock_frame, text="Stock inicial", font=ctk.CTkFont(size=12)).grid(
+            row=0, column=0, sticky="w", padx=(0, 5)
+        )
+        ctk.CTkLabel(stock_frame, text="Umbral stock bajo", font=ctk.CTkFont(size=12)).grid(
+            row=0, column=1, sticky="w", padx=(5, 0)
+        )
+
+        self._stock_entry = ctk.CTkEntry(
+            stock_frame, width=180, placeholder_text="0"
+        )
+        self._stock_entry.insert(0, prev_stock)
+        self._stock_entry.grid(row=1, column=0, sticky="w", padx=(0, 5), pady=(2, 0))
+
+        self._low_stock_entry = ctk.CTkEntry(
+            stock_frame, width=180, placeholder_text="5"
+        )
+        self._low_stock_entry.insert(0, prev_threshold)
+        self._low_stock_entry.grid(row=1, column=1, sticky="w", padx=(5, 0), pady=(2, 0))
+
+        # Description
+        ctk.CTkLabel(body, text="Descripción", font=ctk.CTkFont(size=12)).grid(
+            row=row, column=0, sticky="w", padx=15, pady=(5, 0)
+        )
+        row += 1
+        self._desc_entry = ctk.CTkEntry(
+            body, width=400, placeholder_text="Opcional"
+        )
+        self._desc_entry.insert(0, prev_desc)
+        self._desc_entry.grid(row=row, column=0, sticky="ew", padx=15, pady=(0, 5))
+        row += 1
+
+        # Error label
+        self._error_label = ctk.CTkLabel(
+            body, text="", text_color="red", font=ctk.CTkFont(size=12)
+        )
+        self._error_label.grid(row=row, column=0, padx=15, pady=(5, 0), sticky="w")
+        row += 1
+
+        # --- bottom buttons ---
+        btn_frame = ctk.CTkFrame(self)
+        btn_frame.pack(fill="x", padx=10, pady=(5, 15))
+
+        ctk.CTkButton(
+            btn_frame,
+            text="Cancelar",
+            width=100,
+            fg_color="gray",
+            command=self._cancel,
+        ).pack(side="left", padx=5)
+
+        ctk.CTkButton(
+            btn_frame,
+            text="Guardar",
+            width=100,
+            command=self._confirm,
+        ).pack(side="right", padx=5)
+
+        self._name_entry.focus_set()
+        self._name_entry.bind("<Return>", lambda _e: self._confirm())
+
+        self.geometry("480x540")
+        self._center_on_master(master)
+
+    @property
+    def result(self) -> dict[str, Any] | None:
+        """Product data dict on confirm, ``None`` on cancel."""
+        return self._result
+
+    # --------------------------------------------------------------- private ---
+
+    def _confirm(self) -> None:
+        name = self._name_entry.get().strip()
+        if not name:
+            self._error_label.configure(text="El nombre es obligatorio")
+            self._name_entry.focus_set()
+            return
+
+        # Sale price
+        sale_raw = self._sale_price_entry.get().strip()
+        try:
+            sale_price = int(sale_raw)
+        except ValueError:
+            self._error_label.configure(text="Precio de venta inválido (entero)")
+            self._sale_price_entry.focus_set()
+            return
+        if sale_price < 0:
+            self._error_label.configure(text="El precio de venta no puede ser negativo")
+            self._sale_price_entry.focus_set()
+            return
+
+        # Cost price
+        cost_raw = self._cost_price_entry.get().strip()
+        try:
+            cost_price = int(cost_raw)
+        except ValueError:
+            self._error_label.configure(text="Precio de costo inválido (entero)")
+            self._cost_price_entry.focus_set()
+            return
+        if cost_price < 0:
+            self._error_label.configure(text="El precio de costo no puede ser negativo")
+            self._cost_price_entry.focus_set()
+            return
+
+        # Stock
+        stock_raw = self._stock_entry.get().strip() or "0"
+        try:
+            stock = float(stock_raw)
+        except ValueError:
+            self._error_label.configure(text="Stock inválido")
+            self._stock_entry.focus_set()
+            return
+        if stock < 0:
+            self._error_label.configure(text="El stock no puede ser negativo")
+            self._stock_entry.focus_set()
+            return
+
+        # Low stock threshold
+        threshold_raw = self._low_stock_entry.get().strip() or "5"
+        try:
+            low_stock_threshold = float(threshold_raw)
+        except ValueError:
+            self._error_label.configure(text="Umbral de stock inválido")
+            self._low_stock_entry.focus_set()
+            return
+
+        # Barcode
+        barcode = self._barcode_entry.get().strip() or None
+
+        # Unit type
+        unit_label = self._unit_var.get()
+        unit_type = "unit"
+        for label, value in self.UNIT_TYPES:
+            if label == unit_label:
+                unit_type = value
+                break
+
+        # Category
+        cat_name = self._category_var.get()
+        category_id = self._cat_map.get(cat_name, None)
+
+        # Description
+        description = self._desc_entry.get().strip() or None
+
+        self._error_label.configure(text="")
+        self._result = {
+            "barcode": barcode,
+            "name": name,
+            "category_id": category_id,
+            "sale_price": sale_price,
+            "cost_price": cost_price,
+            "stock": stock,
+            "unit_type": unit_type,
+            "description": description,
+            "low_stock_threshold": low_stock_threshold,
+        }
+        self.destroy()
+
+    def _cancel(self) -> None:
+        self._result = None
+        self.destroy()
+
+    def _center_on_master(self, master: tk.Widget) -> None:
+        self.update_idletasks()
+        mw, mh = master.winfo_width(), master.winfo_height()
+        mx, my = master.winfo_rootx(), master.winfo_rooty()
+        w = max(480, self.winfo_reqwidth())
+        h = self.winfo_reqheight()
+        x = mx + (mw - w) // 2
+        y = my + (mh - h) // 2
+        self.geometry(f"+{x}+{y}")

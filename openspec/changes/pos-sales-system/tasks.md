@@ -642,10 +642,10 @@ Organized by architectural layer (bottom-up: model → repository → service �
 **Estimated effort**: 300 LOC | Complexity: High | Time: 6h
 
 **Acceptance criteria**:
-- [ ] All view events wired to controller methods
-- [ ] Controller responses update view state
-- [ ] Error messages displayed via messagebox
-- [ ] End-to-end flow works: scan → cart → pay → receipt
+- [x] All view events wired to controller methods
+- [x] Controller responses update view state
+- [x] Error messages displayed via messagebox
+- [x] End-to-end flow works: scan → cart → pay → receipt
 
 ---
 
