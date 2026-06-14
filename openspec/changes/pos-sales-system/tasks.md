@@ -258,11 +258,11 @@ Organized by architectural layer (bottom-up: model → repository → service �
 **Estimated effort**: 100 LOC | Complexity: Medium | Time: 2h
 
 **Acceptance criteria**:
-- [ ] `deduct(items: List[SaleItem])` reduces stock for each product
-- [ ] `restore(product_id, quantity)` increases stock
-- [ ] Allows negative stock (never raises error for insufficient stock)
-- [ ] `low_stock_products(threshold=None)` returns products below threshold
-- [ ] Uses transaction for batch deduction
+- [x] `deduct(items: List[SaleItem])` reduces stock for each product
+- [x] `restore(product_id, quantity)` increases stock
+- [x] Allows negative stock (never raises error for insufficient stock)
+- [x] `low_stock_products(threshold=None)` returns products below threshold
+- [x] Uses transaction for batch deduction
 
 **Tests**: `pos/tests/test_stock_service.py` (≥90% coverage)
 
@@ -279,11 +279,11 @@ Organized by architectural layer (bottom-up: model → repository → service �
 **Estimated effort**: 150 LOC | Complexity: High | Time: 3h
 
 **Acceptance criteria**:
-- [ ] `sales_summary(start_date, end_date)` → total, count, avg_ticket
-- [ ] `profit_summary(start_date, end_date)` → revenue, cost, profit, margin%
-- [ ] `top_products(start_date, end_date, limit=10)` → by quantity and amount
-- [ ] `export_csv(data, filepath)` writes CSV with BOM and semicolon delimiter
-- [ ] Performance: <3s for 10k sales (verified via test with mock data)
+- [x] `sales_summary(start_date, end_date)` → total, count, avg_ticket
+- [x] `profit_summary(start_date, end_date)` → revenue, cost, profit, margin%
+- [x] `top_products(start_date, end_date, limit=10)` → by quantity and amount
+- [x] `export_csv(data, filepath)` writes CSV with BOM and semicolon delimiter
+- [x] Performance: <3s for 10k sales (verified via test with mock data)
 
 **Tests**: `pos/tests/test_report_service.py` (≥90% coverage)
 
@@ -301,11 +301,11 @@ Organized by architectural layer (bottom-up: model → repository → service �
 **Estimated effort**: 80 LOC | Complexity: Low | Time: 1.5h
 
 **Acceptance criteria**:
-- [ ] `backup_db()` copies `data/pos.db` → `data/backups/pos_YYYY-MM-DD_HHMM.zip`
-- [ ] `cleanup_old(days=30)` deletes zips older than 30 days
-- [ ] Standalone script imports only stdlib (shutil, zipfile, os, datetime)
-- [ ] Can be scheduled via Windows Task Scheduler
-- [ ] Returns success/failure status
+- [x] `backup_db()` copies `data/pos.db` → `data/backups/pos_YYYY-MM-DD_HHMM.zip`
+- [x] `cleanup_old(days=30)` deletes zips older than 30 days
+- [x] Standalone script imports only stdlib (shutil, zipfile, os, datetime)
+- [x] Can be scheduled via Windows Task Scheduler
+- [x] Returns success/failure status
 
 **Tests**: `pos/tests/test_backup_service.py` (≥90% coverage)
 

@@ -20,6 +20,15 @@ class ProductRepo:
 
     # ------------------------------------------------------------------ read
 
+    def find_by_id(self, product_id: int) -> Optional[Product]:
+        """Return the product with the given id, or ``None``."""
+        row = self._db.execute(
+            "SELECT * FROM products WHERE id = ?", (product_id,)
+        ).fetchone()
+        if row is None:
+            return None
+        return self._from_row(row)
+
     def find_by_barcode(self, barcode: str) -> Optional[Product]:
         """Return the product with the given barcode, or ``None``."""
         row = self._db.execute(
