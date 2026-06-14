@@ -31,14 +31,33 @@ def main() -> None:
         # --- Launch UI (views only — controller wiring in Batch 7) ---
         from pos.view.main_window import MainWindow
         from pos.view.sale_view import SaleView
+        from pos.view.product_view import ProductView
+        from pos.view.return_view import ReturnView
+        from pos.view.cash_register_view import CashRegisterView
+        from pos.view.report_view import ReportView
 
         app = MainWindow()
 
-        # Embed SaleView into the Ventas tab
+        # Embed all views into their respective tabs
         sales_tab = app.get_tab_frame("Ventas")
         if sales_tab is not None:
-            sale_view = SaleView(sales_tab)
-            sale_view.pack(fill="both", expand=True)
+            SaleView(sales_tab).pack(fill="both", expand=True)
+
+        products_tab = app.get_tab_frame("Productos")
+        if products_tab is not None:
+            ProductView(products_tab).pack(fill="both", expand=True)
+
+        returns_tab = app.get_tab_frame("Devoluciones")
+        if returns_tab is not None:
+            ReturnView(returns_tab).pack(fill="both", expand=True)
+
+        cash_tab = app.get_tab_frame("Caja")
+        if cash_tab is not None:
+            CashRegisterView(cash_tab).pack(fill="both", expand=True)
+
+        reports_tab = app.get_tab_frame("Reportes")
+        if reports_tab is not None:
+            ReportView(reports_tab).pack(fill="both", expand=True)
 
         app.mainloop()
 

@@ -578,12 +578,12 @@ Organized by architectural layer (bottom-up: model → repository → service �
 **Estimated effort**: 200 LOC | Complexity: High | Time: 4h
 
 **Acceptance criteria**:
-- [ ] Search bar: barcode, name, category filter
-- [ ] ProductTreeview with columns: Código, Nombre, Categoría, Precio, Stock
-- [ ] Buttons: Nuevo, Editar, Eliminar, Importar Excel
-- [ ] Category CRUD inline (dropdown with "Nueva categoría" option)
-- [ ] Emits events: `on_create`, `on_edit`, `on_delete`, `on_import`
-- [ ] Shows confirmation dialog before delete
+- [x] Search bar: barcode, name, category filter
+- [x] ProductTreeview with columns: Código, Nombre, Categoría, Precio, Stock
+- [x] Buttons: Nuevo, Editar, Eliminar, Importar Excel
+- [x] Category CRUD inline (dropdown with "Nueva categoría" option)
+- [x] Emits events: `on_create`, `on_edit`, `on_delete`, `on_import`
+- [x] Shows confirmation dialog before delete
 
 ---
 
@@ -603,28 +603,28 @@ Organized by architectural layer (bottom-up: model → repository → service �
 **Acceptance criteria**:
 
 **Return View**:
-- [ ] BarcodeEntry for product lookup
-- [ ] Product info display (name, price)
-- [ ] Quantity spinbox (default=1)
-- [ ] Reason entry (optional)
-- [ ] Confirm button
+- [x] BarcodeEntry for product lookup
+- [x] Product info display (name, price)
+- [x] Quantity spinbox (default=1)
+- [x] Reason entry (optional)
+- [x] Confirm button
 
 **Cash Register View**:
-- [ ] Balance panel: initial, inflows, outflows, expected, difference
-- [ ] Open/Close buttons
-- [ ] Outflow form (type, amount, description)
-- [ ] History treeview
+- [x] Balance panel: initial, inflows, outflows, expected, difference
+- [x] Open/Close buttons
+- [x] Outflow form (type, amount, description)
+- [x] History treeview
 
 **Report View**:
-- [ ] Period selector: Today, Week, Month, Custom range
-- [ ] Metrics cards: total, count, avg_ticket, profit, margin%
-- [ ] Top10 treeview
-- [ ] ExportCSV button
+- [x] Period selector: Today, Week, Month, Custom range
+- [x] Metrics cards: total, count, avg_ticket, profit, margin%
+- [x] Top10 treeview
+- [x] ExportCSV button
 
 **Receipt Preview**:
-- [ ] CTkToplevel with sale summary
-- [ ] Items list, total, payment method, change
-- [ ] Close button
+- [x] CTkToplevel with sale summary
+- [x] Items list, total, payment method, change
+- [x] Close button
 
 ---
 
