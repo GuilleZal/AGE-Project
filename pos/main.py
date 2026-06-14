@@ -28,10 +28,19 @@ def main() -> None:
         conn.commit()
         print("Database initialized successfully at pos/data/pos.db")
 
-        # --- Placeholder for UI launch (Batch 5+) ---
-        # from pos.view.main_window import MainWindow
-        # app = MainWindow()
-        # app.mainloop()
+        # --- Launch UI (views only — controller wiring in Batch 7) ---
+        from pos.view.main_window import MainWindow
+        from pos.view.sale_view import SaleView
+
+        app = MainWindow()
+
+        # Embed SaleView into the Ventas tab
+        sales_tab = app.get_tab_frame("Ventas")
+        if sales_tab is not None:
+            sale_view = SaleView(sales_tab)
+            sale_view.pack(fill="both", expand=True)
+
+        app.mainloop()
 
     finally:
         conn.close()

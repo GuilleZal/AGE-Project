@@ -158,6 +158,25 @@ class ProductRepo:
             )
         self._db.execute("DELETE FROM products WHERE id = ?", (product_id,))
 
+    # ----------------------------------------------------------- stock ----
+
+    def update_stock(self, product_id: int, new_stock: float) -> None:
+        """Set the stock for a product to an absolute value.
+
+        Called by ``StockService.deduct_without_transaction()`` during
+        sale atomicity — the caller manages the transaction boundary.
+
+        Args:
+            product_id: The product to update.
+            new_stock:   The new stock value (may be negative).
+        """
+        self._db.execute(
+            """UPDATE products
+               SET stock = ?, updated_at = datetime('now')
+               WHERE id = ?""",
+            (new_stock, product_id),
+        )
+
     # --------------------------------------------------------------- upsert
 
     def upsert_from_import(self, product: Product) -> tuple[Product, str]:

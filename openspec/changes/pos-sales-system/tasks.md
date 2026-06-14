@@ -313,7 +313,7 @@ Organized by architectural layer (bottom-up: model → repository → service �
 
 ## Phase 4: Controllers (Tasks 4.1-4.6)
 
-### Task 4.1: Sale Controller
+### Task 4.1: Sale Controller ✅
 **Description**: Orchestrate sale flow: barcode lookup, cart management, payment processing.
 
 **Files to create**:
@@ -325,19 +325,19 @@ Organized by architectural layer (bottom-up: model → repository → service �
 **Estimated effort**: 200 LOC | Complexity: High | Time: 4h
 
 **Acceptance criteria**:
-- [ ] `add_by_barcode(barcode)` → found: add to cart; not found: return QuickCreateDialog data
-- [ ] `update_qty(product_id, qty)` updates cart item
-- [ ] `remove_item(product_id)` removes from cart
-- [ ] `complete_sale(payment_method, received_amount)` → validates cash received ≥ total, creates sale, deducts stock, registers cash movement
-- [ ] `get_cart()` returns current cart state
-- [ ] `clear_cart()` resets for next sale
-- [ ] Catches all exceptions, returns user-friendly messages
+- [x] `add_by_barcode(barcode)` → found: add to cart; not found: return QuickCreateDialog data
+- [x] `update_qty(product_id, qty)` updates cart item
+- [x] `remove_item(product_id)` removes from cart
+- [x] `complete_sale(payment_method, received_amount)` → validates cash received ≥ total, creates sale, deducts stock, registers cash movement
+- [x] `get_cart()` returns current cart state
+- [x] `clear_cart()` resets for next sale
+- [x] Catches all exceptions, returns user-friendly messages
 
 **Tests**: `pos/tests/test_sale_controller.py` (≥80% coverage)
 
 ---
 
-### Task 4.2: Product Controller
+### Task 4.2: Product Controller ✅
 **Description**: CRUD orchestration with validation and Excel import.
 
 **Files to create**:
@@ -348,19 +348,19 @@ Organized by architectural layer (bottom-up: model → repository → service �
 **Estimated effort**: 180 LOC | Complexity: High | Time: 3.5h
 
 **Acceptance criteria**:
-- [ ] `create_product(data)` validates barcode uniqueness, creates product
-- [ ] `update_product(product_id, data)` validates, updates
-- [ ] `delete_product(product_id)` checks transaction history, blocks if exists
-- [ ] `create_category(name)` validates uniqueness
-- [ ] `import_from_excel(filepath)` → validates headers, row-by-row validation, upsert logic, returns {created, updated, errors[]}
-- [ ] `download_template(filepath)` generates .xlsx with exact columns
-- [ ] All methods catch DataError, return user-friendly messages
+- [x] `create_product(data)` validates barcode uniqueness, creates product
+- [x] `update_product(product_id, data)` validates, updates
+- [x] `delete_product(product_id)` checks transaction history, blocks if exists
+- [x] `create_category(name)` validates uniqueness
+- [x] `import_from_excel(filepath)` → validates headers, row-by-row validation, upsert logic, returns {created, updated, errors[]}
+- [x] `download_template(filepath)` generates .xlsx with exact columns
+- [x] All methods catch DataError, return user-friendly messages
 
 **Tests**: `pos/tests/test_product_controller.py` (≥80% coverage)
 
 ---
 
-### Task 4.3: Cash Register Controller
+### Task 4.3: Cash Register Controller ✅
 **Description**: Open/close lifecycle, balance calculation, outflow registration.
 
 **Files to create**:
@@ -371,18 +371,18 @@ Organized by architectural layer (bottom-up: model → repository → service �
 **Estimated effort**: 150 LOC | Complexity: Medium | Time: 3h
 
 **Acceptance criteria**:
-- [ ] `open_register(opening_amount)` validates no active register, creates
-- [ ] `close_register(actual_amount, reason)` calculates expected, difference, closes
-- [ ] `register_outflow(type, amount, description)` creates cash movement
-- [ ] `get_balance()` returns dict with opening, inflows, outflows, expected, difference
-- [ ] `get_history()` returns list of movements
-- [ ] Enforces single-active-register rule
+- [x] `open_register(opening_amount)` validates no active register, creates
+- [x] `close_register(actual_amount, reason)` calculates expected, difference, closes
+- [x] `register_outflow(type, amount, description)` creates cash movement
+- [x] `get_balance()` returns dict with opening, inflows, outflows, expected, difference
+- [x] `get_history()` returns list of movements
+- [x] Enforces single-active-register rule
 
 **Tests**: `pos/tests/test_cash_register_controller.py` (≥80% coverage)
 
 ---
 
-### Task 4.4: Return Controller
+### Task 4.4: Return Controller ✅
 **Description**: Process direct atomic returns with stock restoration.
 
 **Files to create**:
@@ -393,17 +393,17 @@ Organized by architectural layer (bottom-up: model → repository → service �
 **Estimated effort**: 100 LOC | Complexity: Medium | Time: 2h
 
 **Acceptance criteria**:
-- [ ] `lookup_product(barcode)` returns product info
-- [ ] `process_return(product_id, quantity, reason)` → restores stock, registers cash movement (type='return'), creates return record
-- [ ] Uses current cash_register_id (no original sale linkage)
-- [ ] Validates quantity > 0
-- [ ] Returns refund_amount = sale_price × quantity
+- [x] `lookup_product(barcode)` returns product info
+- [x] `process_return(product_id, quantity, reason)` → restores stock, registers cash movement (type='return'), creates return record
+- [x] Uses current cash_register_id (no original sale linkage)
+- [x] Validates quantity > 0
+- [x] Returns refund_amount = sale_price × quantity
 
 **Tests**: `pos/tests/test_return_controller.py` (≥80% coverage)
 
 ---
 
-### Task 4.5: Report Controller
+### Task 4.5: Report Controller ✅
 **Description**: Generate reports and export to CSV.
 
 **Files to create**:
@@ -414,16 +414,16 @@ Organized by architectural layer (bottom-up: model → repository → service �
 **Estimated effort**: 80 LOC | Complexity: Low | Time: 1.5h
 
 **Acceptance criteria**:
-- [ ] `generate_sales_report(start_date, end_date, filters)` calls report_service
-- [ ] `generate_profit_report(start_date, end_date)` calls report_service
-- [ ] `export_to_csv(data, filepath)` delegates to service
-- [ ] Handles date parsing errors
+- [x] `generate_sales_report(start_date, end_date, filters)` calls report_service
+- [x] `generate_profit_report(start_date, end_date)` calls report_service
+- [x] `export_to_csv(data, filepath)` delegates to service
+- [x] Handles date parsing errors
 
-**Tests**: Included in `test_report_service.py`
+**Tests**: `pos/tests/test_report_controller.py` (≥80% coverage)
 
 ---
 
-### Task 4.6: Excel Import Controller
+### Task 4.6: Excel Import Controller ✅
 **Description**: Validate and import products from Excel with upsert logic.
 
 **Files to create**:
@@ -434,12 +434,12 @@ Organized by architectural layer (bottom-up: model → repository → service �
 **Estimated effort**: 120 LOC | Complexity: High | Time: 2.5h
 
 **Acceptance criteria**:
-- [ ] `validate_headers(filepath)` checks exact column match
-- [ ] `parse_and_validate(filepath)` row-by-row validation (prices≥0, unit_type valid, no nulls)
-- [ ] `preview(filepath)` returns first 10 rows
-- [ ] `import_products(filepath)` → transaction: upsert logic, returns {created, updated, errors[]}
-- [ ] Detects intra-file barcode duplicates
-- [ ] Rolls back entire transaction on any DB error
+- [x] `validate_headers(filepath)` checks exact column match
+- [x] `parse_and_validate(filepath)` row-by-row validation (prices≥0, unit_type valid, no nulls)
+- [x] `preview(filepath)` returns first 10 rows
+- [x] `import_products(filepath)` → transaction: upsert logic, returns {created, updated, errors[]}
+- [x] Detects intra-file barcode duplicates
+- [x] Rolls back entire transaction on any DB error
 
 **Tests**: `pos/tests/test_excel_import_controller.py` (≥80% coverage)
 
@@ -459,11 +459,11 @@ Organized by architectural layer (bottom-up: model → repository → service �
 **Estimated effort**: 80 LOC | Complexity: Low | Time: 1.5h
 
 **Acceptance criteria**:
-- [ ] CTk root window with title "Sistema POS"
-- [ ] CTkTabview with 5 tabs: Ventas, Productos, Devoluciones, Caja, Reportes
-- [ ] Dark theme default
-- [ ] Window size 1200x800
-- [ ] Sales tab is default/active
+- [x] CTk root window with title "Sistema POS"
+- [x] CTkTabview with 5 tabs: Ventas, Productos, Devoluciones, Caja, Reportes
+- [x] Dark theme default
+- [x] Window size 1200x800
+- [x] Sales tab is default/active
 
 ---
 
@@ -479,12 +479,12 @@ Organized by architectural layer (bottom-up: model → repository → service �
 **Estimated effort**: 60 LOC | Complexity: Medium | Time: 1.5h
 
 **Acceptance criteria**:
-- [ ] Binds `<Return>` event to callback
-- [ ] Strips whitespace from input
-- [ ] Validates numeric characters only
-- [ ] Debounces rapid scans (<300ms ignored)
-- [ ] Auto-focuses after each scan
-- [ ] Emits `on_scan` event with barcode value
+- [x] Binds `<Return>` event to callback
+- [x] Strips whitespace from input
+- [x] Validates numeric characters only
+- [x] Debounces rapid scans (<300ms ignored)
+- [x] Auto-focuses after each scan
+- [x] Emits `on_scan` event with barcode value
 
 ---
 
@@ -499,11 +499,11 @@ Organized by architectural layer (bottom-up: model → repository → service �
 **Estimated effort**: 70 LOC | Complexity: Medium | Time: 1.5h
 
 **Acceptance criteria**:
-- [ ] Columns: Producto, Cantidad, Precio Unit., Subtotal
-- [ ] Styled to match CTk dark theme
-- [ ] `update_cart(items: List[dict])` refreshes display
-- [ ] `get_selected_item()` returns selected row
-- [ ] Supports delete key to remove item
+- [x] Columns: Producto, Cantidad, Precio Unit., Subtotal
+- [x] Styled to match CTk dark theme
+- [x] `update_cart(items: List[dict])` refreshes display
+- [x] `get_selected_item()` returns selected row
+- [x] Supports delete key to remove item
 
 ---
 
@@ -518,12 +518,12 @@ Organized by architectural layer (bottom-up: model → repository → service �
 **Estimated effort**: 150 LOC | Complexity: High | Time: 3h
 
 **Acceptance criteria**:
-- [ ] Layout: BarcodeEntry (top), CartTreeview (center), Total label (bottom-right), Payment buttons (bottom)
-- [ ] BarcodeEntry always focused
-- [ ] Total updates in real-time
-- [ ] Payment buttons: Efectivo, Tarjeta, Transferencia, Mixto
-- [ ] Emits events: `on_scan`, `on_update_qty`, `on_remove_item`, `on_payment`
-- [ ] Shows receipt preview after sale
+- [x] Layout: BarcodeEntry (top), CartTreeview (center), Total label (bottom-right), Payment buttons (bottom)
+- [x] BarcodeEntry always focused
+- [x] Total updates in real-time
+- [x] Payment buttons: Efectivo, Tarjeta, Transferencia, Mixto
+- [x] Emits events: `on_scan`, `on_update_qty`, `on_remove_item`, `on_payment`
+- [x] Shows receipt preview after sale
 
 ---
 
@@ -538,12 +538,12 @@ Organized by architectural layer (bottom-up: model → repository → service �
 **Estimated effort**: 80 LOC | Complexity: Medium | Time: 2h
 
 **Acceptance criteria**:
-- [ ] CTkToplevel modal dialog
-- [ ] Pre-fills barcode (read-only)
-- [ ] Prompts: name (required), sale_price (required, int ≥0)
-- [ ] OK/Cancel buttons
-- [ ] Returns dict with product data or None if cancelled
-- [ ] Validates input before allowing OK
+- [x] CTkToplevel modal dialog
+- [x] Pre-fills barcode (read-only)
+- [x] Prompts: name (required), sale_price (required, int ≥0)
+- [x] OK/Cancel buttons
+- [x] Returns dict with product data or None if cancelled
+- [x] Validates input before allowing OK
 
 ---
 
@@ -558,11 +558,11 @@ Organized by architectural layer (bottom-up: model → repository → service �
 **Estimated effort**: 90 LOC | Complexity: Medium | Time: 2h
 
 **Acceptance criteria**:
-- [ ] Payment method selector (radio buttons or dropdown)
-- [ ] If cash: "Monto recibido" field (int ≥ total)
-- [ ] Calculates and displays change (vuelto)
-- [ ] Validates received ≥ total for cash
-- [ ] Returns dict with {payment_method, received, change} or None
+- [x] Payment method selector (radio buttons or dropdown)
+- [x] If cash: "Monto recibido" field (int ≥ total)
+- [x] Calculates and displays change (vuelto)
+- [x] Validates received ≥ total for cash
+- [x] Returns dict with {payment_method, received, change} or None
 
 ---
 

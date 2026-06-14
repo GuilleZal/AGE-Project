@@ -1,0 +1,181 @@
+"""Tests for ProductController — CRUD orchestration with validation."""
+import pytest
+import sqlite3
+from pos.controller.product_controller import ProductController
+
+
+@pytest.fixture
+def product_ctrl(db: sqlite3.Connection) -> ProductController:
+    return ProductController(db)
+
+
+class TestCreateProduct:
+    """Product creation with validation."""
+
+    def test_create_valid_product(self, product_ctrl, sample_category):
+        cat1, _ = sample_category
+        result = product_ctrl.create_product({
+            "name": "Sprite 2L",
+            "barcode": "7790000000001",
+            "sale_price": 600,
+            "cost_price": 350,
+            "unit_type": "unit",
+            "category_id": cat1,
+            "stock": 20,
+        })
+        assert result["success"] is True
+        assert result["data"].name == "Sprite 2L"
+        assert result["data"].sale_price == 600
+        assert result["data"].id is not None
+
+    def test_create_duplicate_barcode_blocked(self, product_ctrl, sample_category):
+        cat1, _ = sample_category
+        product_ctrl.create_product({
+            "name": "X", "barcode": "7790000000001",
+            "sale_price": 100, "cost_price": 50, "unit_type": "unit",
+        })
+        result = product_ctrl.create_product({
+            "name": "Y", "barcode": "7790000000001",
+            "sale_price": 200, "cost_price": 100, "unit_type": "unit",
+        })
+        assert result["success"] is False
+        assert "ya existe" in result["error"].lower()
+
+    def test_create_empty_name_blocked(self, product_ctrl):
+        result = product_ctrl.create_product({
+            "name": "  ", "sale_price": 100, "cost_price": 50, "unit_type": "unit",
+        })
+        assert result["success"] is False
+
+    def test_create_negative_price_blocked(self, product_ctrl):
+        result = product_ctrl.create_product({
+            "name": "Test", "sale_price": -10, "cost_price": 50, "unit_type": "unit",
+        })
+        assert result["success"] is False
+
+    def test_create_default_values(self, product_ctrl):
+        result = product_ctrl.create_product({
+            "name": "Minimal", "sale_price": 100, "cost_price": 50, "unit_type": "unit",
+        })
+        assert result["success"] is True
+        p = result["data"]
+        assert p.stock == 0.0
+        assert p.low_stock_threshold == 5.0
+
+
+class TestUpdateProduct:
+    """Product update with partial data."""
+
+    def test_update_name(self, product_ctrl, sample_products):
+        pid = sample_products[0]  # Coca-Cola
+        result = product_ctrl.update_product(pid, {"name": "Coca-Cola 2L"})
+        assert result["success"] is True
+        assert result["data"].name == "Coca-Cola 2L"
+
+    def test_update_price(self, product_ctrl, sample_products):
+        pid = sample_products[0]
+        result = product_ctrl.update_product(pid, {"sale_price": 900})
+        assert result["success"] is True
+        assert result["data"].sale_price == 900
+
+    def test_update_nonexistent(self, product_ctrl):
+        result = product_ctrl.update_product(99999, {"name": "Ghost"})
+        assert result["success"] is False
+
+    def test_update_partial_preserves_others(self, product_ctrl, sample_products):
+        pid = sample_products[0]
+        original = product_ctrl.get_product(pid)
+        result = product_ctrl.update_product(pid, {"sale_price": 999})
+        assert result["success"] is True
+        assert result["data"].name == original["data"].name  # unchanged
+
+
+class TestDeleteProduct:
+    """Product deletion with transaction history protection."""
+
+    def test_delete_product_no_history(self, product_ctrl, sample_products):
+        pid = sample_products[4]  # Six-Pack — no sales
+        result = product_ctrl.delete_product(pid)
+        assert result["success"] is True
+
+        # Verify gone
+        result = product_ctrl.get_product(pid)
+        assert result["success"] is False
+
+    def test_delete_blocked_on_sales(self, product_ctrl, db, sample_products):
+        pid = sample_products[0]
+        # Create a sale referencing this product
+        db.execute("INSERT INTO cash_registers (opening_amount, opening_time, status) VALUES (5000, 'now', 'open')")
+        db.execute("INSERT INTO sales (total, payment_method, cash_register_id) VALUES (800, 'cash', 1)")
+        db.execute("INSERT INTO sale_items (sale_id, product_id, quantity, unit_price, subtotal) VALUES (1, ?, 1, 800, 800)", (pid,))
+        db.commit()
+
+        result = product_ctrl.delete_product(pid)
+        assert result["success"] is False
+        assert "historial" in result["error"].lower()
+
+
+class TestGetAndListProducts:
+    """Product retrieval and listing."""
+
+    def test_get_product(self, product_ctrl, sample_products):
+        pid = sample_products[0]
+        result = product_ctrl.get_product(pid)
+        assert result["success"] is True
+        assert result["data"].name == "Coca-Cola 1.5L"
+
+    def test_get_nonexistent(self, product_ctrl):
+        result = product_ctrl.get_product(99999)
+        assert result["success"] is False
+
+    def test_list_all(self, product_ctrl, sample_products):
+        result = product_ctrl.list_products()
+        assert result["success"] is True
+        assert len(result["data"]) == 5
+
+    def test_list_with_search(self, product_ctrl, sample_products):
+        result = product_ctrl.list_products({"search": "Coca"})
+        assert result["success"] is True
+        assert len(result["data"]) == 1
+        assert result["data"][0].name == "Coca-Cola 1.5L"
+
+    def test_list_low_stock(self, product_ctrl, sample_products):
+        result = product_ctrl.list_products({"low_stock": True})
+        assert result["success"] is True
+        # Maní has 0.3 stock, threshold 5
+        names = [p.name for p in result["data"]]
+        assert "Maní Salado x Kg" in names
+
+
+class TestCategories:
+    """Category CRUD via ProductController."""
+
+    def test_create_category(self, product_ctrl):
+        result = product_ctrl.create_category("Vinos")
+        assert result["success"] is True
+        assert result["data"].name == "Vinos"
+
+    def test_create_duplicate_category_blocked(self, product_ctrl):
+        product_ctrl.create_category("Vinos")
+        result = product_ctrl.create_category("Vinos")
+        assert result["success"] is False
+
+    def test_list_categories(self, product_ctrl, sample_category):
+        result = product_ctrl.list_categories()
+        assert result["success"] is True
+        assert len(result["data"]) == 2
+
+
+class TestGenerateTemplate:
+    """Excel template generation."""
+
+    def test_generate_template(self, product_ctrl, tmp_path):
+        path = tmp_path / "template.xlsx"
+        result = product_ctrl.generate_template(str(path))
+        assert result["success"] is True
+
+        import openpyxl
+        wb = openpyxl.load_workbook(str(path))
+        ws = wb.active
+        headers = [cell.value for cell in next(ws.iter_rows(min_row=1, max_row=1))]
+        assert headers == ["barcode", "name", "sale_price", "cost_price", "stock", "unit_type"]

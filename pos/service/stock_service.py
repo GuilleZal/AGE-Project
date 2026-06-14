@@ -35,25 +35,47 @@ class StockService:
         Raises:
             DataError: If a ``product_id`` does not exist in the database.
         """
+        if not items:
+            return
+
         try:
             self._db.execute("BEGIN")
-            for item in items:
-                product = self._repo.find_by_id(item.product_id)
-                if product is None:
-                    raise DataError(
-                        f"Producto con id={item.product_id} no encontrado"
-                    )
-                # Decrease stock — negative is allowed
-                self._db.execute(
-                    """UPDATE products
-                       SET stock = stock - ?, updated_at = datetime('now')
-                       WHERE id = ?""",
-                    (item.quantity, item.product_id),
-                )
+            self._deduct_impl(items)
             self._db.execute("COMMIT")
         except Exception:
             self._db.execute("ROLLBACK")
             raise
+
+    def deduct_without_transaction(self, items: list[SaleItem]) -> None:
+        """Deduct stock without managing the transaction boundary.
+
+        The **caller** is responsible for ``BEGIN`` / ``COMMIT`` /
+        ``ROLLBACK``.  This method only performs the data updates so it
+        can participate in a larger atomic operation (e.g. a complete sale
+        that also persists the sale record and cash movement).
+
+        Args:
+            items: Sale items whose stock must be reduced.
+
+        Raises:
+            DataError: If a ``product_id`` does not exist in the database.
+        """
+        if not items:
+            return
+        self._deduct_impl(items)
+
+    # --------------------------------------------------------- impl (shared)
+
+    def _deduct_impl(self, items: list[SaleItem]) -> None:
+        """Core stock deduction — no transaction management."""
+        for item in items:
+            product = self._repo.find_by_id(item.product_id)
+            if product is None:
+                raise DataError(
+                    f"Producto con id={item.product_id} no encontrado"
+                )
+            new_stock = product.stock - item.quantity
+            self._repo.update_stock(item.product_id, new_stock)
 
     # --------------------------------------------------------------- restore
 
