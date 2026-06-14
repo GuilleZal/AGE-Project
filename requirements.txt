@@ -1,0 +1,10 @@
+# Python 3.12 Compatibility — target Python >=3.12, <3.13
+# This project MUST run on Python 3.12 (hardware compatibility requirement).
+# All code uses Python 3.10+ syntax only (PEP 604 unions, dataclasses, etc.).
+# No Python 3.13+ features (PEP 695 type statement, etc.) are allowed.
+python_requires>=3.12,<3.13
+
+customtkinter>=5.2.0
+openpyxl>=3.1.0
+pytest>=8.0.0
+pytest-mock>=3.12.0
