@@ -101,6 +101,7 @@ class SaleController:
                 low_stock_threshold=5.0,
             )
             created = self._product_repo.create(product)
+            self._db.commit()  # close implicit transaction so complete_sale can BEGIN
             return self._add_product_to_cart(created, 1.0)
         except POSException as e:
             return {"success": False, "data": None, "error": str(e)}
