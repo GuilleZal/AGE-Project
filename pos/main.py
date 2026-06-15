@@ -83,6 +83,11 @@ def main() -> None:
             report_view.pack(fill="both", expand=True)
             report_view.set_controller(report_ctrl)
 
+        # --- Cross-view wiring ---
+        # After a sale, refresh the cash register view to update balance
+        if sales_tab is not None and cash_tab is not None:
+            sale_view._on_sale_completed = cash_register_view._controller_refresh
+
         app.mainloop()
 
     finally:

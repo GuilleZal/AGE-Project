@@ -196,7 +196,9 @@ class CashRegisterView(ctk.CTkFrame):
         self._right_frame.grid(
             row=0, column=1, sticky="nsew", padx=(5, 10), pady=10
         )
-        self._right_frame.grid_rowconfigure(0, weight=1)
+        self._right_frame.grid_rowconfigure(0, weight=0)  # label
+        self._right_frame.grid_rowconfigure(1, weight=1)  # movement preview
+        self._right_frame.grid_rowconfigure(2, weight=1)  # history
         self._right_frame.grid_columnconfigure(0, weight=1)
 
         ctk.CTkLabel(
@@ -205,9 +207,54 @@ class CashRegisterView(ctk.CTkFrame):
             font=ctk.CTkFont(size=15, weight="bold"),
         ).grid(row=0, column=0, sticky="w", padx=15, pady=(10, 5))
 
+        # -- movement preview panel (above history) --
+        self._preview_frame = ctk.CTkFrame(self._right_frame)
+        self._preview_frame.grid(
+            row=1, column=0, sticky="nsew", padx=15, pady=(0, 5)
+        )
+        self._preview_frame.grid_rowconfigure(1, weight=1)
+        self._preview_frame.grid_columnconfigure(0, weight=1)
+
+        self._preview_label = ctk.CTkLabel(
+            self._preview_frame,
+            text="Movimientos",
+            font=ctk.CTkFont(size=13, weight="bold"),
+        )
+        self._preview_label.grid(row=0, column=0, sticky="w", padx=5, pady=(5, 2))
+
+        self._preview_columns = ("tipo", "monto", "descripcion", "hora")
+        self._preview_tree = ttk.Treeview(
+            self._preview_frame,
+            columns=self._preview_columns,
+            show="headings",
+            selectmode="browse",
+            height=5,
+        )
+        self._preview_tree.heading("tipo", text="Tipo")
+        self._preview_tree.heading("monto", text="Monto")
+        self._preview_tree.heading("descripcion", text="Descripción")
+        self._preview_tree.heading("hora", text="Hora")
+
+        self._preview_tree.column("tipo", width=100, anchor="w")
+        self._preview_tree.column("monto", width=80, anchor="e")
+        self._preview_tree.column("descripcion", width=180, anchor="w")
+        self._preview_tree.column("hora", width=100, anchor="center")
+
+        self._preview_scroll = ttk.Scrollbar(
+            self._preview_frame,
+            orient="vertical",
+            command=self._preview_tree.yview,
+        )
+        self._preview_tree.configure(
+            yscrollcommand=self._preview_scroll.set
+        )
+        self._preview_tree.grid(row=1, column=0, sticky="nsew", padx=5, pady=(0, 5))
+        self._preview_scroll.grid(row=1, column=1, sticky="ns", pady=(0, 5))
+
+        # -- history treeview (below preview) --
         self._history_frame = ctk.CTkFrame(self._right_frame)
         self._history_frame.grid(
-            row=1, column=0, sticky="nsew", padx=15, pady=(0, 10)
+            row=2, column=0, sticky="nsew", padx=15, pady=(0, 10)
         )
         self._history_frame.grid_rowconfigure(0, weight=1)
         self._history_frame.grid_columnconfigure(0, weight=1)
@@ -258,6 +305,9 @@ class CashRegisterView(ctk.CTkFrame):
 
         self._history_tree.grid(row=0, column=0, sticky="nsew")
         self._history_scroll.grid(row=0, column=1, sticky="ns")
+
+        # Bind selection event to show movements preview
+        self._history_tree.bind("<<TreeviewSelect>>", self._handle_history_select)
 
     # ---------------------------------------------------------------- public ---
 
@@ -443,8 +493,56 @@ class CashRegisterView(ctk.CTkFrame):
         result = self._controller.get_history()
         if result["success"]:
             self.update_history(result["data"])
+            # Auto-show movements for active register if one is open
+            self._auto_preview_active_register()
         else:
             messagebox.showerror("Error", result["error"])
+
+    def _auto_preview_active_register(self) -> None:
+        """Show movements for the active register in the preview panel."""
+        result = self._controller.get_register_status()
+        if result["success"] and result["data"]["active"]:
+            register_id = result["data"]["register"]["id"]
+            self._update_preview(register_id, label=f"Caja actual #{register_id}")
+
+    def _handle_history_select(self, event: Any) -> None:
+        """Handle selection in history treeview — show movements for selected register."""
+        selection = self._history_tree.selection()
+        if not selection:
+            return
+        register_id = int(selection[0])
+        self._update_preview(register_id, label=f"Caja #{register_id}")
+
+    def _update_preview(self, register_id: int, label: str = "Movimientos") -> None:
+        """Populate the movement preview panel for a specific register."""
+        self._preview_label.configure(text=label)
+        # Clear existing items
+        for child in self._preview_tree.get_children():
+            self._preview_tree.delete(child)
+
+        result = self._controller.get_movements(register_id)
+        if not result["success"]:
+            return
+
+        type_labels = {
+            "sale_cash": "Venta",
+            "return": "Devolución",
+            "supplier_payment": "Pago prov.",
+            "expense": "Gasto",
+        }
+        for m in result["data"]:
+            type_text = type_labels.get(m["type"], m["type"])
+            time_text = _truncate_time(m.get("created_at", ""))
+            self._preview_tree.insert(
+                "",
+                "end",
+                values=(
+                    type_text,
+                    f"${m['amount']:,}",
+                    m.get("description") or "",
+                    time_text,
+                ),
+            )
 
     # --------------------------------------------------------------- private ---
 

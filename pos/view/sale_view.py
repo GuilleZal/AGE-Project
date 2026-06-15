@@ -34,7 +34,6 @@ class SaleView(ctk.CTkFrame):
         ("Efectivo", "cash"),
         ("Tarjeta", "card"),
         ("Transferencia", "transfer"),
-        ("Mixto", "mixed"),
     ]
 
     def __init__(
@@ -57,6 +56,9 @@ class SaleView(ctk.CTkFrame):
         self._on_payment: Callable[[str, int], None] | None = callbacks.get(
             "on_payment"
         )
+        self._on_sale_completed: Callable[[], None] | None = callbacks.get(
+            "on_sale_completed"
+        )
 
         self._total: int = 0
 
@@ -67,6 +69,7 @@ class SaleView(ctk.CTkFrame):
         self._barcode_entry = BarcodeEntry(
             self,
             on_scan=self._handle_scan,
+            on_search=self._handle_search,
             height=45,
             font=ctk.CTkFont(size=18),
         )
@@ -197,13 +200,12 @@ class SaleView(ctk.CTkFrame):
         """
         self._controller = controller
 
-        # Wire internal handlers that call controller methods
         self._on_scan = self._controller_scan
         self._on_update_qty = self._controller_update_qty
         self._on_remove_item = self._controller_remove_item
         self._on_payment = self._controller_payment
+        self._controller_search = self._controller.search_products
 
-        # Initial cart display
         self._update_cart()
 
     # ---------------------------------------------------- controller handlers ---
@@ -267,6 +269,9 @@ class SaleView(ctk.CTkFrame):
             # Show receipt preview
             ReceiptPreview(self, result["data"])
             self._clear_cart()
+            # Notify other views (e.g., cash register) that a sale completed
+            if self._on_sale_completed is not None:
+                self._on_sale_completed()
         else:
             messagebox.showerror("Error", result["error"])
 
@@ -291,6 +296,39 @@ class SaleView(ctk.CTkFrame):
     def _handle_scan(self, barcode: str) -> None:
         if self._on_scan is not None:
             self._on_scan(barcode)
+
+    def _handle_search(self, query: str) -> None:
+        if not hasattr(self, "_controller_search") or self._controller_search is None:
+            return
+        result = self._controller_search(query)
+        if not result["success"]:
+            messagebox.showerror("Error", result.get("error", "Error desconocido"))
+            self._barcode_entry.focus_set()
+            return
+        products = result["data"]
+        if not products:
+            messagebox.showinfo("Buscar", "No se encontraron productos")
+            self._barcode_entry.focus_set()
+            return
+        if len(products) == 1:
+            add_result = self._controller.add_by_barcode(products[0].barcode)
+            if add_result["success"]:
+                self._update_cart()
+            else:
+                messagebox.showerror("Error", add_result.get("error", "Error desconocido"))
+            self._barcode_entry.focus_set()
+            return
+        from pos.view.widgets.product_search_dialog import ProductSearchDialog
+        dialog = ProductSearchDialog(self, products)
+        self.wait_window(dialog)
+        selected = dialog.result
+        if selected is not None:
+            add_result = self._controller.add_by_barcode(selected.barcode)
+            if add_result["success"]:
+                self._update_cart()
+            else:
+                messagebox.showerror("Error", add_result.get("error", "Error desconocido"))
+        self._barcode_entry.focus_set()
 
     def _handle_remove(self, product_id: int) -> None:
         if self._on_remove_item is not None:

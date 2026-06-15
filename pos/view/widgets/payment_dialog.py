@@ -29,7 +29,6 @@ class PaymentDialog(ctk.CTkToplevel):
         ("Efectivo", "cash"),
         ("Tarjeta", "card"),
         ("Transferencia", "transfer"),
-        ("Mixto", "mixed"),
     ]
 
     def __init__(

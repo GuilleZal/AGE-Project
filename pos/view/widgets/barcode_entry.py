@@ -4,6 +4,10 @@ Binds ``<Return>`` to a scan callback, strips whitespace, validates that
 the input contains only numeric characters, and debounces rapid
 hardware-scanner events (< 300 ms between scans).  After each scan the
 widget clears and re-focuses itself automatically.
+
+Tracks inter-keypress timing to distinguish barcode scanners (fast burst,
+< 50 ms gaps) from manual typing (> 50 ms gaps).  Scanner input fires
+``on_scan``; manual input on Enter fires ``on_search``.
 """
 
 import time
@@ -23,6 +27,9 @@ class BarcodeEntry(ctk.CTkEntry):
     on_scan : Callable[[str], None] | None
         Callback invoked with the scanned (trimmed, validated) barcode
         when the user presses ``<Return>`` and the debounce check passes.
+    on_search : Callable[[str], None] | None
+        Callback invoked with the typed text when the user presses
+        ``<Return>`` in manual-typing mode (slow input, > 50 ms gaps).
     **kwargs :
         Forwarded to ``ctk.CTkEntry``.
     """
@@ -31,14 +38,21 @@ class BarcodeEntry(ctk.CTkEntry):
         self,
         master: tk.Widget,
         on_scan: Callable[[str], None] | None = None,
+        on_search: Callable[[str], None] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(master, **kwargs)
         self._on_scan: Callable[[str], None] | None = on_scan
+        self._on_search: Callable[[str], None] | None = on_search
         self._last_scan_time: float = 0.0
         self._debounce_ms: int = 300
+        self._last_key_time: float = 0.0
+        self._scanner_threshold_ms: int = 50
+        self._is_scanner_mode: bool = False
 
-        self.bind("<Return>", self._handle_scan)
+        self.bind("<KeyRelease>", self._handle_key_release)
+        self.bind("<Return>", self._handle_return)
+        self.bind("<FocusIn>", self._handle_focus_in)
 
         if not kwargs.get("placeholder_text"):
             self.configure(placeholder_text="Escanear código de barras...")
@@ -49,32 +63,59 @@ class BarcodeEntry(ctk.CTkEntry):
         """Replace the scan callback at runtime."""
         self._on_scan = on_scan
 
+    def set_search_callback(self, on_search: Callable[[str], None]) -> None:
+        """Replace the search callback at runtime."""
+        self._on_search = on_search
+
     # --------------------------------------------------------------- private ---
 
-    def _handle_scan(self, _event: tk.Event | None = None) -> None:
-        raw = self.get().strip()
+    def _handle_focus_in(self, _event: tk.Event | None = None) -> None:
+        self._last_key_time = 0.0
+        self._is_scanner_mode = False
 
-        # --- clear immediately so the widget is ready for the next scan ---
+    def _handle_key_release(self, event: tk.Event | None = None) -> None:
+        if event is None:
+            return
+        if event.keysym == "Return":
+            return
+        now = time.time()
+        if self._last_key_time > 0:
+            gap_ms = (now - self._last_key_time) * 1000
+            if gap_ms < self._scanner_threshold_ms:
+                self._is_scanner_mode = True
+        self._last_key_time = now
+
+    def _handle_return(self, _event: tk.Event | None = None) -> str | None:
+        raw = self.get().strip()
         self.delete(0, "end")
 
         if not raw:
             self.focus_set()
-            return
+            return "break"
 
-        # --- validate numeric ---
+        if self._is_scanner_mode:
+            self._dispatch_scan(raw)
+        else:
+            self._dispatch_search(raw)
+
+        self._last_key_time = 0.0
+        self._is_scanner_mode = False
+        self.focus_set()
+        return "break"
+
+    def _dispatch_scan(self, raw: str) -> None:
         if not raw.isdigit():
-            self.focus_set()
             return
 
-        # --- debounce ---
         now = time.time()
         elapsed_ms = (now - self._last_scan_time) * 1000
         if elapsed_ms < self._debounce_ms:
-            self.focus_set()
             return
         self._last_scan_time = now
 
         if self._on_scan is not None:
             self._on_scan(raw)
 
-        self.focus_set()
+    def _dispatch_search(self, raw: str) -> None:
+        if self._on_search is not None:
+            self._on_search(raw)

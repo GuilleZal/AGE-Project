@@ -77,7 +77,7 @@ CREATE TABLE IF NOT EXISTS sales (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
     total           INTEGER NOT NULL,
     discount        INTEGER NOT NULL DEFAULT 0,
-    payment_method  TEXT NOT NULL CHECK(payment_method IN ('cash','card','transfer','mixed')),
+    payment_method  TEXT NOT NULL CHECK(payment_method IN ('cash','card','transfer')),
     cash_register_id INTEGER REFERENCES cash_registers(id),
     created_at      TEXT NOT NULL DEFAULT (datetime('now'))
 );

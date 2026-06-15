@@ -164,6 +164,5 @@ def _format_method(method: str) -> str:
         "cash": "Efectivo",
         "card": "Tarjeta",
         "transfer": "Transferencia",
-        "mixed": "Mixto",
     }
     return labels.get(method, method)

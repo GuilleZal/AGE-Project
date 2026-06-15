@@ -51,6 +51,7 @@ class CashRegisterController:
                 }
 
             register = self._register_repo.open_register(initial_amount)
+            self._db.commit()
             return {"success": True, "data": register, "error": None}
         except POSException as e:
             return {"success": False, "data": None, "error": str(e)}
@@ -105,6 +106,7 @@ class CashRegisterController:
                 difference=diff,
                 reason=notes.strip(),
             )
+            self._db.commit()
             return {
                 "success": True,
                 "data": {
@@ -243,6 +245,7 @@ class CashRegisterController:
                 }
 
             balance = self._register_repo.get_balance(active.id)
+            balance["difference"] = balance["expected"] - balance["opening"]
             return {
                 "success": True,
                 "data": {
@@ -313,6 +316,27 @@ class CashRegisterController:
                         "status": r.status,
                     }
                     for r in registers
+                ],
+                "error": None,
+            }
+        except POSException as e:
+            return {"success": False, "data": None, "error": str(e)}
+
+    def get_movements(self, register_id: int) -> dict:
+        """Return all cash movements for a specific register session."""
+        try:
+            movements = self._movement_repo.get_by_register(register_id)
+            return {
+                "success": True,
+                "data": [
+                    {
+                        "id": m.id,
+                        "type": m.type,
+                        "amount": m.amount,
+                        "description": m.description,
+                        "created_at": m.created_at,
+                    }
+                    for m in movements
                 ],
                 "error": None,
             }

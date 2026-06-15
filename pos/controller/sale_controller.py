@@ -150,6 +150,13 @@ class SaleController:
         total = self._calculate_total()
         return {"success": True, "data": {"total": total}, "error": None}
 
+    def search_products(self, query: str) -> dict:
+        """Search products by barcode, name, or category name."""
+        if not query or not query.strip():
+            return {"success": True, "data": [], "error": None}
+        products = self._product_repo.search_unified(query.strip())
+        return {"success": True, "data": products, "error": None}
+
     def clear_cart(self) -> dict:
         """Empty the cart after a successful sale."""
         self._cart.clear()

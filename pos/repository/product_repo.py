@@ -38,6 +38,22 @@ class ProductRepo:
             return None
         return self._from_row(row)
 
+    def search_unified(self, query: str) -> list[Product]:
+        """Search products by barcode, name, or category name."""
+        q = f"%{query}%"
+        rows = self._db.execute(
+            """SELECT DISTINCT p.id, p.barcode, p.name, p.cost_price,
+                      p.sale_price, p.stock, p.unit_type, p.description,
+                      p.low_stock_threshold, p.category_id,
+                      p.created_at, p.updated_at
+               FROM products p
+               LEFT JOIN categories c ON p.category_id = c.id
+               WHERE p.barcode LIKE ? OR p.name LIKE ? OR c.name LIKE ?
+               ORDER BY p.name""",
+            (q, q, q),
+        ).fetchall()
+        return [self._from_row(r) for r in rows]
+
     def search(self, query: str) -> list[Product]:
         """Search products by name (``LIKE %query%``)."""
         rows = self._db.execute(

@@ -21,7 +21,6 @@ class PaymentMethod(str, Enum):
     CASH = "cash"
     CARD = "card"
     TRANSFER = "transfer"
-    MIXED = "mixed"
 
 
 class MovementType(str, Enum):
