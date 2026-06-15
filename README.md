@@ -1,4 +1,4 @@
-# Sistema POS — Tienda de Bebidas
+# Sistema POS 
 
 Sistema de punto de venta para tienda de bebidas y productos relacionados.
 Diseñado para Argentina — precios en ARS ($), pesos enteros, facturación simple.
