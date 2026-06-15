@@ -122,13 +122,13 @@ class ProductController:
         """List products, optionally filtered.
 
         Supported *filters* keys:
-            ``search`` — name LIKE query
+            ``search`` — searches by barcode, name, or category name
             ``category_id`` — exact category match
             ``low_stock`` — bool, only products at/below threshold
         """
         try:
             if filters and filters.get("search"):
-                products = self._product_repo.search(filters["search"])
+                products = self._product_repo.search_unified(filters["search"])
             else:
                 products = self._product_repo.get_all()
 

@@ -130,8 +130,8 @@ class ProductView(ctk.CTkFrame):
 
         ctk.CTkButton(
             self._action_frame,
-            text="＋ Nuevo",
-            width=100,
+            text="＋ Nuevo Producto",
+            width=140,
             font=ctk.CTkFont(size=13, weight="bold"),
             command=self._handle_create,
         ).pack(side="left", padx=3)
