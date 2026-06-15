@@ -35,9 +35,44 @@ def init_db(conn: sqlite3.Connection) -> None:
     """Execute full DDL (all 10 tables + indexes) inside *conn*.
 
     Idempotent — uses ``IF NOT EXISTS`` so it is safe to call on every
-    application start.
+    application start.  Also runs any pending migrations for existing
+    databases created with older schemas.
     """
     conn.executescript(DDL)
+    _run_migrations(conn)
+
+
+def _run_migrations(conn: sqlite3.Connection) -> None:
+    """Apply schema migrations for existing databases.
+
+    Each migration checks if it's already been applied before making changes.
+    Safe to call on every application start.
+    """
+    # Migration 1: Add sale_card and sale_transfer to cash_movements type constraint
+    row = conn.execute(
+        "SELECT sql FROM sqlite_master WHERE type='table' AND name='cash_movements'"
+    ).fetchone()
+    if row and "sale_card" not in row["sql"]:
+        conn.executescript("""
+            CREATE TABLE cash_movements_new (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                cash_register_id INTEGER NOT NULL REFERENCES cash_registers(id),
+                type            TEXT NOT NULL CHECK(type IN ('sale_cash','sale_card','sale_transfer','return','supplier_payment','expense')),
+                amount          INTEGER NOT NULL,
+                description     TEXT,
+                created_at      TEXT NOT NULL DEFAULT (datetime('now'))
+            );
+
+            INSERT INTO cash_movements_new SELECT * FROM cash_movements;
+
+            DROP TABLE cash_movements;
+
+            ALTER TABLE cash_movements_new RENAME TO cash_movements;
+
+            CREATE INDEX idx_cash_movements_register ON cash_movements(cash_register_id);
+            CREATE INDEX idx_cash_movements_type ON cash_movements(type);
+            CREATE INDEX idx_cash_movements_date ON cash_movements(created_at);
+        """)
 
 
 # ------------------------------------------------------------------ DDL ----
