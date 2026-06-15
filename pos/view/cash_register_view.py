@@ -137,15 +137,6 @@ class CashRegisterView(ctk.CTkFrame):
         )
         self._close_btn.pack(side="left", padx=5)
 
-        ctk.CTkButton(
-            btn_frame,
-            text="Actualizar",
-            width=80,
-            height=40,
-            fg_color="#3b3b3b",
-            command=self._handle_refresh,
-        ).pack(side="right", padx=5)
-
         # -- outflow form --
         self._outflow_frame = ctk.CTkFrame(self._left_frame)
         self._outflow_frame.grid(

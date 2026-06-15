@@ -65,17 +65,35 @@ class SaleView(ctk.CTkFrame):
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(1, weight=1)  # cart row stretches
 
-        # --- row 0: barcode entry (always visible, always focused) ---
+        # --- row 0: top bar (barcode entry + search button) ---
+        self._top_frame = ctk.CTkFrame(self)
+        self._top_frame.grid(
+            row=0, column=0, sticky="ew", padx=10, pady=(10, 5)
+        )
+        self._top_frame.grid_columnconfigure(0, weight=1)
+
+        # --- barcode entry (always visible, always focused) ---
         self._barcode_entry = BarcodeEntry(
-            self,
+            self._top_frame,
             on_scan=self._handle_scan,
             on_search=self._handle_search,
             height=45,
             font=ctk.CTkFont(size=18),
         )
         self._barcode_entry.grid(
-            row=0, column=0, sticky="ew", padx=10, pady=(10, 5)
+            row=0, column=0, sticky="ew", padx=(0, 5)
         )
+
+        # --- search button (magnifying glass) ---
+        self._search_btn = ctk.CTkButton(
+            self._top_frame,
+            text="🔍",
+            width=50,
+            height=45,
+            font=ctk.CTkFont(size=18),
+            command=self._handle_search_button,
+        )
+        self._search_btn.grid(row=0, column=1, sticky="e")
 
         # --- row 1: cart treeview ---
         self._cart_tree = CartTreeview(
@@ -317,6 +335,31 @@ class SaleView(ctk.CTkFrame):
             else:
                 messagebox.showerror("Error", add_result.get("error", "Error desconocido"))
             self._barcode_entry.focus_set()
+            return
+        from pos.view.widgets.product_search_dialog import ProductSearchDialog
+        dialog = ProductSearchDialog(self, products)
+        self.wait_window(dialog)
+        selected = dialog.result
+        if selected is not None:
+            add_result = self._controller.add_by_barcode(selected.barcode)
+            if add_result["success"]:
+                self._update_cart()
+            else:
+                messagebox.showerror("Error", add_result.get("error", "Error desconocido"))
+        self._barcode_entry.focus_set()
+
+    def _handle_search_button(self) -> None:
+        """Open search dialog with all products for manual browsing."""
+        if not hasattr(self, "_controller_search") or self._controller_search is None:
+            return
+        # Search with empty query to get all products
+        result = self._controller_search("")
+        if not result["success"]:
+            messagebox.showerror("Error", result.get("error", "Error desconocido"))
+            return
+        products = result["data"]
+        if not products:
+            messagebox.showinfo("Buscar", "No hay productos disponibles")
             return
         from pos.view.widgets.product_search_dialog import ProductSearchDialog
         dialog = ProductSearchDialog(self, products)
