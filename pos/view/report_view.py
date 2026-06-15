@@ -18,6 +18,7 @@ from pos.view.widgets.column_persistence import (
     get_treeview_widths,
     apply_treeview_widths,
 )
+from pos.view.widgets.treeview_sorting import add_sorting_to_treeview
 
 
 class ReportView(ctk.CTkFrame):
@@ -199,6 +200,18 @@ class ReportView(ctk.CTkFrame):
         saved_widths = load_column_widths("report_view")
         apply_treeview_widths(self._top_tree, saved_widths)
 
+        # Add column sorting
+        add_sorting_to_treeview(
+            self._top_tree,
+            list(self._top_columns),
+            column_types={
+                "pos": "int",
+                "producto": "str",
+                "cantidad": "int",
+                "monto": "int",
+            }
+        )
+
         self._top_scroll = ttk.Scrollbar(
             self._tree_frame,
             orient="vertical",
@@ -374,7 +387,8 @@ class ReportView(ctk.CTkFrame):
         """Save column widths when the widget is destroyed."""
         if event.widget == self:
             widths = get_treeview_widths(self._top_tree)
-            save_column_widths("report_view", widths)
+            if widths:
+                save_column_widths("report_view", widths)
 
     def _get_date_range(self) -> tuple[str, str] | None:
         """Resolve the selected period to (start, end) ISO datetime strings.

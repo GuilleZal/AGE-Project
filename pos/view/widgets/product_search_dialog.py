@@ -13,6 +13,7 @@ from pos.view.widgets.column_persistence import (
     get_treeview_widths,
     apply_treeview_widths,
 )
+from pos.view.widgets.treeview_sorting import add_sorting_to_treeview
 
 
 class ProductSearchDialog(ctk.CTkToplevel):
@@ -110,6 +111,18 @@ class ProductSearchDialog(ctk.CTkToplevel):
         saved_widths = load_column_widths("product_search_dialog")
         apply_treeview_widths(self._tree, saved_widths)
 
+        # Add column sorting
+        add_sorting_to_treeview(
+            self._tree,
+            list(columns),
+            column_types={
+                "codigo": "str",
+                "nombre": "str",
+                "categoria": "str",
+                "precio": "int",
+            }
+        )
+
         self._tree.pack(fill="both", expand=True, padx=10, pady=(5, 5))
 
         self._populate_tree(products)
@@ -156,7 +169,8 @@ class ProductSearchDialog(ctk.CTkToplevel):
         """Save column widths when the dialog is destroyed."""
         if event.widget == self:
             widths = get_treeview_widths(self._tree)
-            save_column_widths("product_search_dialog", widths)
+            if widths:
+                save_column_widths("product_search_dialog", widths)
 
     def _on_search_changed(self, *args) -> None:
         """Filter products based on search text (name or category)."""

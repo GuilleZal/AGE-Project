@@ -19,6 +19,7 @@ from pos.view.widgets.column_persistence import (
     get_treeview_widths,
     apply_treeview_widths,
 )
+from pos.view.widgets.treeview_sorting import add_sorting_to_treeview
 
 
 class ProductView(ctk.CTkFrame):
@@ -126,6 +127,21 @@ class ProductView(ctk.CTkFrame):
         # Load saved column widths
         saved_widths = load_column_widths("product_view")
         apply_treeview_widths(self._tree, saved_widths)
+
+        # Add column sorting
+        add_sorting_to_treeview(
+            self._tree,
+            list(self.COLUMNS),
+            column_types={
+                "codigo": "str",
+                "nombre": "str",
+                "categoria": "str",
+                "costo": "int",
+                "precio": "int",
+                "ganancia": "float",
+                "stock": "int",
+            }
+        )
 
         self._scrollbar = ttk.Scrollbar(
             self._tree_frame,
@@ -492,7 +508,8 @@ class ProductView(ctk.CTkFrame):
         # Only save if this is the actual widget being destroyed (not children)
         if event.widget == self:
             widths = get_treeview_widths(self._tree)
-            save_column_widths("product_view", widths)
+            if widths:
+                save_column_widths("product_view", widths)
 
     # ------------------------------------------------------- event handlers ---
 

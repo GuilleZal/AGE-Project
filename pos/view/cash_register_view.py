@@ -18,6 +18,7 @@ from pos.view.widgets.column_persistence import (
     get_treeview_widths,
     apply_treeview_widths,
 )
+from pos.view.widgets.treeview_sorting import add_sorting_to_treeview
 
 
 class CashRegisterView(ctk.CTkFrame):
@@ -235,6 +236,18 @@ class CashRegisterView(ctk.CTkFrame):
         saved_widths = load_column_widths("cash_register_movements")
         apply_treeview_widths(self._preview_tree, saved_widths)
 
+        # Add column sorting for movements
+        add_sorting_to_treeview(
+            self._preview_tree,
+            list(self._preview_columns),
+            column_types={
+                "tipo": "str",
+                "monto": "int",
+                "descripcion": "str",
+                "hora": "str",
+            }
+        )
+
         self._preview_vscroll = ttk.Scrollbar(
             self._preview_frame,
             orient="vertical",
@@ -306,6 +319,21 @@ class CashRegisterView(ctk.CTkFrame):
         # Load saved column widths for history
         saved_widths = load_column_widths("cash_register_history")
         apply_treeview_widths(self._history_tree, saved_widths)
+
+        # Add column sorting for history
+        add_sorting_to_treeview(
+            self._history_tree,
+            list(self._history_columns),
+            column_types={
+                "id": "int",
+                "apertura": "str",
+                "cierre": "str",
+                "inicial": "int",
+                "final": "int",
+                "diferencia": "int",
+                "estado": "str",
+            }
+        )
 
         self._history_scroll = ttk.Scrollbar(
             self._history_frame,
@@ -605,10 +633,12 @@ class CashRegisterView(ctk.CTkFrame):
         if event.widget == self:
             # Save movements treeview widths
             widths = get_treeview_widths(self._preview_tree)
-            save_column_widths("cash_register_movements", widths)
+            if widths:
+                save_column_widths("cash_register_movements", widths)
             # Save history treeview widths
             widths = get_treeview_widths(self._history_tree)
-            save_column_widths("cash_register_history", widths)
+            if widths:
+                save_column_widths("cash_register_history", widths)
 
     def _handle_open(self) -> None:
         dialog = _AmountDialog(

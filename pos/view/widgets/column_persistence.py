@@ -64,19 +64,27 @@ def save_column_widths(view_name: str, widths: dict[str, int]) -> None:
         pass  # Silently fail if we can't write
 
 
-def get_treeview_widths(tree: Any) -> dict[str, int]:
+def get_treeview_widths(tree: Any) -> dict[str, int] | None:
     """Extract current column widths from a treeview.
     
     Args:
         tree: ttk.Treeview instance
     
     Returns:
-        Dict mapping column names to widths
+        Dict mapping column names to widths, or None if tree is invalid
     """
-    widths = {}
-    for col in tree["columns"]:
-        widths[col] = tree.column(col, "width")
-    return widths
+    try:
+        # Verificar que el treeview aún existe
+        if not tree.winfo_exists():
+            return None
+        
+        widths = {}
+        for col in tree["columns"]:
+            widths[col] = tree.column(col, "width")
+        return widths
+    except (tk.TclError, AttributeError, RuntimeError):
+        # El widget ya fue destruido o no es válido
+        return None
 
 
 def apply_treeview_widths(tree: Any, widths: dict[str, int] | None) -> None:
