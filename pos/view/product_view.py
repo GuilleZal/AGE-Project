@@ -160,22 +160,23 @@ class ProductView(ctk.CTkFrame):
             command=self._handle_import,
         ).pack(side="left", padx=3)
 
-        # --- category inline ---
-        ctk.CTkLabel(
+        # --- category/tag management ---
+        ctk.CTkButton(
             self._action_frame,
-            text="  Categorías:",
-            font=ctk.CTkFont(size=12),
-        ).pack(side="left", padx=(15, 2))
+            text="＋ Nueva etiqueta",
+            width=140,
+            fg_color="#2d5a3d",
+            command=self._prompt_new_category,
+        ).pack(side="left", padx=3)
 
-        self._category_var = tk.StringVar(value="＋ Nueva categoría")
-        self._category_menu = ctk.CTkOptionMenu(
+        # --- refresh button ---
+        ctk.CTkButton(
             self._action_frame,
-            values=["＋ Nueva categoría"],
-            variable=self._category_var,
-            width=150,
-            command=self._handle_category_action,
-        )
-        self._category_menu.pack(side="left", padx=3)
+            text="🔄 Actualizar",
+            width=120,
+            fg_color="#3b3b3b",
+            command=self._refresh_products,
+        ).pack(side="right", padx=3)
 
     # ---------------------------------------------------------------- public ---
 
@@ -229,14 +230,6 @@ class ProductView(ctk.CTkFrame):
         self._categories = categories
         # Update search bar dropdown
         self._search_bar.set_categories(categories)
-        # Update inline category menu
-        cat_names = ["＋ Nueva categoría"] + [c["name"] for c in categories]
-        current = self._category_var.get()
-        self._category_menu.configure(values=cat_names)
-        if current in cat_names:
-            self._category_var.set(current)
-        else:
-            self._category_var.set("＋ Nueva categoría")
 
     def get_selected_product_id(self) -> int | None:
         """Return the product ID of the selected row, or ``None``."""
@@ -514,11 +507,6 @@ class ProductView(ctk.CTkFrame):
         if self._on_import is not None:
             self._on_import()
 
-    def _handle_category_action(self, _value: str) -> None:
-        selected = self._category_var.get()
-        if selected == "＋ Nueva categoría":
-            self._prompt_new_category()
-
     def _prompt_new_category(self) -> None:
         """Show a small dialog to enter a new category name."""
         dialog = _CategoryCreateDialog(self)
@@ -526,9 +514,6 @@ class ProductView(ctk.CTkFrame):
         name = dialog.result
         if name and self._on_create_category is not None:
             self._on_create_category(name)
-        # Reset the dropdown (controller will call set_categories
-        # to refresh the list after creation)
-        self._category_var.set("＋ Nueva categoría")
 
 
 # ----------------------------------------------------------------- helpers ---
