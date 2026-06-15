@@ -151,10 +151,15 @@ class SaleController:
         return {"success": True, "data": {"total": total}, "error": None}
 
     def search_products(self, query: str) -> dict:
-        """Search products by barcode, name, or category name."""
-        if not query or not query.strip():
-            return {"success": True, "data": [], "error": None}
-        products = self._product_repo.search_unified(query.strip())
+        """Search products by barcode, name, or category name.
+        
+        If query is empty, returns all products.
+        """
+        query = query.strip() if query else ""
+        if not query:
+            products = self._product_repo.get_all()
+        else:
+            products = self._product_repo.search_unified(query)
         return {"success": True, "data": products, "error": None}
 
     def clear_cart(self) -> dict:
