@@ -84,4 +84,4 @@ Ver [docs/backup_scheduling.md](docs/backup_scheduling.md) para programación au
 
 ## Licencia
 
-Proyecto académico — Universidad Nacional de General Sarmiento (UNGS).
+Proyecto Academico — Universidad Tecnologica Nacional Facultad Regional Resistencia (UTN FRRe)
