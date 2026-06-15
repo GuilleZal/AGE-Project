@@ -128,8 +128,6 @@ class ProductSearchDialog(ctk.CTkToplevel):
 
         self._populate_tree(products)
 
-        self._tree.bind("<Double-1>", self._on_select)
-
         btn_frame = ctk.CTkFrame(self)
         btn_frame.pack(pady=(5, 10))
 
