@@ -74,6 +74,19 @@ def _run_migrations(conn: sqlite3.Connection) -> None:
             CREATE INDEX idx_cash_movements_date ON cash_movements(created_at);
         """)
 
+    # Migration 2: Add settings table
+    row = conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='settings'"
+    ).fetchone()
+    if row is None:
+        conn.executescript("""
+            CREATE TABLE settings (
+                key         TEXT PRIMARY KEY,
+                value       TEXT NOT NULL,
+                updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
+            );
+        """)
+
 
 # ------------------------------------------------------------------ DDL ----
 # NOTE: Currency fields (prices, amounts, totals) use INTEGER to represent
@@ -206,4 +219,11 @@ CREATE TABLE IF NOT EXISTS returns (
 CREATE INDEX IF NOT EXISTS idx_returns_product      ON returns(product_id);
 CREATE INDEX IF NOT EXISTS idx_returns_date         ON returns(created_at);
 CREATE INDEX IF NOT EXISTS idx_returns_cash_register ON returns(cash_register_id);
+
+-- ========================================================== SETTINGS
+CREATE TABLE IF NOT EXISTS settings (
+    key         TEXT PRIMARY KEY,
+    value       TEXT NOT NULL,
+    updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
+);
 """

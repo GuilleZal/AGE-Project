@@ -90,7 +90,7 @@ class SaleRepo:
                FROM sale_items si
                JOIN products p ON p.id = si.product_id
                JOIN sales    s ON s.id = si.sale_id
-               WHERE s.created_at >= ? AND s.created_at <= ?
+                WHERE s.created_at >= ? AND s.created_at <= ?
                GROUP BY p.id
                ORDER BY total_quantity DESC
                LIMIT ?""",

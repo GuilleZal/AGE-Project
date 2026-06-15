@@ -187,21 +187,14 @@ class CashRegisterView(ctk.CTkFrame):
         self._right_frame.grid(
             row=0, column=1, sticky="nsew", padx=(5, 10), pady=10
         )
-        self._right_frame.grid_rowconfigure(0, weight=0)  # label
-        self._right_frame.grid_rowconfigure(1, weight=1)  # movement preview
-        self._right_frame.grid_rowconfigure(2, weight=1)  # history
+        self._right_frame.grid_rowconfigure(0, weight=1)  # movement preview
+        self._right_frame.grid_rowconfigure(1, weight=1)  # history
         self._right_frame.grid_columnconfigure(0, weight=1)
-
-        ctk.CTkLabel(
-            self._right_frame,
-            text="Historial de cajas",
-            font=ctk.CTkFont(size=15, weight="bold"),
-        ).grid(row=0, column=0, sticky="w", padx=15, pady=(10, 5))
 
         # -- movement preview panel (above history) --
         self._preview_frame = ctk.CTkFrame(self._right_frame)
         self._preview_frame.grid(
-            row=1, column=0, sticky="nsew", padx=15, pady=(0, 5)
+            row=0, column=0, sticky="nsew", padx=15, pady=(0, 5)
         )
         self._preview_frame.grid_rowconfigure(1, weight=1)
         self._preview_frame.grid_columnconfigure(0, weight=1)
@@ -211,7 +204,7 @@ class CashRegisterView(ctk.CTkFrame):
             text="Movimientos",
             font=ctk.CTkFont(size=13, weight="bold"),
         )
-        self._preview_label.grid(row=0, column=0, sticky="w", padx=5, pady=(5, 2))
+        self._preview_label.grid(row=0, column=0, sticky="w", padx=5, pady=(5, 2), columnspan=2)
 
         self._preview_columns = ("tipo", "monto", "descripcion", "hora")
         self._preview_tree = ttk.Treeview(
@@ -226,29 +219,43 @@ class CashRegisterView(ctk.CTkFrame):
         self._preview_tree.heading("descripcion", text="Descripción")
         self._preview_tree.heading("hora", text="Hora")
 
-        self._preview_tree.column("tipo", width=100, anchor="w")
-        self._preview_tree.column("monto", width=80, anchor="e")
-        self._preview_tree.column("descripcion", width=180, anchor="w")
-        self._preview_tree.column("hora", width=100, anchor="center")
+        self._preview_tree.column("tipo", width=120, anchor="w")
+        self._preview_tree.column("monto", width=100, anchor="e")
+        self._preview_tree.column("descripcion", width=250, anchor="w")
+        self._preview_tree.column("hora", width=120, anchor="center")
 
-        self._preview_scroll = ttk.Scrollbar(
+        self._preview_vscroll = ttk.Scrollbar(
             self._preview_frame,
             orient="vertical",
             command=self._preview_tree.yview,
         )
-        self._preview_tree.configure(
-            yscrollcommand=self._preview_scroll.set
+        self._preview_hscroll = ttk.Scrollbar(
+            self._preview_frame,
+            orient="horizontal",
+            command=self._preview_tree.xview,
         )
-        self._preview_tree.grid(row=1, column=0, sticky="nsew", padx=5, pady=(0, 5))
-        self._preview_scroll.grid(row=1, column=1, sticky="ns", pady=(0, 5))
+        self._preview_tree.configure(
+            yscrollcommand=self._preview_vscroll.set,
+            xscrollcommand=self._preview_hscroll.set,
+        )
+        self._preview_tree.grid(row=1, column=0, sticky="nsew", padx=5, pady=(0, 0))
+        self._preview_vscroll.grid(row=1, column=1, sticky="ns", pady=(0, 0))
+        self._preview_hscroll.grid(row=2, column=0, sticky="ew", padx=5, pady=(0, 5))
 
         # -- history treeview (below preview) --
         self._history_frame = ctk.CTkFrame(self._right_frame)
         self._history_frame.grid(
-            row=2, column=0, sticky="nsew", padx=15, pady=(0, 10)
+            row=1, column=0, sticky="nsew", padx=15, pady=(0, 10)
         )
-        self._history_frame.grid_rowconfigure(0, weight=1)
+        self._history_frame.grid_rowconfigure(1, weight=1)
         self._history_frame.grid_columnconfigure(0, weight=1)
+
+        # Title for history section
+        ctk.CTkLabel(
+            self._history_frame,
+            text="Historial de cajas",
+            font=ctk.CTkFont(size=15, weight="bold"),
+        ).grid(row=0, column=0, sticky="w", padx=5, pady=(5, 2), columnspan=2)
 
         self._history_columns = (
             "id",
@@ -290,12 +297,19 @@ class CashRegisterView(ctk.CTkFrame):
             orient="vertical",
             command=self._history_tree.yview,
         )
+        self._history_hscroll = ttk.Scrollbar(
+            self._history_frame,
+            orient="horizontal",
+            command=self._history_tree.xview,
+        )
         self._history_tree.configure(
-            yscrollcommand=self._history_scroll.set
+            yscrollcommand=self._history_scroll.set,
+            xscrollcommand=self._history_hscroll.set,
         )
 
-        self._history_tree.grid(row=0, column=0, sticky="nsew")
-        self._history_scroll.grid(row=0, column=1, sticky="ns")
+        self._history_tree.grid(row=1, column=0, sticky="nsew")
+        self._history_scroll.grid(row=1, column=1, sticky="ns")
+        self._history_hscroll.grid(row=2, column=0, sticky="ew")
 
         # Bind selection event to show movements preview
         self._history_tree.bind("<<TreeviewSelect>>", self._handle_history_select)
@@ -758,9 +772,7 @@ class _CloseDialog(ctk.CTkToplevel):
         if amount < 0:
             self._error_label.configure(text="El monto no puede ser negativo")
             return
-        if not notes:
-            self._error_label.configure(text="Ingrese un motivo de cierre")
-            return
+        # Notes are now optional
         self._result = {"amount": amount, "notes": notes}
         self.destroy()
 

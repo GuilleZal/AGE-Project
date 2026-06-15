@@ -80,12 +80,7 @@ class CashRegisterController:
                 "data": None,
                 "error": "El monto contado no puede ser negativo",
             }
-        if not notes.strip():
-            return {
-                "success": False,
-                "data": None,
-                "error": "Debe ingresar un motivo de cierre",
-            }
+        # Notes are now optional
 
         try:
             active = self._register_repo.find_active()

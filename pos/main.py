@@ -88,6 +88,10 @@ def main() -> None:
         if sales_tab is not None and cash_tab is not None:
             sale_view._on_sale_completed = cash_register_view._controller_refresh
 
+        # After a return, refresh the cash register view to update balance
+        if returns_tab is not None and cash_tab is not None:
+            return_view._on_return_completed = cash_register_view._controller_refresh
+
         app.mainloop()
 
     finally:

@@ -1,0 +1,110 @@
+"""Settings service — manage global preferences and apply bulk updates."""
+
+import sqlite3
+
+from pos.repository.settings_repo import SettingsRepo
+from pos.repository.product_repo import ProductRepo
+
+
+# Setting keys
+LOW_STOCK_THRESHOLD = "low_stock_threshold"
+PROFIT_MARGIN_PCT = "profit_margin_pct"
+
+# Defaults
+DEFAULT_LOW_STOCK_THRESHOLD = 5.0
+DEFAULT_PROFIT_MARGIN_PCT = 30.0
+
+
+class SettingsService:
+    """Business logic for global settings.
+
+    Provides methods to get/set preferences and apply bulk updates
+    to all products (e.g., recalculate prices based on margin).
+    """
+
+    def __init__(self, db: sqlite3.Connection) -> None:
+        self._db = db
+        self._settings_repo = SettingsRepo(db)
+        self._product_repo = ProductRepo(db)
+
+    # -------------------------------------------------------- getters
+
+    def get_low_stock_threshold(self) -> float:
+        """Return the global low-stock threshold."""
+        return self._settings_repo.get_float(
+            LOW_STOCK_THRESHOLD, DEFAULT_LOW_STOCK_THRESHOLD
+        )
+
+    def get_profit_margin_pct(self) -> float:
+        """Return the global profit margin percentage."""
+        return self._settings_repo.get_float(
+            PROFIT_MARGIN_PCT, DEFAULT_PROFIT_MARGIN_PCT
+        )
+
+    def get_all(self) -> dict[str, float]:
+        """Return all settings as a dict."""
+        return {
+            LOW_STOCK_THRESHOLD: self.get_low_stock_threshold(),
+            PROFIT_MARGIN_PCT: self.get_profit_margin_pct(),
+        }
+
+    # -------------------------------------------------------- setters
+
+    def set_low_stock_threshold(self, value: float) -> None:
+        """Set the global low-stock threshold."""
+        self._settings_repo.set(LOW_STOCK_THRESHOLD, str(value))
+
+    def set_profit_margin_pct(self, value: float) -> None:
+        """Set the global profit margin percentage."""
+        self._settings_repo.set(PROFIT_MARGIN_PCT, str(value))
+
+    # -------------------------------------------------------- bulk operations
+
+    def apply_low_stock_threshold(self, threshold: float, category_id: int | None = None) -> int:
+        """Update products' low_stock_threshold to *threshold*.
+
+        Args:
+            threshold: New threshold value.
+            category_id: If provided, only update products in this category.
+                        If None, update all products.
+
+        Returns the number of products updated.
+        """
+        if category_id is None:
+            self._db.execute(
+                "UPDATE products SET low_stock_threshold = ?", (threshold,)
+            )
+        else:
+            self._db.execute(
+                "UPDATE products SET low_stock_threshold = ? WHERE category_id = ?",
+                (threshold, category_id),
+            )
+        return self._db.execute("SELECT changes()").fetchone()[0]
+
+    def apply_profit_margin(self, margin_pct: float, category_id: int | None = None) -> int:
+        """Recalculate products' sale_price based on cost_price and margin.
+
+        Formula: sale_price = cost_price * (1 + margin_pct / 100)
+
+        Args:
+            margin_pct: New profit margin percentage.
+            category_id: If provided, only update products in this category.
+                        If None, update all products.
+
+        Returns the number of products updated.
+        """
+        multiplier = 1 + (margin_pct / 100)
+        if category_id is None:
+            self._db.execute(
+                """UPDATE products
+                   SET sale_price = CAST(ROUND(cost_price * ?) AS INTEGER)""",
+                (multiplier,),
+            )
+        else:
+            self._db.execute(
+                """UPDATE products
+                   SET sale_price = CAST(ROUND(cost_price * ?) AS INTEGER)
+                   WHERE category_id = ?""",
+                (multiplier, category_id),
+            )
+        return self._db.execute("SELECT changes()").fetchone()[0]

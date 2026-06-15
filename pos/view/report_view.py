@@ -130,9 +130,8 @@ class ReportView(ctk.CTkFrame):
         card_defs = [
             ("Total ventas", "total", 0, "$0"),
             ("Operaciones", "count", 1, "0"),
-            ("Ticket promedio", "avg_ticket", 2, "$0"),
-            ("Ganancia", "profit", 3, "$0"),
-            ("Margen", "margin", 4, "0%"),
+            ("Ganancia", "profit", 2, "$0"),
+            ("Margen", "margin", 3, "0%"),
         ]
         for label, key, col, default in card_defs:
             card = ctk.CTkFrame(
@@ -230,9 +229,6 @@ class ReportView(ctk.CTkFrame):
         )
         self._metric_cards["count"].configure(
             text=str(sales.get("count", 0))
-        )
-        self._metric_cards["avg_ticket"].configure(
-            text=f"${sales.get('avg_ticket', 0):,}"
         )
         self._metric_cards["profit"].configure(
             text=f"${profit.get('profit', 0):,}"
@@ -359,7 +355,11 @@ class ReportView(ctk.CTkFrame):
             self._custom_frame.pack_forget()
 
     def _get_date_range(self) -> tuple[str, str] | None:
-        """Resolve the selected period to (start, end) ISO date strings.
+        """Resolve the selected period to (start, end) ISO datetime strings.
+
+        The end date always includes ``23:59:59`` so that records with a
+        time component on the last day are not excluded by the SQL
+        ``created_at <= ?`` comparison.
 
         Returns ``None`` if the user chose "Personalizado" but entered
         invalid or empty dates.
@@ -371,13 +371,13 @@ class ReportView(ctk.CTkFrame):
 
         if period == "Hoy":
             iso = today.isoformat()
-            return iso, iso
+            return iso, f"{iso} 23:59:59"
         elif period == "Esta semana":
             start = today - timedelta(days=today.weekday())
-            return start.isoformat(), today.isoformat()
+            return start.isoformat(), f"{today.isoformat()} 23:59:59"
         elif period == "Este mes":
             start = today.replace(day=1)
-            return start.isoformat(), today.isoformat()
+            return start.isoformat(), f"{today.isoformat()} 23:59:59"
         elif period == "Personalizado":
             start_raw = self._start_entry.get().strip()
             end_raw = self._end_entry.get().strip()
@@ -396,7 +396,7 @@ class ReportView(ctk.CTkFrame):
                     "Las fechas deben tener el formato YYYY-MM-DD.",
                 )
                 return None
-            return start_raw, end_raw
+            return start_raw, f"{end_raw} 23:59:59"
         return None
 
     def _handle_generate(self) -> None:

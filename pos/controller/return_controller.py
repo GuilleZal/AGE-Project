@@ -255,3 +255,34 @@ class ReturnController:
             return {"success": True, "data": result, "error": None}
         except POSException as e:
             return {"success": False, "data": None, "error": str(e)}
+
+    # ---------------------------------------------------------- search products ---
+
+    def search_products(self, query: str) -> dict:
+        """Search products by barcode, name, or category name.
+
+        If query is empty, returns all products.
+        """
+        try:
+            query = query.strip() if query else ""
+            if not query:
+                products = self._product_repo.get_all()
+            else:
+                products = self._product_repo.search_unified(query)
+            return {"success": True, "data": products, "error": None}
+        except POSException as e:
+            return {"success": False, "data": None, "error": str(e)}
+
+    def list_categories(self) -> dict:
+        """Return all categories for the search dialog."""
+        try:
+            from pos.repository.category_repo import CategoryRepo
+            category_repo = CategoryRepo(self._db)
+            categories = category_repo.get_all()
+            return {
+                "success": True,
+                "data": categories,
+                "error": None,
+            }
+        except POSException as e:
+            return {"success": False, "data": None, "error": str(e)}

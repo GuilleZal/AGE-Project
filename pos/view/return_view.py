@@ -43,22 +43,42 @@ class ReturnView(ctk.CTkFrame):
         self._on_return: (
             Callable[[int, float, str | None], None] | None
         ) = callbacks.get("on_return")
+        self._on_return_completed: Callable[[], None] | None = callbacks.get(
+            "on_return_completed"
+        )
 
         self._current_product: dict[str, Any] | None = None
 
         self.grid_columnconfigure(0, weight=1)
 
-        # --- row 0: barcode entry ---
+        # --- row 0: barcode entry + search button ---
+        self._top_frame = ctk.CTkFrame(self)
+        self._top_frame.grid(
+            row=0, column=0, sticky="ew", padx=10, pady=(10, 5)
+        )
+        self._top_frame.grid_columnconfigure(0, weight=1)
+
         self._barcode_entry = BarcodeEntry(
-            self,
+            self._top_frame,
             on_scan=self._handle_scan,
             height=45,
             font=ctk.CTkFont(size=16),
             placeholder_text="Escanear código de barras para devolución...",
         )
         self._barcode_entry.grid(
-            row=0, column=0, sticky="ew", padx=10, pady=(10, 5)
+            row=0, column=0, sticky="ew", padx=(0, 5)
         )
+
+        # --- search button (magnifying glass) ---
+        self._search_btn = ctk.CTkButton(
+            self._top_frame,
+            text="🔍",
+            width=50,
+            height=45,
+            font=ctk.CTkFont(size=18),
+            command=self._handle_search_button,
+        )
+        self._search_btn.grid(row=0, column=1, sticky="e")
 
         # --- row 1: product info panel ---
         self._info_frame = ctk.CTkFrame(self)
@@ -201,6 +221,12 @@ class ReturnView(ctk.CTkFrame):
         self._refund_label.configure(text="Devolución: $0")
         self._confirm_btn.configure(state="disabled")
 
+    def clear_form(self) -> None:
+        """Clear all form fields (quantity and reason)."""
+        self._qty_var.set("1")
+        self._reason_entry.delete(0, "end")
+        self.clear_error()
+
     def show_error(self, message: str) -> None:
         """Display an error message."""
         self._error_label.configure(text=message)
@@ -278,7 +304,11 @@ class ReturnView(ctk.CTkFrame):
                 f"Devolución registrada correctamente.\nReintegro: ${refund:,}",
             )
             self.clear_product()
+            self.clear_form()
             self.focus_barcode()
+            # Notify other views (e.g., cash register) that a return was completed
+            if self._on_return_completed is not None:
+                self._on_return_completed()
         else:
             self.show_error(result["error"])
 
@@ -348,3 +378,41 @@ class ReturnView(ctk.CTkFrame):
                 qty,
                 reason,
             )
+
+    def _handle_search_button(self) -> None:
+        """Open search dialog with all products for manual selection."""
+        if not hasattr(self, "_controller") or self._controller is None:
+            return
+
+        # Search with empty query to get all products
+        result = self._controller.search_products("")
+        if not result["success"]:
+            messagebox.showerror("Error", result.get("error", "Error desconocido"))
+            return
+        products = result["data"]
+        if not products:
+            messagebox.showinfo("Buscar", "No hay productos disponibles")
+            return
+
+        from pos.view.widgets.product_search_dialog import ProductSearchDialog
+        categories = self._get_categories()
+        dialog = ProductSearchDialog(self, products, categories)
+        self.wait_window(dialog)
+        selected = dialog.result
+        if selected is not None:
+            # Show the selected product for return
+            self.show_product({
+                "id": selected.id,
+                "barcode": selected.barcode,
+                "name": selected.name,
+                "sale_price": selected.sale_price,
+            })
+        self._barcode_entry.focus_set()
+
+    def _get_categories(self) -> list:
+        """Fetch categories from controller for the search dialog."""
+        if hasattr(self, "_controller") and hasattr(self._controller, "list_categories"):
+            result = self._controller.list_categories()
+            if result["success"]:
+                return result["data"]
+        return []

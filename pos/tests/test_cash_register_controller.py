@@ -53,11 +53,11 @@ class TestCloseRegister:
         assert result["success"] is False
         assert "abierta" in result["error"].lower()
 
-    def test_close_empty_reason_blocked(self, cash_ctrl):
+    def test_close_empty_reason_allowed(self, cash_ctrl):
+        """Close reason is now optional."""
         cash_ctrl.open_register(5000)
         result = cash_ctrl.close_register(5000, "   ")
-        assert result["success"] is False
-        assert "motivo" in result["error"].lower()
+        assert result["success"] is True
 
     def test_close_negative_amount_blocked(self, cash_ctrl):
         cash_ctrl.open_register(5000)

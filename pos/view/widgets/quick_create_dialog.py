@@ -34,12 +34,16 @@ class QuickCreateDialog(ctk.CTkToplevel):
 
         self._result: dict[str, Any] | None = None
 
-        # --- barcode (read-only) ---
+        # --- barcode (visible, read-only) ---
         ctk.CTkLabel(self, text="Código de barras:").pack(pady=(20, 0))
-        barcode_entry = ctk.CTkEntry(self, width=250)
-        barcode_entry.insert(0, barcode)
-        barcode_entry.configure(state="readonly")
-        barcode_entry.pack(pady=(5, 15))
+        barcode_frame = ctk.CTkFrame(self, fg_color="#2b2b2b", corner_radius=6)
+        barcode_frame.pack(pady=(5, 15))
+        ctk.CTkLabel(
+            barcode_frame,
+            text=f"  {barcode}  ",
+            font=ctk.CTkFont(size=18, weight="bold"),
+            text_color="#dce4ee",
+        ).pack(pady=8, padx=12)
 
         # --- name ---
         ctk.CTkLabel(self, text="Nombre del producto *").pack()

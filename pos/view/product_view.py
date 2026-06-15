@@ -29,12 +29,14 @@ class ProductView(ctk.CTkFrame):
         Forwarded to ``ctk.CTkFrame``.
     """
 
-    COLUMNS = ("codigo", "nombre", "categoria", "precio", "stock")
+    COLUMNS = ("codigo", "nombre", "categoria", "costo", "precio", "ganancia", "stock")
     COLUMN_LABELS = {
         "codigo": "Código",
         "nombre": "Nombre",
         "categoria": "Categoría",
+        "costo": "Costo",
         "precio": "Precio",
+        "ganancia": "Ganancia %",
         "stock": "Stock",
     }
 
@@ -65,6 +67,9 @@ class ProductView(ctk.CTkFrame):
         )
         self._on_create_category: Callable[[str], None] | None = callbacks.get(
             "on_create_category"
+        )
+        self._on_preferences: Callable[[], None] | None = callbacks.get(
+            "on_preferences"
         )
 
         self._categories: list[dict[str, Any]] = []
@@ -100,14 +105,17 @@ class ProductView(ctk.CTkFrame):
             show="headings",
             selectmode="browse",
         )
+        self._tree.tag_configure("low_stock", foreground="#e74c3c")
         for col in self.COLUMNS:
             self._tree.heading(col, text=self.COLUMN_LABELS[col])
 
-        self._tree.column("codigo", width=120, anchor="center")
-        self._tree.column("nombre", width=240, stretch=True)
-        self._tree.column("categoria", width=140)
-        self._tree.column("precio", width=100, anchor="e")
-        self._tree.column("stock", width=80, anchor="center")
+        self._tree.column("codigo", width=100, anchor="center")
+        self._tree.column("nombre", width=200, stretch=True)
+        self._tree.column("categoria", width=100)
+        self._tree.column("costo", width=80, anchor="e")
+        self._tree.column("precio", width=80, anchor="e")
+        self._tree.column("ganancia", width=80, anchor="center")
+        self._tree.column("stock", width=60, anchor="center")
 
         self._scrollbar = ttk.Scrollbar(
             self._tree_frame,
@@ -130,26 +138,11 @@ class ProductView(ctk.CTkFrame):
 
         ctk.CTkButton(
             self._action_frame,
-            text="＋ Nuevo Producto",
+            text="📋 Gestionar",
             width=140,
             font=ctk.CTkFont(size=13, weight="bold"),
-            command=self._handle_create,
-        ).pack(side="left", padx=3)
-
-        ctk.CTkButton(
-            self._action_frame,
-            text="✎ Editar",
-            width=100,
             fg_color="#1f538d",
-            command=self._handle_edit_btn,
-        ).pack(side="left", padx=3)
-
-        ctk.CTkButton(
-            self._action_frame,
-            text="🗑 Eliminar",
-            width=100,
-            fg_color="#8b1a1a",
-            command=self._handle_delete_btn,
+            command=self._handle_management,
         ).pack(side="left", padx=3)
 
         ctk.CTkButton(
@@ -160,13 +153,13 @@ class ProductView(ctk.CTkFrame):
             command=self._handle_import,
         ).pack(side="left", padx=3)
 
-        # --- category/tag management ---
+        # --- preferences button ---
         ctk.CTkButton(
             self._action_frame,
-            text="＋ Nueva etiqueta",
-            width=140,
-            fg_color="#2d5a3d",
-            command=self._prompt_new_category,
+            text="⚙ Preferencias",
+            width=130,
+            fg_color="#4a4a4a",
+            command=self._handle_preferences,
         ).pack(side="left", padx=3)
 
         # --- refresh button ---
@@ -184,7 +177,7 @@ class ProductView(ctk.CTkFrame):
         """Refresh the treeview with *products*.
 
         Each dict should have keys: ``id``, ``barcode``, ``name``,
-        ``sale_price``, ``stock``, and optionally a nested
+        ``cost_price``, ``sale_price``, ``stock``, and optionally a nested
         ``category`` dict with ``name``.
         """
         for child in self._tree.get_children():
@@ -204,9 +197,28 @@ class ProductView(ctk.CTkFrame):
 
             barcode = getattr(p, "barcode", "") or p.get("barcode", "") or ""
             name = getattr(p, "name", "") or p.get("name", "")
+            cost_price = getattr(p, "cost_price", 0) or p.get("cost_price", 0)
             price = getattr(p, "sale_price", 0) or p.get("sale_price", 0)
             stock = getattr(p, "stock", 0) if not isinstance(p, dict) else p.get("stock", 0)
+            low_stock_threshold = getattr(p, "low_stock_threshold", 5) if not isinstance(p, dict) else p.get("low_stock_threshold", 5)
             pid = getattr(p, "id", None) or p.get("id")
+
+            # Calculate margin percentage
+            margin_pct = 0.0
+            if cost_price > 0:
+                margin_pct = ((price - cost_price) / cost_price) * 100
+
+            # Format stock with warning icon if low
+            stock_display = int(stock) if isinstance(stock, (int, float)) else stock
+            is_low_stock = False
+            if isinstance(stock, (int, float)) and isinstance(low_stock_threshold, (int, float)):
+                if stock <= low_stock_threshold:
+                    stock_display = f"⚠ {stock_display}"
+                    is_low_stock = True
+
+            row_tags = (str(pid),)
+            if is_low_stock:
+                row_tags = (str(pid), "low_stock")
 
             self._tree.insert(
                 "",
@@ -216,10 +228,12 @@ class ProductView(ctk.CTkFrame):
                     barcode,
                     name,
                     category_name,
+                    f"${cost_price:,}",
                     f"${price:,}",
-                    int(stock) if isinstance(stock, (int, float)) else stock,
+                    f"{margin_pct:.1f}%",
+                    stock_display,
                 ),
-                tags=(str(pid),),
+                tags=row_tags,
             )
 
     def set_categories(self, categories: list[dict[str, Any]]) -> None:
@@ -271,6 +285,10 @@ class ProductView(ctk.CTkFrame):
     ) -> None:
         """Wire the create-category callback (receives category name)."""
         self._on_create_category = callback
+
+    def set_on_preferences(self, callback: Callable[[], None]) -> None:
+        """Wire the preferences callback."""
+        self._on_preferences = callback
 
     # ------------------------------------------------------- controller wire ---
 
@@ -514,6 +532,35 @@ class ProductView(ctk.CTkFrame):
         name = dialog.result
         if name and self._on_create_category is not None:
             self._on_create_category(name)
+
+    def _handle_preferences(self) -> None:
+        """Open the preferences dialog."""
+        from pos.view.widgets.preferences_dialog import PreferencesDialog
+
+        if not hasattr(self, "_controller") or self._controller is None:
+            messagebox.showerror("Error", "Controller no disponible")
+            return
+
+        dialog = PreferencesDialog(self, self._controller)
+        self.wait_window(dialog)
+        if dialog.applied:
+            self._refresh_products()
+
+    def _handle_management(self) -> None:
+        """Open the unified product & category management dialog."""
+        from pos.view.widgets.product_management_dialog import (
+            ProductManagementDialog,
+        )
+
+        if not hasattr(self, "_controller") or self._controller is None:
+            messagebox.showerror("Error", "Controller no disponible")
+            return
+
+        dialog = ProductManagementDialog(self, self._controller)
+        self.wait_window(dialog)
+        if dialog.changed:
+            self._refresh_products()
+            self._refresh_categories()
 
 
 # ----------------------------------------------------------------- helpers ---

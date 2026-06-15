@@ -39,7 +39,7 @@ class ReportService:
         """
         row = self._db.execute(
             """SELECT COALESCE(SUM(total), 0) AS total,
-                      COUNT(*)              AS count
+                       COUNT(*)              AS count
                FROM sales
                WHERE created_at >= ? AND created_at <= ?""",
             (start_date, end_date),
@@ -75,7 +75,7 @@ class ReportService:
                FROM sale_items si
                JOIN products p ON p.id = si.product_id
                JOIN sales    s ON s.id = si.sale_id
-               WHERE s.created_at >= ? AND s.created_at <= ?""",
+                WHERE s.created_at >= ? AND s.created_at <= ?""",
             (start_date, end_date),
         ).fetchone()
 

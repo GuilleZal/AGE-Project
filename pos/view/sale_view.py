@@ -325,7 +325,13 @@ class SaleView(ctk.CTkFrame):
             return
         products = result["data"]
         if not products:
-            messagebox.showinfo("Buscar", "No se encontraron productos")
+            # If the input looks like a barcode (all digits), treat it the
+            # same as a scanner hit — open QuickCreateDialog so the user
+            # can register the product on the spot.
+            if query.isdigit():
+                self._controller_scan(query)
+            else:
+                messagebox.showinfo("Buscar", "No se encontraron productos")
             self._barcode_entry.focus_set()
             return
         if len(products) == 1:

@@ -446,12 +446,11 @@ class TestE2ECashRegisterFlow:
         assert result["data"]["expected"] == 7500   # 5000 + 3000 − 500
         assert result["data"]["diff"] == 0
 
-    def test_close_empty_reason_blocked(self, cash_ctrl):
-        """Close reason is mandatory."""
+    def test_close_empty_reason_allowed(self, cash_ctrl):
+        """Close reason is now optional."""
         cash_ctrl.open_register(5000)
         result = cash_ctrl.close_register(5000, "   ")
-        assert result["success"] is False
-        assert "motivo" in result["error"].lower()
+        assert result["success"] is True
 
     def test_close_negative_amount_blocked(self, cash_ctrl):
         """Closing with negative amount is rejected."""

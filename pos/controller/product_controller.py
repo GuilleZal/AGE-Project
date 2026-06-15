@@ -10,6 +10,7 @@ from pos.model.exceptions import POSException
 from pos.model.product import Product, Category
 from pos.repository.product_repo import ProductRepo
 from pos.repository.category_repo import CategoryRepo
+from pos.service.settings_service import SettingsService
 
 
 class ProductController:
@@ -19,6 +20,7 @@ class ProductController:
         self._db = db
         self._product_repo = ProductRepo(db)
         self._category_repo = CategoryRepo(db)
+        self._settings_service = SettingsService(db)
 
     # --------------------------------------------------------------- product CRUD
 
@@ -152,7 +154,32 @@ class ProductController:
         """
         try:
             cat = self._category_repo.create(name)
+            self._db.commit()
             return {"success": True, "data": cat, "error": None}
+        except POSException as e:
+            return {"success": False, "data": None, "error": str(e)}
+
+    def update_category(self, category_id: int, name: str) -> dict:
+        """Rename an existing category.
+
+        Returns ``{"success": True, "data": Category, "error": None}``.
+        """
+        try:
+            cat = self._category_repo.update(category_id, name)
+            self._db.commit()
+            return {"success": True, "data": cat, "error": None}
+        except POSException as e:
+            return {"success": False, "data": None, "error": str(e)}
+
+    def delete_category(self, category_id: int) -> dict:
+        """Delete a category (only if no products use it).
+
+        Returns ``{"success": True, "data": None, "error": None}``.
+        """
+        try:
+            self._category_repo.delete(category_id)
+            self._db.commit()
+            return {"success": True, "data": None, "error": None}
         except POSException as e:
             return {"success": False, "data": None, "error": str(e)}
 
@@ -202,6 +229,68 @@ class ProductController:
             return {"success": True, "data": file_path, "error": None}
         except Exception as e:
             return {"success": False, "data": None, "error": f"Error al generar plantilla: {e}"}
+
+    # --------------------------------------------------------------- settings
+
+    def get_settings(self) -> dict:
+        """Return all global settings.
+
+        Returns ``{"success": True, "data": {low_stock_threshold, profit_margin_pct}, "error": None}``.
+        """
+        try:
+            settings = self._settings_service.get_all()
+            return {"success": True, "data": settings, "error": None}
+        except Exception as e:
+            return {"success": False, "data": None, "error": str(e)}
+
+    def apply_settings(
+        self,
+        low_stock_threshold: float | None = None,
+        profit_margin_pct: float | None = None,
+        apply_to_products: bool = False,
+        threshold_category_id: int | None = None,
+        margin_category_id: int | None = None,
+    ) -> dict:
+        """Apply global settings and optionally update products.
+
+        Args:
+            low_stock_threshold: New global low-stock threshold (or None to skip).
+            profit_margin_pct: New global profit margin % (or None to skip).
+            apply_to_products: If True, update products with the new values.
+            threshold_category_id: If provided, apply threshold only to this category.
+            margin_category_id: If provided, apply margin only to this category.
+
+        Returns ``{"success": True, "data": {products_updated}, "error": None}``.
+        """
+        try:
+            products_updated = 0
+
+            if low_stock_threshold is not None:
+                if low_stock_threshold < 0:
+                    raise ValueError("El umbral de stock bajo no puede ser negativo")
+                self._settings_service.set_low_stock_threshold(low_stock_threshold)
+                if apply_to_products:
+                    products_updated += self._settings_service.apply_low_stock_threshold(
+                        low_stock_threshold, threshold_category_id
+                    )
+
+            if profit_margin_pct is not None:
+                if profit_margin_pct < 0:
+                    raise ValueError("El porcentaje de ganancia no puede ser negativo")
+                self._settings_service.set_profit_margin_pct(profit_margin_pct)
+                if apply_to_products:
+                    products_updated += self._settings_service.apply_profit_margin(
+                        profit_margin_pct, margin_category_id
+                    )
+
+            self._db.commit()
+            return {"success": True, "data": {"products_updated": products_updated}, "error": None}
+        except ValueError as e:
+            self._db.rollback()
+            return {"success": False, "data": None, "error": str(e)}
+        except Exception as e:
+            self._db.rollback()
+            return {"success": False, "data": None, "error": str(e)}
 
 
 # --------------------------------------------------------------- helpers ---
