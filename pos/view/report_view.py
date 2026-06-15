@@ -12,6 +12,13 @@ from typing import Any, Callable
 
 import customtkinter as ctk
 
+from pos.view.widgets.column_persistence import (
+    load_column_widths,
+    save_column_widths,
+    get_treeview_widths,
+    apply_treeview_widths,
+)
+
 
 class ReportView(ctk.CTkFrame):
     """Reports tab — metrics, top products, and export.
@@ -188,6 +195,10 @@ class ReportView(ctk.CTkFrame):
         self._top_tree.column("cantidad", width=80, anchor="center")
         self._top_tree.column("monto", width=130, anchor="e")
 
+        # Load saved column widths
+        saved_widths = load_column_widths("report_view")
+        apply_treeview_widths(self._top_tree, saved_widths)
+
         self._top_scroll = ttk.Scrollbar(
             self._tree_frame,
             orient="vertical",
@@ -196,6 +207,9 @@ class ReportView(ctk.CTkFrame):
         self._top_tree.configure(yscrollcommand=self._top_scroll.set)
         self._top_tree.grid(row=0, column=0, sticky="nsew")
         self._top_scroll.grid(row=0, column=1, sticky="ns")
+
+        # Save column widths on destroy
+        self.bind("<Destroy>", self._on_destroy)
 
         # --- row 3: export button ---
         self._export_btn = ctk.CTkButton(
@@ -338,9 +352,11 @@ class ReportView(ctk.CTkFrame):
         )
         self._style.configure(
             "Treeview.Heading",
-            background="#3b3b3b",
-            foreground=fg,
-            relief="flat",
+            background="#505050",
+            foreground="#ffffff",
+            relief="raised",
+            borderwidth=1,
+            font=("Segoe UI", 10, "bold"),
         )
         self._style.map(
             "Treeview",
@@ -353,6 +369,12 @@ class ReportView(ctk.CTkFrame):
             self._custom_frame.pack(side="left", padx=10)
         else:
             self._custom_frame.pack_forget()
+
+    def _on_destroy(self, event: tk.Event) -> None:
+        """Save column widths when the widget is destroyed."""
+        if event.widget == self:
+            widths = get_treeview_widths(self._top_tree)
+            save_column_widths("report_view", widths)
 
     def _get_date_range(self) -> tuple[str, str] | None:
         """Resolve the selected period to (start, end) ISO datetime strings.

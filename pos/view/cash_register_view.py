@@ -12,6 +12,13 @@ from typing import Any, Callable
 
 import customtkinter as ctk
 
+from pos.view.widgets.column_persistence import (
+    load_column_widths,
+    save_column_widths,
+    get_treeview_widths,
+    apply_treeview_widths,
+)
+
 
 class CashRegisterView(ctk.CTkFrame):
     """Cash register management tab.
@@ -224,6 +231,10 @@ class CashRegisterView(ctk.CTkFrame):
         self._preview_tree.column("descripcion", width=250, anchor="w")
         self._preview_tree.column("hora", width=120, anchor="center")
 
+        # Load saved column widths for movements
+        saved_widths = load_column_widths("cash_register_movements")
+        apply_treeview_widths(self._preview_tree, saved_widths)
+
         self._preview_vscroll = ttk.Scrollbar(
             self._preview_frame,
             orient="vertical",
@@ -292,6 +303,10 @@ class CashRegisterView(ctk.CTkFrame):
         self._history_tree.column("diferencia", width=70, anchor="e")
         self._history_tree.column("estado", width=60, anchor="center")
 
+        # Load saved column widths for history
+        saved_widths = load_column_widths("cash_register_history")
+        apply_treeview_widths(self._history_tree, saved_widths)
+
         self._history_scroll = ttk.Scrollbar(
             self._history_frame,
             orient="vertical",
@@ -313,6 +328,9 @@ class CashRegisterView(ctk.CTkFrame):
 
         # Bind selection event to show movements preview
         self._history_tree.bind("<<TreeviewSelect>>", self._handle_history_select)
+
+        # Save column widths on destroy
+        self.bind("<Destroy>", self._on_destroy)
 
     # ---------------------------------------------------------------- public ---
 
@@ -566,9 +584,11 @@ class CashRegisterView(ctk.CTkFrame):
         )
         self._style.configure(
             "Treeview.Heading",
-            background="#3b3b3b",
-            foreground=fg,
-            relief="flat",
+            background="#505050",
+            foreground="#ffffff",
+            relief="raised",
+            borderwidth=1,
+            font=("Segoe UI", 10, "bold"),
         )
         self._style.map(
             "Treeview",
@@ -579,6 +599,16 @@ class CashRegisterView(ctk.CTkFrame):
     def _set_balance_defaults(self) -> None:
         for key in ("initial", "inflows", "outflows", "expected", "difference"):
             self._balance_labels[key].configure(text="—")
+
+    def _on_destroy(self, event: tk.Event) -> None:
+        """Save column widths when the widget is destroyed."""
+        if event.widget == self:
+            # Save movements treeview widths
+            widths = get_treeview_widths(self._preview_tree)
+            save_column_widths("cash_register_movements", widths)
+            # Save history treeview widths
+            widths = get_treeview_widths(self._history_tree)
+            save_column_widths("cash_register_history", widths)
 
     def _handle_open(self) -> None:
         dialog = _AmountDialog(

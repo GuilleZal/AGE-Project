@@ -12,6 +12,13 @@ from typing import Any
 
 import customtkinter as ctk
 
+from pos.view.widgets.column_persistence import (
+    load_column_widths,
+    save_column_widths,
+    get_treeview_widths,
+    apply_treeview_widths,
+)
+
 
 class ProductManagementDialog(ctk.CTkToplevel):
     """Modal dialog for managing products and categories together.
@@ -54,10 +61,23 @@ class ProductManagementDialog(ctk.CTkToplevel):
         self._refresh_products()
         self._refresh_categories()
 
+        # Save column widths on destroy
+        self.bind("<Destroy>", self._on_destroy)
+
     @property
     def changed(self) -> bool:
         """True if any product or category was created/edited/deleted."""
         return self._changed
+
+    def _on_destroy(self, event: tk.Event) -> None:
+        """Save column widths when the dialog is destroyed."""
+        if event.widget == self:
+            # Save products treeview widths
+            widths = get_treeview_widths(self._prod_tree)
+            save_column_widths("management_products", widths)
+            # Save categories treeview widths
+            widths = get_treeview_widths(self._cat_tree)
+            save_column_widths("management_categories", widths)
 
     # ===================================================== products tab
 
@@ -99,6 +119,10 @@ class ProductManagementDialog(ctk.CTkToplevel):
         self._prod_tree.column("codigo", width=120, anchor="center")
         self._prod_tree.column("precio", width=90, anchor="e")
         self._prod_tree.column("stock", width=70, anchor="center")
+
+        # Load saved column widths
+        saved_widths = load_column_widths("management_products")
+        apply_treeview_widths(self._prod_tree, saved_widths)
 
         # Red tag for low-stock rows
         self._prod_tree.tag_configure("low_stock", foreground="#e74c3c")
@@ -163,6 +187,10 @@ class ProductManagementDialog(ctk.CTkToplevel):
         self._cat_tree.heading("productos", text="Productos")
         self._cat_tree.column("nombre", width=250)
         self._cat_tree.column("productos", width=100, anchor="center")
+
+        # Load saved column widths
+        saved_widths = load_column_widths("management_categories")
+        apply_treeview_widths(self._cat_tree, saved_widths)
 
         sb = ttk.Scrollbar(tree_frame, orient="vertical", command=self._cat_tree.yview)
         self._cat_tree.configure(yscrollcommand=sb.set)

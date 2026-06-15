@@ -13,6 +13,12 @@ from typing import Any, Callable
 import customtkinter as ctk
 
 from pos.view.widgets.product_search import ProductSearch
+from pos.view.widgets.column_persistence import (
+    load_column_widths,
+    save_column_widths,
+    get_treeview_widths,
+    apply_treeview_widths,
+)
 
 
 class ProductView(ctk.CTkFrame):
@@ -117,6 +123,10 @@ class ProductView(ctk.CTkFrame):
         self._tree.column("ganancia", width=80, anchor="center")
         self._tree.column("stock", width=60, anchor="center")
 
+        # Load saved column widths
+        saved_widths = load_column_widths("product_view")
+        apply_treeview_widths(self._tree, saved_widths)
+
         self._scrollbar = ttk.Scrollbar(
             self._tree_frame,
             orient="vertical",
@@ -129,6 +139,9 @@ class ProductView(ctk.CTkFrame):
 
         self._tree.bind("<Double-1>", self._handle_double_click)
         self._tree.bind("<Delete>", self._handle_delete_key)
+
+        # Save column widths on destroy
+        self.bind("<Destroy>", self._on_destroy)
 
         # --- row 2: action bar ---
         self._action_frame = ctk.CTkFrame(self)
@@ -446,9 +459,11 @@ class ProductView(ctk.CTkFrame):
         )
         self._style.configure(
             "Treeview.Heading",
-            background="#3b3b3b",
-            foreground=fg,
-            relief="flat",
+            background="#505050",
+            foreground="#ffffff",
+            relief="raised",
+            borderwidth=1,
+            font=("Segoe UI", 10, "bold"),
         )
         self._style.map(
             "Treeview",
@@ -471,6 +486,13 @@ class ProductView(ctk.CTkFrame):
             if cat["id"] == category_id:
                 return cat["name"]
         return ""
+
+    def _on_destroy(self, event: tk.Event) -> None:
+        """Save column widths when the widget is destroyed."""
+        # Only save if this is the actual widget being destroyed (not children)
+        if event.widget == self:
+            widths = get_treeview_widths(self._tree)
+            save_column_widths("product_view", widths)
 
     # ------------------------------------------------------- event handlers ---
 

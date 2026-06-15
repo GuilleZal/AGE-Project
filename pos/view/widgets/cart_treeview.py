@@ -8,6 +8,13 @@ from typing import Any, Callable
 
 import customtkinter as ctk
 
+from pos.view.widgets.column_persistence import (
+    load_column_widths,
+    save_column_widths,
+    get_treeview_widths,
+    apply_treeview_widths,
+)
+
 
 class CartTreeview(ctk.CTkFrame):
     """A styled ttk.Treeview displaying cart items.
@@ -61,6 +68,10 @@ class CartTreeview(ctk.CTkFrame):
         self._tree.column("precio_unit", width=100, anchor="e")
         self._tree.column("subtotal", width=120, anchor="e")
 
+        # Load saved column widths
+        saved_widths = load_column_widths("cart_treeview")
+        apply_treeview_widths(self._tree, saved_widths)
+
         # --- scrollbar ---
         self._scrollbar = ttk.Scrollbar(
             self, orient="vertical", command=self._tree.yview
@@ -74,6 +85,9 @@ class CartTreeview(ctk.CTkFrame):
 
         # --- key bindings ---
         self._tree.bind("<Delete>", self._on_delete_key)
+
+        # Save column widths on destroy
+        self.bind("<Destroy>", self._on_destroy)
 
     # ---------------------------------------------------------------- public ---
 
@@ -126,6 +140,12 @@ class CartTreeview(ctk.CTkFrame):
         """Set or replace the delete callback."""
         self._on_delete = callback
 
+    def _on_destroy(self, event: tk.Event) -> None:
+        """Save column widths when the widget is destroyed."""
+        if event.widget == self:
+            widths = get_treeview_widths(self._tree)
+            save_column_widths("cart_treeview", widths)
+
     # --------------------------------------------------------------- private ---
 
     def _configure_style(self) -> None:
@@ -145,9 +165,11 @@ class CartTreeview(ctk.CTkFrame):
         )
         self._style.configure(
             "Treeview.Heading",
-            background="#3b3b3b",
-            foreground=fg,
-            relief="flat",
+            background="#505050",
+            foreground="#ffffff",
+            relief="raised",
+            borderwidth=1,
+            font=("Segoe UI", 10, "bold"),
         )
         self._style.map(
             "Treeview",

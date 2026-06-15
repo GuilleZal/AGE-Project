@@ -7,6 +7,12 @@ from typing import Any
 import customtkinter as ctk
 
 from pos.model.product import Product
+from pos.view.widgets.column_persistence import (
+    load_column_widths,
+    save_column_widths,
+    get_treeview_widths,
+    apply_treeview_widths,
+)
 
 
 class ProductSearchDialog(ctk.CTkToplevel):
@@ -43,6 +49,30 @@ class ProductSearchDialog(ctk.CTkToplevel):
         # Build category lookup dict
         self._category_map = {cat['id']: cat['name'] for cat in self._categories}
 
+        # Configure treeview style
+        self._style = ttk.Style(self)
+        self._style.theme_use("clam")
+        self._style.configure(
+            "Treeview",
+            background="#2b2b2b",
+            foreground="#dce4ee",
+            fieldbackground="#2b2b2b",
+            borderwidth=0,
+        )
+        self._style.configure(
+            "Treeview.Heading",
+            background="#505050",
+            foreground="#ffffff",
+            relief="raised",
+            borderwidth=1,
+            font=("Segoe UI", 10, "bold"),
+        )
+        self._style.map(
+            "Treeview",
+            background=[("selected", "#1f538d")],
+            foreground=[("selected", "#dce4ee")],
+        )
+
         # Search bar
         search_frame = ctk.CTkFrame(self)
         search_frame.pack(fill="x", padx=10, pady=(10, 5))
@@ -75,11 +105,19 @@ class ProductSearchDialog(ctk.CTkToplevel):
         self._tree.column("nombre", width=200, anchor="w")
         self._tree.column("categoria", width=120, anchor="w")
         self._tree.column("precio", width=80, anchor="e")
+
+        # Load saved column widths
+        saved_widths = load_column_widths("product_search_dialog")
+        apply_treeview_widths(self._tree, saved_widths)
+
         self._tree.pack(fill="both", expand=True, padx=10, pady=(5, 5))
 
         self._populate_tree(products)
 
         self._tree.bind("<Double-1>", self._on_select)
+
+        # Save column widths on destroy
+        self.bind("<Destroy>", self._on_destroy)
 
         btn_frame = ctk.CTkFrame(self)
         btn_frame.pack(pady=(5, 10))
@@ -113,6 +151,12 @@ class ProductSearchDialog(ctk.CTkToplevel):
                 "end",
                 values=(p.barcode or "—", p.name, category_name, f"${p.sale_price:,}"),
             )
+
+    def _on_destroy(self, event: tk.Event) -> None:
+        """Save column widths when the dialog is destroyed."""
+        if event.widget == self:
+            widths = get_treeview_widths(self._tree)
+            save_column_widths("product_search_dialog", widths)
 
     def _on_search_changed(self, *args) -> None:
         """Filter products based on search text (name or category)."""
