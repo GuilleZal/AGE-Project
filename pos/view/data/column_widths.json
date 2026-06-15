@@ -1,0 +1,23 @@
+{
+  "management_products": {
+    "nombre": 255,
+    "codigo": 175,
+    "precio": 144,
+    "stock": 125
+  },
+  "cash_register_movements": {
+    "tipo": 120,
+    "monto": 100,
+    "descripcion": 250,
+    "hora": 120
+  },
+  "cash_register_history": {
+    "id": 40,
+    "apertura": 120,
+    "cierre": 120,
+    "inicial": 80,
+    "final": 80,
+    "diferencia": 70,
+    "estado": 60
+  }
+}

@@ -109,6 +109,7 @@ class ProductSearchDialog(ctk.CTkToplevel):
 
         # Load saved column widths
         saved_widths = load_column_widths("product_search_dialog")
+        self._tree._view_name = "product_search_dialog"
         apply_treeview_widths(self._tree, saved_widths)
 
         # Add column sorting
@@ -128,9 +129,6 @@ class ProductSearchDialog(ctk.CTkToplevel):
         self._populate_tree(products)
 
         self._tree.bind("<Double-1>", self._on_select)
-
-        # Save column widths on destroy
-        self.bind("<Destroy>", self._on_destroy)
 
         btn_frame = ctk.CTkFrame(self)
         btn_frame.pack(pady=(5, 10))
@@ -164,13 +162,6 @@ class ProductSearchDialog(ctk.CTkToplevel):
                 "end",
                 values=(p.barcode or "—", p.name, category_name, f"${p.sale_price:,}"),
             )
-
-    def _on_destroy(self, event: tk.Event) -> None:
-        """Save column widths when the dialog is destroyed."""
-        if event.widget == self:
-            widths = get_treeview_widths(self._tree)
-            if widths:
-                save_column_widths("product_search_dialog", widths)
 
     def _on_search_changed(self, *args) -> None:
         """Filter products based on search text (name or category)."""

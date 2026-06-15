@@ -71,6 +71,7 @@ class CartTreeview(ctk.CTkFrame):
 
         # Load saved column widths
         saved_widths = load_column_widths("cart_treeview")
+        self._tree._view_name = "cart_treeview"
         apply_treeview_widths(self._tree, saved_widths)
 
         # Add column sorting
@@ -98,9 +99,6 @@ class CartTreeview(ctk.CTkFrame):
 
         # --- key bindings ---
         self._tree.bind("<Delete>", self._on_delete_key)
-
-        # Save column widths on destroy
-        self.bind("<Destroy>", self._on_destroy)
 
     # ---------------------------------------------------------------- public ---
 
@@ -152,13 +150,6 @@ class CartTreeview(ctk.CTkFrame):
     def set_on_delete(self, callback: Callable[[int], None]) -> None:
         """Set or replace the delete callback."""
         self._on_delete = callback
-
-    def _on_destroy(self, event: tk.Event) -> None:
-        """Save column widths when the widget is destroyed."""
-        if event.widget == self:
-            widths = get_treeview_widths(self._tree)
-            if widths:
-                save_column_widths("cart_treeview", widths)
 
     # --------------------------------------------------------------- private ---
 

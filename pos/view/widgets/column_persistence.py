@@ -88,17 +88,34 @@ def get_treeview_widths(tree: Any) -> dict[str, int] | None:
 
 
 def apply_treeview_widths(tree: Any, widths: dict[str, int] | None) -> None:
-    """Apply saved column widths to a treeview.
+    """Apply saved column widths to a treeview and bind resize events.
     
     Args:
         tree: ttk.Treeview instance
         widths: Dict mapping column names to widths, or None
     """
-    if widths is None:
-        return
+    if widths is not None:
+        for col, width in widths.items():
+            try:
+                tree.column(col, width=width)
+            except (KeyError, ValueError):
+                pass  # Column doesn't exist or invalid width
     
-    for col, width in widths.items():
-        try:
-            tree.column(col, width=width)
-        except (KeyError, ValueError):
-            pass  # Column doesn't exist or invalid width
+    # Bind column resize event to save widths immediately
+    tree.bind("<ButtonRelease-1>", lambda e: _on_column_resize(tree))
+
+
+def _on_column_resize(tree: Any) -> None:
+    """Called when user finishes resizing a column.
+    
+    Saves the new widths immediately to persist them.
+    """
+    try:
+        if not tree.winfo_exists():
+            return
+        
+        widths = get_treeview_widths(tree)
+        if widths and hasattr(tree, '_view_name'):
+            save_column_widths(tree._view_name, widths)
+    except (tk.TclError, AttributeError, RuntimeError):
+        pass

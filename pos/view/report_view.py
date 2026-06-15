@@ -198,6 +198,7 @@ class ReportView(ctk.CTkFrame):
 
         # Load saved column widths
         saved_widths = load_column_widths("report_view")
+        self._top_tree._view_name = "report_view"
         apply_treeview_widths(self._top_tree, saved_widths)
 
         # Add column sorting
@@ -220,9 +221,6 @@ class ReportView(ctk.CTkFrame):
         self._top_tree.configure(yscrollcommand=self._top_scroll.set)
         self._top_tree.grid(row=0, column=0, sticky="nsew")
         self._top_scroll.grid(row=0, column=1, sticky="ns")
-
-        # Save column widths on destroy
-        self.bind("<Destroy>", self._on_destroy)
 
         # --- row 3: export button ---
         self._export_btn = ctk.CTkButton(
@@ -382,13 +380,6 @@ class ReportView(ctk.CTkFrame):
             self._custom_frame.pack(side="left", padx=10)
         else:
             self._custom_frame.pack_forget()
-
-    def _on_destroy(self, event: tk.Event) -> None:
-        """Save column widths when the widget is destroyed."""
-        if event.widget == self:
-            widths = get_treeview_widths(self._top_tree)
-            if widths:
-                save_column_widths("report_view", widths)
 
     def _get_date_range(self) -> tuple[str, str] | None:
         """Resolve the selected period to (start, end) ISO datetime strings.

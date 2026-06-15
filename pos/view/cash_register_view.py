@@ -234,6 +234,7 @@ class CashRegisterView(ctk.CTkFrame):
 
         # Load saved column widths for movements
         saved_widths = load_column_widths("cash_register_movements")
+        self._preview_tree._view_name = "cash_register_movements"
         apply_treeview_widths(self._preview_tree, saved_widths)
 
         # Add column sorting for movements
@@ -318,6 +319,7 @@ class CashRegisterView(ctk.CTkFrame):
 
         # Load saved column widths for history
         saved_widths = load_column_widths("cash_register_history")
+        self._history_tree._view_name = "cash_register_history"
         apply_treeview_widths(self._history_tree, saved_widths)
 
         # Add column sorting for history
@@ -356,9 +358,6 @@ class CashRegisterView(ctk.CTkFrame):
 
         # Bind selection event to show movements preview
         self._history_tree.bind("<<TreeviewSelect>>", self._handle_history_select)
-
-        # Save column widths on destroy
-        self.bind("<Destroy>", self._on_destroy)
 
     # ---------------------------------------------------------------- public ---
 
@@ -627,18 +626,6 @@ class CashRegisterView(ctk.CTkFrame):
     def _set_balance_defaults(self) -> None:
         for key in ("initial", "inflows", "outflows", "expected", "difference"):
             self._balance_labels[key].configure(text="—")
-
-    def _on_destroy(self, event: tk.Event) -> None:
-        """Save column widths when the widget is destroyed."""
-        if event.widget == self:
-            # Save movements treeview widths
-            widths = get_treeview_widths(self._preview_tree)
-            if widths:
-                save_column_widths("cash_register_movements", widths)
-            # Save history treeview widths
-            widths = get_treeview_widths(self._history_tree)
-            if widths:
-                save_column_widths("cash_register_history", widths)
 
     def _handle_open(self) -> None:
         dialog = _AmountDialog(

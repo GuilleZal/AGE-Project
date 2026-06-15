@@ -62,25 +62,10 @@ class ProductManagementDialog(ctk.CTkToplevel):
         self._refresh_products()
         self._refresh_categories()
 
-        # Save column widths on destroy
-        self.bind("<Destroy>", self._on_destroy)
-
     @property
     def changed(self) -> bool:
         """True if any product or category was created/edited/deleted."""
         return self._changed
-
-    def _on_destroy(self, event: tk.Event) -> None:
-        """Save column widths when the dialog is destroyed."""
-        if event.widget == self:
-            # Save products treeview widths
-            widths = get_treeview_widths(self._prod_tree)
-            if widths:
-                save_column_widths("management_products", widths)
-            # Save categories treeview widths
-            widths = get_treeview_widths(self._cat_tree)
-            if widths:
-                save_column_widths("management_categories", widths)
 
     # ===================================================== products tab
 
@@ -125,6 +110,7 @@ class ProductManagementDialog(ctk.CTkToplevel):
 
         # Load saved column widths
         saved_widths = load_column_widths("management_products")
+        self._prod_tree._view_name = "management_products"
         apply_treeview_widths(self._prod_tree, saved_widths)
 
         # Add column sorting
@@ -205,6 +191,7 @@ class ProductManagementDialog(ctk.CTkToplevel):
 
         # Load saved column widths
         saved_widths = load_column_widths("management_categories")
+        self._cat_tree._view_name = "management_categories"
         apply_treeview_widths(self._cat_tree, saved_widths)
 
         # Add column sorting
