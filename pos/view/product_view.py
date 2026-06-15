@@ -547,8 +547,12 @@ class ProductView(ctk.CTkFrame):
     def _handle_delete_key(self, _event: tk.Event) -> None:
         self._handle_delete_btn()
 
-    def _handle_double_click(self, _event: tk.Event) -> None:
-        self._handle_edit_btn()
+    def _handle_double_click(self, event: tk.Event) -> None:
+        """Handle double click on treeview - only edit if clicked on a row, not headers."""
+        # Check if the click was on a row (not on headers)
+        row_id = self._tree.identify_row(event.y)
+        if row_id:  # Only proceed if clicked on an actual row
+            self._handle_edit_btn()
 
     def _handle_import(self) -> None:
         if self._on_import is not None:
