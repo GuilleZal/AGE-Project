@@ -525,7 +525,9 @@ class CashRegisterView(ctk.CTkFrame):
             return
 
         type_labels = {
-            "sale_cash": "Venta",
+            "sale_cash": "Venta (Efectivo)",
+            "sale_card": "Venta (Tarjeta)",
+            "sale_transfer": "Venta (Transfer.)",
             "return": "Devolución",
             "supplier_payment": "Pago prov.",
             "expense": "Gasto",

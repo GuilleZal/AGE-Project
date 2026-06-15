@@ -149,7 +149,7 @@ CREATE INDEX IF NOT EXISTS idx_cash_registers_time   ON cash_registers(opening_t
 CREATE TABLE IF NOT EXISTS cash_movements (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
     cash_register_id INTEGER NOT NULL REFERENCES cash_registers(id),
-    type            TEXT NOT NULL CHECK(type IN ('sale_cash','return','supplier_payment','expense')),
+    type            TEXT NOT NULL CHECK(type IN ('sale_cash','sale_card','sale_transfer','return','supplier_payment','expense')),
     amount          INTEGER NOT NULL,
     description     TEXT,
     created_at      TEXT NOT NULL DEFAULT (datetime('now'))

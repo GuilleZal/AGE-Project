@@ -131,16 +131,33 @@ class TestCompleteSaleHappyPath:
         assert row["cash_register_id"] == 1
         assert f"Venta #{result.id}" in row["description"]
 
-    def test_no_cash_movement_for_card_payment(self, sale_svc, db_with_register, sample_products):
+    def test_cash_movement_for_card_payment(self, sale_svc, db_with_register, sample_products):
         sale = _build_sale(total=800, payment_method="card")
         items = _build_items(sample_products[0])
 
-        sale_svc.complete_sale(sale, items, "card", 1)
+        result = sale_svc.complete_sale(sale, items, "card", 1)
 
         row = db_with_register.execute(
-            "SELECT COUNT(*) AS cnt FROM cash_movements"
+            "SELECT * FROM cash_movements WHERE cash_register_id = 1"
         ).fetchone()
-        assert row["cnt"] == 0
+        assert row is not None
+        assert row["type"] == "sale_card"
+        assert row["amount"] == 800
+        assert f"Venta #{result.id}" in row["description"]
+
+    def test_cash_movement_for_transfer_payment(self, sale_svc, db_with_register, sample_products):
+        sale = _build_sale(total=1200, payment_method="transfer")
+        items = _build_items(sample_products[0])
+
+        result = sale_svc.complete_sale(sale, items, "transfer", 1)
+
+        row = db_with_register.execute(
+            "SELECT * FROM cash_movements WHERE cash_register_id = 1"
+        ).fetchone()
+        assert row is not None
+        assert row["type"] == "sale_transfer"
+        assert row["amount"] == 1200
+        assert f"Venta #{result.id}" in row["description"]
 
     def test_multiple_items(self, sale_svc, db_with_register, sample_products):
         sale = _build_sale(total=4100, payment_method="cash")

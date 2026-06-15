@@ -27,6 +27,8 @@ class MovementType(str, Enum):
     """Type of cash movement within a cash register session."""
 
     SALE_CASH = "sale_cash"
+    SALE_CARD = "sale_card"
+    SALE_TRANSFER = "sale_transfer"
     RETURN = "return"
     SUPPLIER_PAYMENT = "supplier_payment"
     EXPENSE = "expense"

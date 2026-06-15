@@ -82,11 +82,20 @@ class SaleService:
             # 3. Deduct stock (caller manages transaction)
             self._stock_service.deduct_without_transaction(items)
 
-            # 4. Register cash movement for cash payments
+            # 4. Register cash movement for all payment methods
             if pm == PaymentMethod.CASH:
+                movement_type = MovementType.SALE_CASH
+            elif pm == PaymentMethod.CARD:
+                movement_type = MovementType.SALE_CARD
+            elif pm == PaymentMethod.TRANSFER:
+                movement_type = MovementType.SALE_TRANSFER
+            else:
+                movement_type = None
+
+            if movement_type:
                 movement = CashMovement(
                     cash_register_id=cash_register_id,
-                    type=MovementType.SALE_CASH,
+                    type=movement_type,
                     amount=sale.total,
                     description=f"Venta #{sale_id}",
                 )
