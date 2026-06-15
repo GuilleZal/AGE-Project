@@ -12,6 +12,7 @@ from pos.model.exceptions import POSException
 from pos.model.product import Product
 from pos.model.sale import Sale, SaleItem
 from pos.repository.product_repo import ProductRepo
+from pos.repository.category_repo import CategoryRepo
 from pos.repository.cash_register_repo import CashRegisterRepo
 from pos.service.sale_service import SaleService
 
@@ -26,6 +27,7 @@ class SaleController:
     def __init__(self, db: sqlite3.Connection) -> None:
         self._db = db
         self._product_repo = ProductRepo(db)
+        self._category_repo = CategoryRepo(db)
         self._cash_register_repo = CashRegisterRepo(db)
         self._sale_service = SaleService(db)
         self._cart: list[dict] = []
@@ -161,6 +163,18 @@ class SaleController:
         else:
             products = self._product_repo.search_unified(query)
         return {"success": True, "data": products, "error": None}
+
+    def list_categories(self) -> dict:
+        """Return all categories for the search dialog."""
+        try:
+            categories = self._category_repo.get_all()
+            return {
+                "success": True,
+                "data": categories,  # Already dicts with 'id' and 'name'
+                "error": None,
+            }
+        except POSException as e:
+            return {"success": False, "data": None, "error": str(e)}
 
     def clear_cart(self) -> dict:
         """Empty the cart after a successful sale."""

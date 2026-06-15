@@ -337,7 +337,8 @@ class SaleView(ctk.CTkFrame):
             self._barcode_entry.focus_set()
             return
         from pos.view.widgets.product_search_dialog import ProductSearchDialog
-        dialog = ProductSearchDialog(self, products)
+        categories = self._get_categories()
+        dialog = ProductSearchDialog(self, products, categories)
         self.wait_window(dialog)
         selected = dialog.result
         if selected is not None:
@@ -362,7 +363,8 @@ class SaleView(ctk.CTkFrame):
             messagebox.showinfo("Buscar", "No hay productos disponibles")
             return
         from pos.view.widgets.product_search_dialog import ProductSearchDialog
-        dialog = ProductSearchDialog(self, products)
+        categories = self._get_categories()
+        dialog = ProductSearchDialog(self, products, categories)
         self.wait_window(dialog)
         selected = dialog.result
         if selected is not None:
@@ -372,6 +374,14 @@ class SaleView(ctk.CTkFrame):
             else:
                 messagebox.showerror("Error", add_result.get("error", "Error desconocido"))
         self._barcode_entry.focus_set()
+
+    def _get_categories(self) -> list:
+        """Fetch categories from controller for the search dialog."""
+        if hasattr(self, "_controller") and hasattr(self._controller, "list_categories"):
+            result = self._controller.list_categories()
+            if result["success"]:
+                return result["data"]
+        return []
 
     def _handle_remove(self, product_id: int) -> None:
         if self._on_remove_item is not None:
