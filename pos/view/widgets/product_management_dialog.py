@@ -108,7 +108,7 @@ class ProductManagementDialog(ctk.CTkToplevel):
         cols = ("nombre", "codigo", "precio", "stock")
         self._prod_tree = ttk.Treeview(
             tree_frame, columns=cols, show="headings",
-            selectmode="browse", height=15,
+            selectmode="extended", height=15,
         )
         self._prod_tree.heading("nombre", text="Nombre")
         self._prod_tree.heading("codigo", text="Código")
@@ -181,6 +181,12 @@ class ProductManagementDialog(ctk.CTkToplevel):
             fg_color="#5a1a1a", command=self._hard_delete_product,
         )
         self._hard_delete_btn.pack(side="left", padx=5)
+
+        self._bulk_delete_btn = ctk.CTkButton(
+            btn_frame, text="🗑️ Eliminar Selección", width=150,
+            fg_color="#5a1a1a", command=self._bulk_smart_delete,
+        )
+        self._bulk_delete_btn.pack(side="left", padx=5)
 
     # ==================================================== categories tab
 
@@ -414,6 +420,68 @@ class ProductManagementDialog(ctk.CTkToplevel):
             self._changed = True
             self._refresh_products()
             messagebox.showinfo("Eliminado", "Producto eliminado permanentemente")
+        else:
+            messagebox.showerror("Error", res["error"])
+
+    def _bulk_smart_delete(self) -> None:
+        """Intelligently delete multiple selected products.
+        
+        For each selected product:
+        - If NO transaction history: performs hard delete (DELETE).
+        - If HAS transaction history: performs soft delete (UPDATE is_active = 0).
+        """
+        sel = self._prod_tree.selection()
+        if not sel:
+            messagebox.showwarning(
+                "Seleccionar", "Seleccione al menos un producto de la lista."
+            )
+            return
+
+        count = len(sel)
+        confirm = messagebox.askyesno(
+            "Confirmar eliminación masiva",
+            f"¿Está seguro de eliminar {count} producto(s) seleccionado(s)?\n\n"
+            "⚠️ ADVERTENCIA:\n"
+            "• Productos SIN historial de ventas: serán eliminados permanentemente.\n"
+            "• Productos CON historial de ventas: serán desactivados (baja lógica).\n\n"
+            "Esta acción no se puede deshacer.",
+        )
+        if not confirm:
+            return
+
+        # Extract product IDs from selection
+        product_ids = []
+        for item_id in sel:
+            item = self._prod_tree.item(item_id)
+            pid = int(item["tags"][0])
+            product_ids.append(pid)
+
+        res = self._controller.smart_delete_products(product_ids)
+        if res["success"]:
+            self._changed = True
+            self._refresh_products()
+            
+            data = res["data"]
+            hard_deleted = data.get("hard_deleted", 0)
+            soft_deleted = data.get("soft_deleted", 0)
+            errors = data.get("errors", [])
+            
+            msg_parts = []
+            if hard_deleted > 0:
+                msg_parts.append(f"✅ {hard_deleted} producto(s) eliminado(s) permanentemente")
+            if soft_deleted > 0:
+                msg_parts.append(f"🚫 {soft_deleted} producto(s) desactivado(s)")
+            if errors:
+                msg_parts.append(f"\n❌ {len(errors)} error(es):")
+                for error in errors[:5]:  # Show first 5 errors
+                    msg_parts.append(f"  • {error}")
+                if len(errors) > 5:
+                    msg_parts.append(f"  ... y {len(errors) - 5} error(es) más")
+            
+            messagebox.showinfo(
+                "Eliminación completada",
+                "\n".join(msg_parts)
+            )
         else:
             messagebox.showerror("Error", res["error"])
 

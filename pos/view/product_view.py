@@ -404,6 +404,8 @@ class ProductView(ctk.CTkFrame):
 
     def _controller_import(self) -> None:
         """Open file dialog and trigger Excel import via controller."""
+        from pos.view.widgets.import_result_dialog import ImportResultDialog
+        
         filepath = filedialog.askopenfilename(
             title="Importar productos desde Excel",
             filetypes=[("Excel", "*.xlsx")],
@@ -412,13 +414,9 @@ class ProductView(ctk.CTkFrame):
             result = self._controller.import_from_excel(filepath)
             if result["success"]:
                 data = result.get("data", {})
-                created = data.get("created", 0)
-                updated = data.get("updated", 0)
-                errors = data.get("errors", [])
-                msg = f"Importados: {created}, Actualizados: {updated}"
-                if errors:
-                    msg += f"\nErrores: {len(errors)} fila(s)"
-                messagebox.showinfo("Importación completada", msg)
+                # Show detailed import result dialog
+                dialog = ImportResultDialog(self, data)
+                self.wait_window(dialog)
                 self._refresh_products()
             else:
                 messagebox.showerror("Error", result["error"])

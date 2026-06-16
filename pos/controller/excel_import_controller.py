@@ -101,20 +101,21 @@ class ExcelImportController:
     # ------------------------------------------------------- execute import --
 
     def execute_import(self, file_path: str) -> dict:
-        """Execute the full transactional import.
+        """Execute the full transactional import with detailed error reporting.
 
         Steps:
         1. Read and validate headers.
         2. Parse and validate all rows (skip invalid rows, record errors).
         3. Detect and flag intra-file barcode duplicates.
-        4. Wrap all valid rows in a transaction: upsert each via
-           ``ProductRepo.upsert_from_import``.
-        5. Any DB error → ROLLBACK everything.
+        4. Process each valid row individually with try/except:
+           - If successful: upsert product
+           - If error: capture error details and continue with next row
+        5. Commit all successful operations.
 
         Returns:
-            ``{"success": True, "data": {created, updated, errors}, "error": None}``
-            where ``created`` and ``updated`` are counts and ``errors`` lists
-            row-level validation failures.
+            ``{"success": True, "data": {created, updated, errors, error_details}, "error": None}``
+            where ``created`` and ``updated`` are counts, ``errors`` is the count of errors,
+            and ``error_details`` is a list of detailed error messages.
         """
         try:
             rows, header_errors = _read_and_validate_headers(file_path)
@@ -151,44 +152,63 @@ class ExcelImportController:
             if not final_rows:
                 return {
                     "success": True,
-                    "data": {"created": 0, "updated": 0, "errors": row_errors},
+                    "data": {
+                        "created": 0,
+                        "updated": 0,
+                        "errors": len(row_errors),
+                        "error_details": row_errors
+                    },
                     "error": None,
                 }
 
-            # --- Transactional upsert ---
+            # --- Row-by-row processing with individual error handling ---
             created = 0
             updated = 0
+            error_details = list(row_errors)  # Start with validation errors
+            
             try:
                 self._db.execute("BEGIN")
 
-                for row in final_rows:
-                    # Resolve category name to category_id
-                    category_name = str(row.get("category_name", "") or "").strip()
-                    category_id = None
-                    if category_name:
-                        # Try to find existing category
-                        existing_cat = self._category_repo.find_by_name(category_name)
-                        if existing_cat:
-                            category_id = existing_cat.id
-                        else:
-                            # Create new category
-                            new_cat = self._category_repo.create(category_name)
-                            category_id = new_cat.id
+                for idx, row in enumerate(final_rows):
+                    row_num = idx + 2  # +2 for header + 1-indexed
+                    try:
+                        # Sanitize and resolve category name to category_id
+                        category_name = str(row.get("category_name", "") or "").strip()
+                        category_id = None
+                        if category_name:
+                            # Sanitize category name: trim and title case
+                            sanitized_name = _sanitize_category_name(category_name)
+                            # Try to find existing category
+                            existing_cat = self._category_repo.find_by_name(sanitized_name)
+                            if existing_cat:
+                                category_id = existing_cat.id
+                            else:
+                                # Create new category
+                                new_cat = self._category_repo.create(sanitized_name)
+                                category_id = new_cat.id
 
-                    product = Product(
-                        barcode=str(row["barcode"]).strip() if row["barcode"] else None,
-                        name=str(row["name"]).strip(),
-                        category_id=category_id,
-                        sale_price=int(row["sale_price"]),
-                        cost_price=int(row["cost_price"]),
-                        stock=float(row["stock"]),
-                        unit_type=str(row["unit_type"]).strip(),
-                    )
-                    _, action = self._product_repo.upsert_from_import(product)
-                    if action == "created":
-                        created += 1
-                    else:
-                        updated += 1
+                        product = Product(
+                            barcode=str(row["barcode"]).strip() if row["barcode"] else None,
+                            name=str(row["name"]).strip(),
+                            category_id=category_id,
+                            sale_price=int(row["sale_price"]),
+                            cost_price=int(row["cost_price"]),
+                            stock=float(row["stock"]),
+                            unit_type=str(row["unit_type"]).strip(),
+                        )
+                        _, action = self._product_repo.upsert_from_import(product)
+                        if action == "created":
+                            created += 1
+                        else:
+                            updated += 1
+                    except Exception as e:
+                        # Capture error for this specific row and continue
+                        error_details.append({
+                            "row": row_num,
+                            "field": "general",
+                            "value": None,
+                            "error": f"Error al procesar fila: {str(e)}",
+                        })
 
                 self._db.execute("COMMIT")
             except Exception:
@@ -202,7 +222,8 @@ class ExcelImportController:
             result = {
                 "created": created,
                 "updated": updated,
-                "errors": row_errors,
+                "errors": len(error_details),
+                "error_details": error_details,
             }
             self._last_result = result
             return {"success": True, "data": result, "error": None}
@@ -335,3 +356,25 @@ def _validate_single_row(row: dict, row_num: int) -> list[dict]:
         errs.append({"row": row_num, "field": "tipo_unidad", "value": ut, "error": f"Tipo inválido. Use: unit, weight_kg, pack"})
 
     return errs
+
+
+def _sanitize_category_name(name: str) -> str:
+    """Sanitize a category name by trimming whitespace and applying title case.
+    
+    Examples:
+        " bebidas " -> "Bebidas"
+        "BEBIDAS" -> "Bebidas"
+        "bebidas" -> "Bebidas"
+        "  ALIMENTOS  " -> "Alimentos"
+    
+    Args:
+        name: Raw category name from Excel.
+    
+    Returns:
+        Sanitized category name with title case.
+    """
+    # Trim whitespace
+    sanitized = name.strip()
+    # Apply title case (first letter of each word capitalized)
+    sanitized = sanitized.title()
+    return sanitized

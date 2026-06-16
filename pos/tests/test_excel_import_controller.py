@@ -127,7 +127,8 @@ class TestExecuteImport:
         assert result["success"] is True
         assert result["data"]["created"] == 2
         assert result["data"]["updated"] == 0
-        assert result["data"]["errors"] == []
+        assert result["data"]["errors"] == 0
+        assert result["data"]["error_details"] == []
 
     def test_execute_import_updates_existing(self, excel_ctrl, tmp_path, sample_products):
         """Import should UPDATE existing products (by barcode)."""
@@ -161,7 +162,7 @@ class TestExecuteImport:
         # Both rows should be flagged as duplicates
         assert result["data"]["created"] == 0
         assert result["data"]["updated"] == 0
-        assert len(result["data"]["errors"]) >= 2
+        assert result["data"]["errors"] >= 2
 
     def test_execute_import_skips_invalid_rows(self, excel_ctrl, tmp_path):
         path = tmp_path / "mixed.xlsx"
@@ -174,7 +175,7 @@ class TestExecuteImport:
         result = excel_ctrl.execute_import(str(path))
         assert result["success"] is True
         assert result["data"]["created"] == 2  # only the valid rows
-        assert len(result["data"]["errors"]) == 1  # one error row
+        assert result["data"]["errors"] == 1  # one error row
 
     def test_execute_import_empty_file(self, excel_ctrl, tmp_path):
         path = tmp_path / "empty.xlsx"
@@ -207,3 +208,58 @@ class TestExecuteImport:
         result = excel_ctrl.get_import_result()
         assert result["success"] is True
         assert result["data"]["created"] == 1
+
+    def test_category_sanitization(self, excel_ctrl, tmp_path):
+        """Test that category names are sanitized (trimmed and title-cased)."""
+        path = tmp_path / "categories.xlsx"
+        _create_xlsx(str(path), [
+            ["codigo", "nombre", "categoria", "precio_venta", "precio_costo", "stock", "tipo_unidad"],
+            ["7790000000100", "Product 1", "  bebidas  ", 500, 300, 10, "unit"],
+            ["7790000000200", "Product 2", "BEBIDAS", 600, 400, 20, "unit"],
+            ["7790000000300", "Product 3", "bebidas", 700, 500, 30, "unit"],
+        ])
+        result = excel_ctrl.execute_import(str(path))
+        assert result["success"] is True
+        assert result["data"]["created"] == 3
+        
+        # Verify all three products were assigned to the same category "Bebidas"
+        from pos.repository.product_repo import ProductRepo
+        from pos.repository.category_repo import CategoryRepo
+        repo = ProductRepo(excel_ctrl._db)
+        cat_repo = CategoryRepo(excel_ctrl._db)
+        
+        # Check that "Bebidas" category was created
+        category = cat_repo.find_by_name("Bebidas")
+        assert category is not None
+        
+        # Check that all products have the same category_id
+        p1 = repo.find_by_barcode("7790000000100")
+        p2 = repo.find_by_barcode("7790000000200")
+        p3 = repo.find_by_barcode("7790000000300")
+        assert p1.category_id == category.id
+        assert p2.category_id == category.id
+        assert p3.category_id == category.id
+
+    def test_detailed_error_reporting(self, excel_ctrl, tmp_path):
+        """Test that import provides detailed error reporting per row."""
+        path = tmp_path / "errors.xlsx"
+        _create_xlsx(str(path), [
+            ["codigo", "nombre", "categoria", "precio_venta", "precio_costo", "stock", "tipo_unidad"],
+            ["7790000000100", "Valid Product", "General", 500, 300, 10, "unit"],  # Valid
+            ["7790000000200", "", "General", 600, 400, 20, "unit"],  # Invalid: empty name
+            ["7790000000300", "Another Valid", "General", 700, 500, 30, "unit"],  # Valid
+            ["7790000000400", "Bad Price", "General", -100, 400, 40, "unit"],  # Invalid: negative price
+        ])
+        result = excel_ctrl.execute_import(str(path))
+        assert result["success"] is True
+        assert result["data"]["created"] == 2  # Only valid rows
+        assert result["data"]["errors"] == 2  # Two error rows
+        
+        # Check error details
+        error_details = result["data"]["error_details"]
+        assert len(error_details) == 2
+        
+        # Find errors by row number
+        error_rows = {e["row"] for e in error_details}
+        assert 3 in error_rows  # Row 3 (empty name)
+        assert 5 in error_rows  # Row 5 (negative price)

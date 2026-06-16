@@ -132,6 +132,26 @@ class ProductController:
         except POSException as e:
             return {"success": False, "data": None, "error": str(e)}
 
+    def smart_delete_products(self, product_ids: list[int]) -> dict:
+        """Intelligently delete multiple products based on transaction history.
+        
+        For each product:
+        - If NO transaction history: performs hard delete (DELETE).
+        - If HAS transaction history: performs soft delete (UPDATE is_active = 0).
+        
+        Args:
+            product_ids: List of product IDs to delete.
+        
+        Returns:
+            dict: {"success": True, "data": {"hard_deleted": int, "soft_deleted": int, "errors": list}, "error": None}
+            or {"success": False, "data": None, "error": message}.
+        """
+        try:
+            result = self._product_repo.smart_delete_batch(product_ids)
+            return {"success": True, "data": result, "error": None}
+        except POSException as e:
+            return {"success": False, "data": None, "error": str(e)}
+
     def get_product(self, product_id: int) -> dict:
         """Return a single product by ID."""
         try:

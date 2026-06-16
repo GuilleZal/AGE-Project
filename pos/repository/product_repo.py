@@ -234,6 +234,86 @@ class ProductRepo:
         if result.rowcount == 0:
             raise DataError(f"Producto con id={product_id} no encontrado")
 
+    def smart_delete(self, product_id: int) -> str:
+        """Intelligently delete a product based on transaction history.
+        
+        If the product has NO transaction history: performs hard delete (DELETE).
+        If the product HAS transaction history: performs soft delete (UPDATE is_active = 0).
+        
+        Returns:
+            str: "hard_deleted" if physically removed, "soft_deleted" if deactivated.
+        
+        Raises:
+            DataError: If the product is not found.
+        """
+        # Check for transaction history
+        sales = self._db.execute(
+            "SELECT COUNT(*) AS cnt FROM sale_items WHERE product_id = ?",
+            (product_id,),
+        ).fetchone()["cnt"]
+        
+        purchases = self._db.execute(
+            "SELECT COUNT(*) AS cnt FROM purchase_items WHERE product_id = ?",
+            (product_id,),
+        ).fetchone()["cnt"]
+        
+        returns = self._db.execute(
+            "SELECT COUNT(*) AS cnt FROM returns WHERE product_id = ?",
+            (product_id,),
+        ).fetchone()["cnt"]
+        
+        has_history = sales > 0 or purchases > 0 or returns > 0
+        
+        if has_history:
+            # Soft delete
+            result = self._db.execute(
+                "UPDATE products SET is_active = 0, updated_at = datetime('now') WHERE id = ? AND is_active = 1",
+                (product_id,),
+            )
+            if result.rowcount == 0:
+                raise DataError(f"Producto con id={product_id} no encontrado")
+            return "soft_deleted"
+        else:
+            # Hard delete
+            result = self._db.execute(
+                "DELETE FROM products WHERE id = ?",
+                (product_id,),
+            )
+            if result.rowcount == 0:
+                raise DataError(f"Producto con id={product_id} no encontrado")
+            return "hard_deleted"
+
+    def smart_delete_batch(self, product_ids: list[int]) -> dict:
+        """Intelligently delete multiple products based on transaction history.
+        
+        For each product:
+        - If NO transaction history: performs hard delete (DELETE).
+        - If HAS transaction history: performs soft delete (UPDATE is_active = 0).
+        
+        Args:
+            product_ids: List of product IDs to delete.
+        
+        Returns:
+            dict: {"hard_deleted": int, "soft_deleted": int, "errors": list[str]}
+        """
+        result = {
+            "hard_deleted": 0,
+            "soft_deleted": 0,
+            "errors": []
+        }
+        
+        for product_id in product_ids:
+            try:
+                action = self.smart_delete(product_id)
+                if action == "hard_deleted":
+                    result["hard_deleted"] += 1
+                else:
+                    result["soft_deleted"] += 1
+            except DataError as e:
+                result["errors"].append(f"Producto ID {product_id}: {str(e)}")
+        
+        return result
+
     # ----------------------------------------------------------- stock ----
 
     def update_stock(self, product_id: int, new_stock: float) -> None:

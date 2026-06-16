@@ -272,6 +272,73 @@ class TestDelete:
         row = db.execute("SELECT COUNT(*) AS cnt FROM products WHERE id = ?", (product_id,)).fetchone()
         assert row["cnt"] == 1
 
+    def test_smart_delete_no_history(self, db, sample_products):
+        """Test smart delete performs hard delete when no transaction history."""
+        repo = ProductRepo(db)
+        # Product index 4 (Six-Pack) has no sales or purchases
+        product_id = sample_products[4]
+        action = repo.smart_delete(product_id)
+        assert action == "hard_deleted"
+        # Product should be completely removed from DB
+        row = db.execute("SELECT COUNT(*) AS cnt FROM products WHERE id = ?", (product_id,)).fetchone()
+        assert row["cnt"] == 0
+
+    def test_smart_delete_with_history(self, db, sample_products, open_register):
+        """Test smart delete performs soft delete when transaction history exists."""
+        repo = ProductRepo(db)
+        product_id = sample_products[0]
+        # Create a sale referencing this product
+        db.execute(
+            "INSERT INTO sales (total, payment_method, cash_register_id) VALUES (800, 'cash', ?)",
+            (open_register,),
+        )
+        sale_id = db.execute("SELECT last_insert_rowid()").fetchone()[0]
+        db.execute(
+            "INSERT INTO sale_items (sale_id, product_id, quantity, unit_price, subtotal) VALUES (?, ?, 1, 800, 800)",
+            (sale_id, product_id),
+        )
+        db.commit()
+
+        action = repo.smart_delete(product_id)
+        assert action == "soft_deleted"
+        # Product should still exist but with is_active = 0
+        row = db.execute("SELECT is_active FROM products WHERE id = ?", (product_id,)).fetchone()
+        assert row["is_active"] == 0
+
+    def test_smart_delete_batch(self, db, sample_products, open_register):
+        """Test smart delete batch processes multiple products correctly."""
+        repo = ProductRepo(db)
+        
+        # Product 4 has no history -> should be hard deleted
+        product_no_history = sample_products[4]
+        
+        # Product 0 has history -> should be soft deleted
+        product_with_history = sample_products[0]
+        db.execute(
+            "INSERT INTO sales (total, payment_method, cash_register_id) VALUES (800, 'cash', ?)",
+            (open_register,),
+        )
+        sale_id = db.execute("SELECT last_insert_rowid()").fetchone()[0]
+        db.execute(
+            "INSERT INTO sale_items (sale_id, product_id, quantity, unit_price, subtotal) VALUES (?, ?, 1, 800, 800)",
+            (sale_id, product_with_history),
+        )
+        db.commit()
+
+        result = repo.smart_delete_batch([product_no_history, product_with_history])
+        
+        assert result["hard_deleted"] == 1
+        assert result["soft_deleted"] == 1
+        assert len(result["errors"]) == 0
+        
+        # Verify product_no_history is completely gone
+        row = db.execute("SELECT COUNT(*) AS cnt FROM products WHERE id = ?", (product_no_history,)).fetchone()
+        assert row["cnt"] == 0
+        
+        # Verify product_with_history is deactivated
+        row = db.execute("SELECT is_active FROM products WHERE id = ?", (product_with_history,)).fetchone()
+        assert row["is_active"] == 0
+
 
 # --------------------------------------------------------------- upsert ---
 

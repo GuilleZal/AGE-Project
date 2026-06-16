@@ -164,6 +164,32 @@ class TestDeleteProduct:
         result = product_ctrl.get_product(pid)
         assert result["success"] is True
 
+    def test_smart_delete_products(self, product_ctrl, db, sample_products):
+        """Test smart delete processes multiple products correctly."""
+        # Product 4 has no history -> should be hard deleted
+        pid_no_history = sample_products[4]
+        
+        # Product 0 has history -> should be soft deleted
+        pid_with_history = sample_products[0]
+        db.execute("INSERT INTO cash_registers (opening_amount, opening_time, status) VALUES (5000, 'now', 'open')")
+        db.execute("INSERT INTO sales (total, payment_method, cash_register_id) VALUES (800, 'cash', 1)")
+        db.execute("INSERT INTO sale_items (sale_id, product_id, quantity, unit_price, subtotal) VALUES (1, ?, 1, 800, 800)", (pid_with_history,))
+        db.commit()
+
+        result = product_ctrl.smart_delete_products([pid_no_history, pid_with_history])
+        assert result["success"] is True
+        assert result["data"]["hard_deleted"] == 1
+        assert result["data"]["soft_deleted"] == 1
+        assert len(result["data"]["errors"]) == 0
+        
+        # Verify product_no_history is completely gone
+        result = product_ctrl.get_product(pid_no_history)
+        assert result["success"] is False
+        
+        # Verify product_with_history is deactivated
+        result = product_ctrl.get_product(pid_with_history)
+        assert result["success"] is False  # Not found in active products
+
 
 class TestGetAndListProducts:
     """Product retrieval and listing."""
