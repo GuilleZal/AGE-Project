@@ -1,6 +1,7 @@
 {
   "management_products": {
     "nombre": 200,
+    "categoria": 120,
     "codigo": 136,
     "precio": 152,
     "stock": 211
@@ -48,7 +49,7 @@
     "precio": 99
   },
   "management_categories": {
-    "nombre": 297,
-    "productos": 402
+    "nombre": 382,
+    "productos": 362
   }
 }

@@ -105,19 +105,21 @@ class ProductManagementDialog(ctk.CTkToplevel):
         tree_frame.grid_columnconfigure(0, weight=1)
         tree_frame.grid_rowconfigure(0, weight=1)
 
-        cols = ("nombre", "codigo", "precio", "stock")
+        cols = ("nombre", "categoria", "codigo", "precio", "stock")
         self._prod_tree = ttk.Treeview(
             tree_frame, columns=cols, show="headings",
             selectmode="extended", height=15,
         )
         self._prod_tree.heading("nombre", text="Nombre")
+        self._prod_tree.heading("categoria", text="Categoría")
         self._prod_tree.heading("codigo", text="Código")
         self._prod_tree.heading("precio", text="Precio")
         self._prod_tree.heading("stock", text="Stock")
-        self._prod_tree.column("nombre", width=200)
-        self._prod_tree.column("codigo", width=120, anchor="center")
-        self._prod_tree.column("precio", width=90, anchor="e")
-        self._prod_tree.column("stock", width=70, anchor="center")
+        self._prod_tree.column("nombre", width=180)
+        self._prod_tree.column("categoria", width=120)
+        self._prod_tree.column("codigo", width=100, anchor="center")
+        self._prod_tree.column("precio", width=80, anchor="e")
+        self._prod_tree.column("stock", width=60, anchor="center")
 
         # Load saved column widths
         saved_widths = load_column_widths("management_products")
@@ -130,6 +132,7 @@ class ProductManagementDialog(ctk.CTkToplevel):
             list(cols),
             column_types={
                 "nombre": "str",
+                "categoria": "str",
                 "codigo": "str",
                 "precio": "int",
                 "stock": "int",
@@ -175,12 +178,6 @@ class ProductManagementDialog(ctk.CTkToplevel):
         )
         self._activate_btn.pack(side="left", padx=5)
         self._activate_btn.pack_forget()  # Hide by default
-
-        self._hard_delete_btn = ctk.CTkButton(
-            btn_frame, text="🗑️ Eliminar", width=120,
-            fg_color="#5a1a1a", command=self._hard_delete_product,
-        )
-        self._hard_delete_btn.pack(side="left", padx=5)
 
         self._bulk_delete_btn = ctk.CTkButton(
             btn_frame, text="🗑️ Eliminar Selección", width=150,
@@ -357,71 +354,70 @@ class ProductManagementDialog(ctk.CTkToplevel):
             messagebox.showerror("Error", res["error"])
 
     def _reactivate_product(self) -> None:
-        """Reactivate a deactivated product."""
+        """Reactivate one or more deactivated products."""
         sel = self._prod_tree.selection()
         if not sel:
             messagebox.showwarning(
-                "Seleccionar", "Seleccione un producto de la lista."
+                "Seleccionar", "Seleccione al menos un producto de la lista."
             )
             return
 
-        item = self._prod_tree.item(sel[0])
-        pid = int(item["tags"][0])
-        name = item["values"][0]
-        # Remove [DESACTIVADO] prefix if present
-        if name.startswith("[DESACTIVADO] "):
-            name = name[13:]
+        count = len(sel)
+        
+        # Get product names for confirmation message
+        product_names = []
+        product_ids = []
+        for item_id in sel:
+            item = self._prod_tree.item(item_id)
+            pid = int(item["tags"][0])
+            name = item["values"][0]
+            # Remove [DESACTIVADO] prefix if present
+            if name.startswith("[DESACTIVADO] "):
+                name = name[13:]
+            product_names.append(name)
+            product_ids.append(pid)
+
+        if count == 1:
+            confirm_msg = f'¿Activar el producto "{product_names[0]}"?\n\n'
+        else:
+            confirm_msg = f"¿Activar {count} productos seleccionados?\n\n"
+        
+        confirm_msg += "Los productos volverán a aparecer en la lista de productos activos."
 
         confirm = messagebox.askyesno(
             "Confirmar activación",
-            f'¿Activar el producto "{name}"?\n\n'
-            "El producto volverá a aparecer en la lista de productos activos.",
+            confirm_msg,
         )
         if not confirm:
             return
 
-        res = self._controller.reactivate_product(pid)
-        if res["success"]:
+        # Reactivate all selected products
+        success_count = 0
+        errors = []
+        for pid in product_ids:
+            res = self._controller.reactivate_product(pid)
+            if res["success"]:
+                success_count += 1
+            else:
+                errors.append(f"Producto ID {pid}: {res['error']}")
+
+        if success_count > 0:
             self._changed = True
             self._refresh_products()
-            messagebox.showinfo("Activado", "Producto activado correctamente")
-        else:
-            messagebox.showerror("Error", res["error"])
-
-    def _hard_delete_product(self) -> None:
-        """Permanently delete a product from the database."""
-        sel = self._prod_tree.selection()
-        if not sel:
-            messagebox.showwarning(
-                "Seleccionar", "Seleccione un producto de la lista."
-            )
-            return
-
-        item = self._prod_tree.item(sel[0])
-        pid = int(item["tags"][0])
-        name = item["values"][0]
-        # Remove [DESACTIVADO] prefix if present
-        if name.startswith("[DESACTIVADO] "):
-            name = name[13:]
-
-        confirm = messagebox.askyesno(
-            "Confirmar eliminación permanente",
-            f'¿Eliminar PERMANENTEMENTE el producto "{name}"?\n\n'
-            "⚠️ ADVERTENCIA: Esta acción NO se puede deshacer.\n"
-            "El producto será eliminado completamente de la base de datos.\n\n"
-            "Si el producto tiene historial de ventas, compras o devoluciones, "
-            "la eliminación será bloqueada. En ese caso, use 'Desactivar' en su lugar.",
-        )
-        if not confirm:
-            return
-
-        res = self._controller.hard_delete_product(pid)
-        if res["success"]:
-            self._changed = True
-            self._refresh_products()
-            messagebox.showinfo("Eliminado", "Producto eliminado permanentemente")
-        else:
-            messagebox.showerror("Error", res["error"])
+            
+            if count == 1:
+                messagebox.showinfo("Activado", "Producto activado correctamente")
+            else:
+                msg = f"✅ {success_count} producto(s) activado(s) correctamente"
+                if errors:
+                    msg += f"\n\n❌ {len(errors)} error(es):"
+                    for error in errors[:5]:
+                        msg += f"\n  • {error}"
+                    if len(errors) > 5:
+                        msg += f"\n  ... y {len(errors) - 5} error(es) más"
+                messagebox.showinfo("Activación completada", msg)
+        elif errors:
+            messagebox.showerror("Error", "\n".join(errors))
 
     def _bulk_smart_delete(self) -> None:
         """Intelligently delete multiple selected products.
@@ -763,6 +759,8 @@ class ProductManagementDialog(ctk.CTkToplevel):
             stock = getattr(p, "stock", 0)
             threshold = getattr(p, "low_stock_threshold", 5)
             is_active = getattr(p, "is_active", True)
+            category_id = getattr(p, "category_id", None)
+            category_name = cat_map.get(category_id, "")
 
             # Check if low stock
             is_low = isinstance(stock, (int, float)) and isinstance(threshold, (int, float)) and stock <= threshold
@@ -777,7 +775,7 @@ class ProductManagementDialog(ctk.CTkToplevel):
 
             self._prod_tree.insert(
                 "", "end", iid=str(pid),
-                values=(name, barcode, f"${price:,}", int(stock)),
+                values=(name, category_name, barcode, f"${price:,}", int(stock)),
                 tags=tuple(tags),
             )
 
