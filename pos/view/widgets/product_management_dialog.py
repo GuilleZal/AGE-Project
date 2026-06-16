@@ -425,15 +425,23 @@ class ProductManagementDialog(ctk.CTkToplevel):
         product_ids = result["product_ids"]
 
         # Find category name for confirmation message
-        category_name = next(
-            (c["name"] for c in self._all_categories if c["id"] == category_id),
-            "desconocida"
-        )
+        if category_id is None:
+            category_name = "Sin categoría"
+        else:
+            category_name = next(
+                (c["name"] for c in self._all_categories if c["id"] == category_id),
+                "desconocida"
+            )
 
         # Confirm assignment
+        if category_id is None:
+            confirm_msg = f"¿Quitar la categoría a {len(product_ids)} producto(s)?"
+        else:
+            confirm_msg = f"¿Asignar la categoría '{category_name}' a {len(product_ids)} producto(s)?"
+        
         confirm = messagebox.askyesno(
             "Confirmar asignación",
-            f"¿Asignar la categoría '{category_name}' a {len(product_ids)} producto(s)?",
+            confirm_msg,
         )
         if not confirm:
             return
@@ -452,10 +460,16 @@ class ProductManagementDialog(ctk.CTkToplevel):
             self._changed = True
             self._refresh_products()
             self._refresh_categories()
-            messagebox.showinfo(
-                "Asignación completada",
-                f"Se asignó la categoría '{category_name}' a {updated_count} producto(s).",
-            )
+            if category_id is None:
+                messagebox.showinfo(
+                    "Asignación completada",
+                    f"Se quitó la categoría a {updated_count} producto(s).",
+                )
+            else:
+                messagebox.showinfo(
+                    "Asignación completada",
+                    f"Se asignó la categoría '{category_name}' a {updated_count} producto(s).",
+                )
 
         if errors:
             messagebox.showerror(

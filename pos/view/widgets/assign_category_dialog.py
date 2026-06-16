@@ -60,8 +60,8 @@ class AssignCategoryDialog(ctk.CTkToplevel):
             font=ctk.CTkFont(size=13, weight="bold"),
         ).pack(side="left", padx=(0, 10))
 
-        category_names = [c["name"] for c in categories]
-        self._category_var = tk.StringVar(value=category_names[0] if category_names else "")
+        category_names = ["Sin categoría"] + [c["name"] for c in categories]
+        self._category_var = tk.StringVar(value=category_names[0])
         self._category_menu = ctk.CTkOptionMenu(
             cat_frame,
             values=category_names,
@@ -162,34 +162,10 @@ class AssignCategoryDialog(ctk.CTkToplevel):
             command=self._deselect_all,
         ).pack(side="left", padx=5)
 
-        # --- action buttons ---
-        btn_frame = ctk.CTkFrame(self)
-        btn_frame.pack(fill="x", padx=10, pady=(10, 15))
-
-        ctk.CTkButton(
-            btn_frame,
-            text="Cancelar",
-            width=120,
-            height=35,
-            fg_color="gray",
-            font=ctk.CTkFont(size=13, weight="bold"),
-            command=self._cancel,
-        ).pack(side="right", padx=10)
-
-        ctk.CTkButton(
-            btn_frame,
-            text="Asignar",
-            width=120,
-            height=35,
-            fg_color="#1f538d",
-            font=ctk.CTkFont(size=13, weight="bold"),
-            command=self._confirm,
-        ).pack(side="right", padx=10)
-
     @property
     def result(self) -> dict[str, Any] | None:
         """Return selected category_id and list of product_ids, or None if cancelled."""
-        if self._selected_category_id is None or not self._selected_product_ids:
+        if not self._selected_product_ids:
             return None
         return {
             "category_id": self._selected_category_id,
@@ -253,19 +229,16 @@ class AssignCategoryDialog(ctk.CTkToplevel):
         # Get selected category
         category_name = self._category_var.get()
         category_id = None
-        for cat in self._categories:
-            if cat["name"] == category_name:
-                category_id = cat["id"]
-                break
-
-        if category_id is None:
-            from tkinter import messagebox
-            messagebox.showwarning(
-                "Sin categoría",
-                "Debe seleccionar una categoría.",
-                parent=self,
-            )
-            return
+        
+        # Check if "Sin categoría" is selected
+        if category_name == "Sin categoría":
+            category_id = None
+        else:
+            # Find the category ID
+            for cat in self._categories:
+                if cat["name"] == category_name:
+                    category_id = cat["id"]
+                    break
 
         # Get checked products
         selected_ids = self._get_checked_product_ids()
