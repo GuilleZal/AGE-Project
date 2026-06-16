@@ -148,7 +148,7 @@ class ProductManagementDialog(ctk.CTkToplevel):
         ).pack(side="left", padx=5)
 
         ctk.CTkButton(
-            btn_frame, text="🗑 Eliminar", width=120,
+            btn_frame, text="🚫 Desactivar", width=120,
             fg_color="#8b1a1a", command=self._delete_product,
         ).pack(side="left", padx=5)
 
@@ -305,10 +305,9 @@ class ProductManagementDialog(ctk.CTkToplevel):
         name = item["values"][0]
 
         confirm = messagebox.askyesno(
-            "Confirmar eliminación",
-            f'¿Eliminar el producto "{name}"?\n\n'
-            "Esta acción no se puede deshacer si el producto "
-            "no tiene transacciones asociadas.",
+            "Confirmar desactivación",
+            f'¿Desactivar el producto "{name}"?\n\n'
+            "El producto dejará de aparecer en la lista pero mantendrá su historial.",
         )
         if not confirm:
             return
@@ -317,7 +316,7 @@ class ProductManagementDialog(ctk.CTkToplevel):
         if res["success"]:
             self._changed = True
             self._refresh_products()
-            messagebox.showinfo("Eliminado", "Producto eliminado correctamente")
+            messagebox.showinfo("Desactivado", "Producto desactivado correctamente")
         else:
             messagebox.showerror("Error", res["error"])
 
