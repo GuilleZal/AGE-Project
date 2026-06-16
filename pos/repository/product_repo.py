@@ -196,6 +196,44 @@ class ProductRepo:
         if result.rowcount == 0:
             raise DataError(f"Producto con id={product_id} no encontrado o ya está activo")
 
+    def hard_delete(self, product_id: int) -> None:
+        """Permanently delete a product from the database.
+
+        Only allowed if the product has no transaction history.
+
+        Raises:
+            DataError: If the product has transaction history or is not found.
+        """
+        # Check for transaction history
+        sales = self._db.execute(
+            "SELECT COUNT(*) AS cnt FROM sale_items WHERE product_id = ?",
+            (product_id,),
+        ).fetchone()["cnt"]
+        
+        purchases = self._db.execute(
+            "SELECT COUNT(*) AS cnt FROM purchase_items WHERE product_id = ?",
+            (product_id,),
+        ).fetchone()["cnt"]
+        
+        returns = self._db.execute(
+            "SELECT COUNT(*) AS cnt FROM returns WHERE product_id = ?",
+            (product_id,),
+        ).fetchone()["cnt"]
+        
+        if sales > 0 or purchases > 0 or returns > 0:
+            raise DataError(
+                "No se puede eliminar permanentemente: el producto tiene historial de transacciones. "
+                "Use la opción 'Desactivar' en su lugar."
+            )
+        
+        # Perform hard delete
+        result = self._db.execute(
+            "DELETE FROM products WHERE id = ?",
+            (product_id,),
+        )
+        if result.rowcount == 0:
+            raise DataError(f"Producto con id={product_id} no encontrado")
+
     # ----------------------------------------------------------- stock ----
 
     def update_stock(self, product_id: int, new_stock: float) -> None:

@@ -240,6 +240,38 @@ class TestDelete:
         with pytest.raises(DataError, match="no encontrado o ya está activo"):
             repo.reactivate(product_id)
 
+    def test_hard_delete_no_transactions(self, db, sample_products):
+        repo = ProductRepo(db)
+        # Product index 4 (Six-Pack) has no sales or purchases
+        product_id = sample_products[4]
+        repo.hard_delete(product_id)
+        # Product should be completely removed from DB
+        row = db.execute("SELECT COUNT(*) AS cnt FROM products WHERE id = ?", (product_id,)).fetchone()
+        assert row["cnt"] == 0
+
+    def test_hard_delete_with_sales_blocked(self, db, sample_products, open_register):
+        repo = ProductRepo(db)
+        product_id = sample_products[0]
+        # Create a sale referencing this product
+        db.execute(
+            "INSERT INTO sales (total, payment_method, cash_register_id) VALUES (800, 'cash', ?)",
+            (open_register,),
+        )
+        sale_id = db.execute("SELECT last_insert_rowid()").fetchone()[0]
+        db.execute(
+            "INSERT INTO sale_items (sale_id, product_id, quantity, unit_price, subtotal) VALUES (?, ?, 1, 800, 800)",
+            (sale_id, product_id),
+        )
+        db.commit()
+
+        # Should fail with transaction history error
+        with pytest.raises(DataError, match="historial de transacciones"):
+            repo.hard_delete(product_id)
+        
+        # Product should still exist
+        row = db.execute("SELECT COUNT(*) AS cnt FROM products WHERE id = ?", (product_id,)).fetchone()
+        assert row["cnt"] == 1
+
 
 # --------------------------------------------------------------- upsert ---
 

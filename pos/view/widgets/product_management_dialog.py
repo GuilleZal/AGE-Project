@@ -176,6 +176,12 @@ class ProductManagementDialog(ctk.CTkToplevel):
         self._activate_btn.pack(side="left", padx=5)
         self._activate_btn.pack_forget()  # Hide by default
 
+        self._hard_delete_btn = ctk.CTkButton(
+            btn_frame, text="🗑️ Eliminar", width=120,
+            fg_color="#5a1a1a", command=self._hard_delete_product,
+        )
+        self._hard_delete_btn.pack(side="left", padx=5)
+
     # ==================================================== categories tab
 
     def _build_categories_tab(self, parent: tk.Widget) -> None:
@@ -373,6 +379,41 @@ class ProductManagementDialog(ctk.CTkToplevel):
             self._changed = True
             self._refresh_products()
             messagebox.showinfo("Activado", "Producto activado correctamente")
+        else:
+            messagebox.showerror("Error", res["error"])
+
+    def _hard_delete_product(self) -> None:
+        """Permanently delete a product from the database."""
+        sel = self._prod_tree.selection()
+        if not sel:
+            messagebox.showwarning(
+                "Seleccionar", "Seleccione un producto de la lista."
+            )
+            return
+
+        item = self._prod_tree.item(sel[0])
+        pid = int(item["tags"][0])
+        name = item["values"][0]
+        # Remove [DESACTIVADO] prefix if present
+        if name.startswith("[DESACTIVADO] "):
+            name = name[13:]
+
+        confirm = messagebox.askyesno(
+            "Confirmar eliminación permanente",
+            f'¿Eliminar PERMANENTEMENTE el producto "{name}"?\n\n'
+            "⚠️ ADVERTENCIA: Esta acción NO se puede deshacer.\n"
+            "El producto será eliminado completamente de la base de datos.\n\n"
+            "Si el producto tiene historial de ventas, compras o devoluciones, "
+            "la eliminación será bloqueada. En ese caso, use 'Desactivar' en su lugar.",
+        )
+        if not confirm:
+            return
+
+        res = self._controller.hard_delete_product(pid)
+        if res["success"]:
+            self._changed = True
+            self._refresh_products()
+            messagebox.showinfo("Eliminado", "Producto eliminado permanentemente")
         else:
             messagebox.showerror("Error", res["error"])
 

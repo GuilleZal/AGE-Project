@@ -139,6 +139,31 @@ class TestDeleteProduct:
         assert result["success"] is False
         assert "ya está activo" in result["error"]
 
+    def test_hard_delete_product(self, product_ctrl, sample_products):
+        """Test permanently deleting a product with no history."""
+        pid = sample_products[4]  # Six-Pack has no sales
+        result = product_ctrl.hard_delete_product(pid)
+        assert result["success"] is True
+        # Product should be completely gone
+        result = product_ctrl.get_product(pid)
+        assert result["success"] is False
+
+    def test_hard_delete_with_history_blocked(self, product_ctrl, db, sample_products):
+        """Test that hard delete is blocked for products with transaction history."""
+        pid = sample_products[0]
+        # Create a sale referencing this product
+        db.execute("INSERT INTO cash_registers (opening_amount, opening_time, status) VALUES (5000, 'now', 'open')")
+        db.execute("INSERT INTO sales (total, payment_method, cash_register_id) VALUES (800, 'cash', 1)")
+        db.execute("INSERT INTO sale_items (sale_id, product_id, quantity, unit_price, subtotal) VALUES (1, ?, 1, 800, 800)", (pid,))
+        db.commit()
+
+        result = product_ctrl.hard_delete_product(pid)
+        assert result["success"] is False
+        assert "historial de transacciones" in result["error"]
+        # Product should still exist (soft delete would work instead)
+        result = product_ctrl.get_product(pid)
+        assert result["success"] is True
+
 
 class TestGetAndListProducts:
     """Product retrieval and listing."""

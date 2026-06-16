@@ -118,6 +118,20 @@ class ProductController:
         except POSException as e:
             return {"success": False, "data": None, "error": str(e)}
 
+    def hard_delete_product(self, product_id: int) -> dict:
+        """Permanently delete a product from the database.
+
+        Only allowed if the product has no transaction history.
+
+        Returns ``{"success": True, "data": None, "error": None}``
+        or ``{"success": False, "data": None, "error": message}``.
+        """
+        try:
+            self._product_repo.hard_delete(product_id)
+            return {"success": True, "data": None, "error": None}
+        except POSException as e:
+            return {"success": False, "data": None, "error": str(e)}
+
     def get_product(self, product_id: int) -> dict:
         """Return a single product by ID."""
         try:

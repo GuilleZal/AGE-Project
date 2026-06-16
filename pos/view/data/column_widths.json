@@ -7,8 +7,8 @@
   },
   "cash_register_movements": {
     "tipo": 88,
-    "monto": 61,
-    "descripcion": 117,
+    "monto": 80,
+    "descripcion": 98,
     "hora": 127
   },
   "cash_register_history": {
