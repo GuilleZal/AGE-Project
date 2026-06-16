@@ -88,6 +88,17 @@ class ProductManagementDialog(ctk.CTkToplevel):
             placeholder_text="Filtrar por nombre...", width=250,
         ).grid(row=0, column=1, sticky="ew", padx=(0, 10), pady=5)
 
+        # Checkbox to show inactive products
+        self._show_inactive_var = tk.BooleanVar(value=False)
+        self._show_inactive_check = ctk.CTkCheckBox(
+            search_frame,
+            text="Mostrar desactivados",
+            variable=self._show_inactive_var,
+            command=self._on_show_inactive_changed,
+            font=ctk.CTkFont(size=12),
+        )
+        self._show_inactive_check.grid(row=0, column=2, padx=(10, 5))
+
         # Treeview
         tree_frame = ctk.CTkFrame(parent)
         tree_frame.grid(row=1, column=0, sticky="nsew", pady=(0, 0))
@@ -127,6 +138,8 @@ class ProductManagementDialog(ctk.CTkToplevel):
 
         # Red tag for low-stock rows
         self._prod_tree.tag_configure("low_stock", foreground="#e74c3c")
+        # Gray tag for inactive products
+        self._prod_tree.tag_configure("inactive", foreground="#888888")
 
         sb = ttk.Scrollbar(tree_frame, orient="vertical", command=self._prod_tree.yview)
         self._prod_tree.configure(yscrollcommand=sb.set)
@@ -538,13 +551,18 @@ class ProductManagementDialog(ctk.CTkToplevel):
         query = self._prod_search_var.get().strip().lower()
         self._populate_products(query)
 
+    def _on_show_inactive_changed(self) -> None:
+        """Refresh products when show inactive checkbox changes."""
+        self._refresh_products()
+
     def _on_category_search_changed(self, *_args: Any) -> None:
         """Filter categories by name as user types."""
         query = self._cat_search_var.get().strip().lower()
         self._populate_categories(query)
 
     def _refresh_products(self) -> None:
-        res = self._controller.list_products()
+        include_inactive = self._show_inactive_var.get()
+        res = self._controller.list_products({"include_inactive": include_inactive})
         if not res["success"]:
             return
         self._all_products = res["data"]
@@ -569,15 +587,23 @@ class ProductManagementDialog(ctk.CTkToplevel):
             price = getattr(p, "sale_price", 0)
             stock = getattr(p, "stock", 0)
             threshold = getattr(p, "low_stock_threshold", 5)
+            is_active = getattr(p, "is_active", True)
 
             # Check if low stock
             is_low = isinstance(stock, (int, float)) and isinstance(threshold, (int, float)) and stock <= threshold
-            tags = (str(pid), "low_stock") if is_low else (str(pid),)
+            
+            # Build tags
+            tags = [str(pid)]
+            if is_low:
+                tags.append("low_stock")
+            if not is_active:
+                tags.append("inactive")
+                name = f"[DESACTIVADO] {name}"
 
             self._prod_tree.insert(
                 "", "end", iid=str(pid),
                 values=(name, barcode, f"${price:,}", int(stock)),
-                tags=tags,
+                tags=tuple(tags),
             )
 
     def _refresh_categories(self) -> None:

@@ -127,12 +127,16 @@ class ProductController:
             ``search`` — searches by barcode, name, or category name
             ``category_id`` — exact category match
             ``low_stock`` — bool, only products at/below threshold
+            ``include_inactive`` — bool, include inactive products
         """
         try:
             if filters and filters.get("search"):
                 products = self._product_repo.search_unified(filters["search"])
             else:
-                products = self._product_repo.get_all()
+                if filters and filters.get("include_inactive"):
+                    products = self._product_repo.get_all_with_inactive()
+                else:
+                    products = self._product_repo.get_all()
 
             # Apply additional filters in-memory (simple for MVP)
             if filters:

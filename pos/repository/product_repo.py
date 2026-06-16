@@ -69,6 +69,13 @@ class ProductRepo:
         ).fetchall()
         return [self._from_row(r) for r in rows]
 
+    def get_all_with_inactive(self) -> list[Product]:
+        """Return all products (active and inactive), ordered by name."""
+        rows = self._db.execute(
+            "SELECT * FROM products ORDER BY name"
+        ).fetchall()
+        return [self._from_row(r) for r in rows]
+
     # ----------------------------------------------------------------- create
 
     def create(self, product: Product) -> Product:

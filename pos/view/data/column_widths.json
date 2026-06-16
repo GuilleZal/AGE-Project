@@ -2,14 +2,14 @@
   "management_products": {
     "nombre": 200,
     "codigo": 136,
-    "precio": 238,
-    "stock": 125
+    "precio": 152,
+    "stock": 211
   },
   "cash_register_movements": {
-    "tipo": 65,
-    "monto": 46,
-    "descripcion": 151,
-    "hora": 137
+    "tipo": 88,
+    "monto": 61,
+    "descripcion": 117,
+    "hora": 127
   },
   "cash_register_history": {
     "id": 23,
@@ -21,19 +21,19 @@
     "estado": 26
   },
   "product_view": {
-    "codigo": 177,
-    "nombre": 195,
-    "categoria": 165,
-    "costo": 122,
-    "precio": 119,
-    "ganancia": 91,
-    "stock": 84
+    "codigo": 182,
+    "nombre": 201,
+    "categoria": 170,
+    "costo": 127,
+    "precio": 123,
+    "ganancia": 96,
+    "stock": 54
   },
   "cart_treeview": {
-    "producto": 149,
-    "cantidad": 107,
-    "precio_unit": 227,
-    "subtotal": 279
+    "producto": 196,
+    "cantidad": 155,
+    "precio_unit": 275,
+    "subtotal": 327
   },
   "report_view": {
     "pos": 154,
