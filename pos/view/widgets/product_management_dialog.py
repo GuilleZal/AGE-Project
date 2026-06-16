@@ -228,6 +228,11 @@ class ProductManagementDialog(ctk.CTkToplevel):
             fg_color="#8b1a1a", command=self._delete_category,
         ).pack(side="left", padx=5)
 
+        ctk.CTkButton(
+            btn_frame, text="📋 Asignar categoría", width=150,
+            fg_color="#2d5a3d", command=self._assign_category,
+        ).pack(side="left", padx=5)
+
     # ================================================ product actions
 
     def _create_product(self) -> None:
@@ -386,6 +391,79 @@ class ProductManagementDialog(ctk.CTkToplevel):
             messagebox.showinfo("Eliminada", "Categoría eliminada correctamente")
         else:
             messagebox.showerror("Error", res["error"])
+
+    def _assign_category(self) -> None:
+        """Open dialog to assign a category to multiple products."""
+        from pos.view.widgets.assign_category_dialog import AssignCategoryDialog
+
+        if not self._all_products:
+            messagebox.showwarning(
+                "Sin productos",
+                "No hay productos disponibles para asignar categoría.",
+            )
+            return
+
+        if not self._all_categories:
+            messagebox.showwarning(
+                "Sin categorías",
+                "No hay categorías disponibles. Cree una categoría primero.",
+            )
+            return
+
+        dialog = AssignCategoryDialog(
+            self,
+            products=self._all_products,
+            categories=self._all_categories,
+        )
+        self.wait_window(dialog)
+        result = dialog.result
+
+        if result is None:
+            return
+
+        category_id = result["category_id"]
+        product_ids = result["product_ids"]
+
+        # Find category name for confirmation message
+        category_name = next(
+            (c["name"] for c in self._all_categories if c["id"] == category_id),
+            "desconocida"
+        )
+
+        # Confirm assignment
+        confirm = messagebox.askyesno(
+            "Confirmar asignación",
+            f"¿Asignar la categoría '{category_name}' a {len(product_ids)} producto(s)?",
+        )
+        if not confirm:
+            return
+
+        # Update each product
+        updated_count = 0
+        errors = []
+        for pid in product_ids:
+            res = self._controller.update_product(pid, {"category_id": category_id})
+            if res["success"]:
+                updated_count += 1
+            else:
+                errors.append(f"Producto ID {pid}: {res['error']}")
+
+        if updated_count > 0:
+            self._changed = True
+            self._refresh_products()
+            self._refresh_categories()
+            messagebox.showinfo(
+                "Asignación completada",
+                f"Se asignó la categoría '{category_name}' a {updated_count} producto(s).",
+            )
+
+        if errors:
+            messagebox.showerror(
+                "Errores",
+                f"Ocurrieron errores al actualizar algunos productos:\n\n" +
+                "\n".join(errors[:5]) +  # Show first 5 errors
+                (f"\n\n... y {len(errors) - 5} error(es) más." if len(errors) > 5 else ""),
+            )
 
     # ======================================================== helpers
 

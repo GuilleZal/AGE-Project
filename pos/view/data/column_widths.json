@@ -1,23 +1,54 @@
 {
   "management_products": {
-    "nombre": 255,
-    "codigo": 175,
-    "precio": 144,
+    "nombre": 102,
+    "codigo": 198,
+    "precio": 274,
     "stock": 125
   },
   "cash_register_movements": {
-    "tipo": 120,
-    "monto": 100,
-    "descripcion": 250,
-    "hora": 120
+    "tipo": 71,
+    "monto": 55,
+    "descripcion": 175,
+    "hora": 98
   },
   "cash_register_history": {
-    "id": 40,
-    "apertura": 120,
-    "cierre": 120,
-    "inicial": 80,
-    "final": 80,
-    "diferencia": 70,
-    "estado": 60
+    "id": 23,
+    "apertura": 99,
+    "cierre": 110,
+    "inicial": 49,
+    "final": 48,
+    "diferencia": 54,
+    "estado": 36
+  },
+  "product_view": {
+    "codigo": 175,
+    "nombre": 193,
+    "categoria": 165,
+    "costo": 124,
+    "precio": 121,
+    "ganancia": 91,
+    "stock": 84
+  },
+  "cart_treeview": {
+    "producto": 197,
+    "cantidad": 155,
+    "precio_unit": 274,
+    "subtotal": 327
+  },
+  "report_view": {
+    "pos": 155,
+    "producto": 241,
+    "cantidad": 311,
+    "monto": 246
+  },
+  "product_search_dialog": {
+    "codigo": 123,
+    "nombre": 211,
+    "categoria": 143,
+    "precio": 99
+  },
+  "management_categories": {
+    "nombre": 297,
+    "productos": 402
   }
 }
