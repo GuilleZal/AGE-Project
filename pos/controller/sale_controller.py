@@ -47,6 +47,8 @@ class SaleController:
             ``{"success": True, "data": cart_item, "error": None}`` on success.
             ``{"success": False, "data": {"barcode": barcode}, "error": None}``
             when the product is NOT found (the view shows QuickCreateDialog).
+            ``{"success": False, "data": {"barcode": barcode, "inactive": True, "product": product}, "error": None}``
+            when the product exists but is inactive (the view shows reactivation dialog).
         """
         try:
             product = self._product_repo.find_by_barcode(barcode)
@@ -54,6 +56,19 @@ class SaleController:
             product = None
 
         if product is None:
+            # Check if product exists but is inactive
+            try:
+                product_any = self._product_repo.find_by_barcode_any(barcode)
+            except POSException:
+                product_any = None
+            
+            if product_any is not None and not product_any.is_active:
+                return {
+                    "success": False,
+                    "data": {"barcode": barcode, "inactive": True, "product": product_any},
+                    "error": None,  # trigger reactivation flow
+                }
+            
             return {
                 "success": False,
                 "data": {"barcode": barcode},
@@ -105,6 +120,37 @@ class SaleController:
             created = self._product_repo.create(product)
             self._db.commit()  # close implicit transaction so complete_sale can BEGIN
             return self._add_product_to_cart(created, 1.0)
+        except POSException as e:
+            return {"success": False, "data": None, "error": str(e)}
+        except Exception as e:
+            return {"success": False, "data": None, "error": str(e)}
+
+    def reactivate_and_add(self, product_id: int, quantity: float = 1.0) -> dict:
+        """Reactivate an inactive product and add it to the cart.
+
+        Args:
+            product_id: ID of the product to reactivate.
+            quantity: Quantity to add (default 1).
+
+        Returns:
+            ``{"success": True, "data": cart_item, "error": None}``
+            or ``{"success": False, "data": None, "error": message}``.
+        """
+        try:
+            # Reactivate the product
+            self._product_repo.reactivate(product_id)
+            self._db.commit()
+            
+            # Now get the active product and add to cart
+            product = self._product_repo.find_by_id(product_id)
+            if product is None:
+                return {
+                    "success": False,
+                    "data": None,
+                    "error": "Producto no encontrado después de reactivar",
+                }
+            
+            return self._add_product_to_cart(product, quantity)
         except POSException as e:
             return {"success": False, "data": None, "error": str(e)}
         except Exception as e:

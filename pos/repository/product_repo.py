@@ -38,6 +38,15 @@ class ProductRepo:
             return None
         return self._from_row(row)
 
+    def find_by_barcode_any(self, barcode: str) -> Optional[Product]:
+        """Return the product with the given barcode (active or inactive), or ``None``."""
+        row = self._db.execute(
+            "SELECT * FROM products WHERE barcode = ?", (barcode,)
+        ).fetchone()
+        if row is None:
+            return None
+        return self._from_row(row)
+
     def search_unified(self, query: str) -> list[Product]:
         """Search products by barcode, name, or category name."""
         q = f"%{query}%"

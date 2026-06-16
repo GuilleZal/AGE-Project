@@ -240,6 +240,31 @@ class SaleView(ctk.CTkFrame):
         # Check if it is the "not found" flow (not an error)
         data = result.get("data") or {}
         if data.get("barcode") == barcode and result.get("error") is None:
+            # Check if product exists but is inactive
+            if data.get("inactive"):
+                product = data.get("product")
+                product_name = product.name if product else "producto"
+                confirm = messagebox.askyesno(
+                    "Producto desactivado",
+                    f'El producto "{product_name}" está desactivado.\n\n'
+                    "¿Desea reactivarlo y agregarlo al carrito?",
+                )
+                if confirm:
+                    reactivate_result = self._controller.reactivate_and_add(
+                        product.id, 1.0
+                    )
+                    if reactivate_result["success"]:
+                        self._update_cart()
+                        messagebox.showinfo(
+                            "Producto reactivado",
+                            f'El producto "{product_name}" ha sido reactivado y agregado al carrito.',
+                        )
+                    else:
+                        messagebox.showerror("Error", reactivate_result["error"])
+                # Whether they confirm or not, return focus to barcode entry
+                self._barcode_entry.focus_set()
+                return
+            
             # Product not found — open QuickCreateDialog
             dialog = QuickCreateDialog(self, barcode)
             self.wait_window(dialog)

@@ -52,6 +52,43 @@ class TestAddByBarcode:
         assert result["data"]["quantity"] == 0.750
         assert result["data"]["subtotal"] == 7125  # 9500 * 0.75 = 7125
 
+    def test_add_inactive_product_returns_inactive_flag(self, sale_ctrl, db_with_products):
+        """When scanning an inactive product, should return inactive flag."""
+        # First, deactivate a product
+        from pos.repository.product_repo import ProductRepo
+        repo = ProductRepo(db_with_products)
+        product = repo.find_by_barcode("7790895000782")
+        repo.delete(product.id)
+        
+        # Now try to scan it
+        result = sale_ctrl.add_by_barcode("7790895000782")
+        assert result["success"] is False
+        assert result["error"] is None
+        assert result["data"]["barcode"] == "7790895000782"
+        assert result["data"]["inactive"] is True
+        assert result["data"]["product"] is not None
+        assert result["data"]["product"].name == "Coca-Cola 1.5L"
+
+    def test_reactivate_and_add(self, sale_ctrl, db_with_products):
+        """Test reactivating an inactive product and adding to cart."""
+        # First, deactivate a product
+        from pos.repository.product_repo import ProductRepo
+        repo = ProductRepo(db_with_products)
+        product = repo.find_by_barcode("7790895000782")
+        product_id = product.id
+        repo.delete(product_id)
+        
+        # Now reactivate and add
+        result = sale_ctrl.reactivate_and_add(product_id, 1.0)
+        assert result["success"] is True
+        assert result["data"]["name"] == "Coca-Cola 1.5L"
+        assert result["data"]["quantity"] == 1.0
+        
+        # Verify product is now active
+        product = repo.find_by_id(product_id)
+        assert product is not None
+        assert product.is_active is True
+
 
 class TestQuickCreateProduct:
     """Quick product creation for unknown barcodes."""
