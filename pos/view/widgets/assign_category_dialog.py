@@ -7,6 +7,11 @@ from typing import Any
 import customtkinter as ctk
 
 
+# Checkbox symbols
+_CHECKBOX_OFF = "☐"
+_CHECKBOX_ON = "☑"
+
+
 class AssignCategoryDialog(ctk.CTkToplevel):
     """Modal dialog to assign a category to multiple products at once.
 
@@ -31,7 +36,7 @@ class AssignCategoryDialog(ctk.CTkToplevel):
     ) -> None:
         super().__init__(master, **kwargs)
         self.title("Asignar categoría a productos")
-        self.geometry("600x500")
+        self.geometry("650x500")
         self.resizable(True, True)
 
         self.grab_set()
@@ -65,34 +70,30 @@ class AssignCategoryDialog(ctk.CTkToplevel):
         )
         self._category_menu.pack(side="left", padx=5)
 
-        # --- product list as treeview ---
+        # --- product list as treeview with checkboxes ---
         list_frame = ctk.CTkFrame(self)
         list_frame.pack(fill="both", expand=True, padx=10, pady=5)
 
-        ctk.CTkLabel(
-            list_frame,
-            text="Seleccionar productos (Ctrl+click para selección múltiple):",
-            font=ctk.CTkFont(size=13, weight="bold"),
-        ).pack(anchor="w", pady=(5, 5))
-
         # Treeview frame
         tree_frame = ctk.CTkFrame(list_frame)
-        tree_frame.pack(fill="both", expand=True, pady=(0, 5))
+        tree_frame.pack(fill="both", expand=True, pady=(5, 5))
         tree_frame.grid_columnconfigure(0, weight=1)
         tree_frame.grid_rowconfigure(0, weight=1)
 
-        # Create treeview with two columns
-        cols = ("nombre", "categoria")
+        # Create treeview with checkbox column + two data columns
+        cols = ("sel", "nombre", "categoria")
         self._tree = ttk.Treeview(
             tree_frame,
             columns=cols,
             show="headings",
-            selectmode="extended",
+            selectmode="none",
             height=15,
         )
+        self._tree.heading("sel", text="")
         self._tree.heading("nombre", text="Nombre")
         self._tree.heading("categoria", text="Categoría actual")
-        self._tree.column("nombre", width=350, anchor="w")
+        self._tree.column("sel", width=40, anchor="center", stretch=False)
+        self._tree.column("nombre", width=320, anchor="w")
         self._tree.column("categoria", width=200, anchor="w")
 
         # Configure style for dark theme
@@ -104,6 +105,7 @@ class AssignCategoryDialog(ctk.CTkToplevel):
             foreground="#dce4ee",
             fieldbackground="#2b2b2b",
             borderwidth=0,
+            rowheight=28,
         )
         style.configure(
             "Treeview.Heading",
@@ -112,11 +114,6 @@ class AssignCategoryDialog(ctk.CTkToplevel):
             relief="raised",
             borderwidth=1,
             font=("Segoe UI", 10, "bold"),
-        )
-        style.map(
-            "Treeview",
-            background=[("selected", "#1f538d")],
-            foreground=[("selected", "#dce4ee")],
         )
 
         # Scrollbar
@@ -130,7 +127,7 @@ class AssignCategoryDialog(ctk.CTkToplevel):
         self._tree.grid(row=0, column=0, sticky="nsew")
         scrollbar.grid(row=0, column=1, sticky="ns")
 
-        # Populate treeview with products
+        # Populate treeview with products (all unchecked)
         for product in products:
             pid = getattr(product, "id", None)
             name = getattr(product, "name", "")
@@ -141,8 +138,11 @@ class AssignCategoryDialog(ctk.CTkToplevel):
                 "",
                 "end",
                 iid=str(pid),
-                values=(name, current_cat),
+                values=(_CHECKBOX_OFF, name, current_cat),
             )
+
+        # Bind click on checkbox column to toggle
+        self._tree.bind("<ButtonRelease-1>", self._on_tree_click)
 
         # --- selection buttons ---
         select_frame = ctk.CTkFrame(self)
@@ -192,14 +192,57 @@ class AssignCategoryDialog(ctk.CTkToplevel):
             "product_ids": self._selected_product_ids,
         }
 
+    # ------------------------------------------------------ checkbox handling
+
+    def _on_tree_click(self, event: tk.Event) -> None:
+        """Toggle checkbox when user clicks on the checkbox column."""
+        region = self._tree.identify_region(event.x, event.y)
+        if region != "cell":
+            return
+
+        col = self._tree.identify_column(event.x)
+        # Column #1 is the first column (sel)
+        if col != "#1":
+            return
+
+        item = self._tree.identify_row(event.y)
+        if not item:
+            return
+
+        # Toggle the checkbox
+        values = list(self._tree.item(item, "values"))
+        if values[0] == _CHECKBOX_OFF:
+            values[0] = _CHECKBOX_ON
+        else:
+            values[0] = _CHECKBOX_OFF
+        self._tree.item(item, values=values)
+
+    def _set_all_checkboxes(self, checked: bool) -> None:
+        """Set all checkboxes to checked or unchecked."""
+        symbol = _CHECKBOX_ON if checked else _CHECKBOX_OFF
+        for item in self._tree.get_children():
+            values = list(self._tree.item(item, "values"))
+            values[0] = symbol
+            self._tree.item(item, values=values)
+
     def _select_all(self) -> None:
-        """Select all products in the treeview."""
-        all_items = self._tree.get_children()
-        self._tree.selection_set(all_items)
+        """Check all product checkboxes."""
+        self._set_all_checkboxes(True)
 
     def _deselect_all(self) -> None:
-        """Deselect all products in the treeview."""
-        self._tree.selection_remove(self._tree.selection())
+        """Uncheck all product checkboxes."""
+        self._set_all_checkboxes(False)
+
+    def _get_checked_product_ids(self) -> list[int]:
+        """Return list of product IDs that have checked checkboxes."""
+        checked = []
+        for item in self._tree.get_children():
+            values = self._tree.item(item, "values")
+            if values[0] == _CHECKBOX_ON:
+                checked.append(int(item))
+        return checked
+
+    # --------------------------------------------------------- confirm / cancel
 
     def _confirm(self) -> None:
         """Confirm the category assignment."""
@@ -220,9 +263,9 @@ class AssignCategoryDialog(ctk.CTkToplevel):
             )
             return
 
-        # Get selected products from treeview
-        selected_items = self._tree.selection()
-        if not selected_items:
+        # Get checked products
+        selected_ids = self._get_checked_product_ids()
+        if not selected_ids:
             from tkinter import messagebox
             messagebox.showwarning(
                 "Sin productos",
@@ -230,8 +273,6 @@ class AssignCategoryDialog(ctk.CTkToplevel):
                 parent=self,
             )
             return
-
-        selected_ids = [int(item) for item in selected_items]
 
         self._selected_category_id = category_id
         self._selected_product_ids = selected_ids
