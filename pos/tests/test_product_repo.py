@@ -218,6 +218,28 @@ class TestDelete:
         row = db.execute("SELECT is_active FROM products WHERE id = ?", (product_id,)).fetchone()
         assert row["is_active"] == 0
 
+    def test_reactivate(self, db, sample_products):
+        repo = ProductRepo(db)
+        product_id = sample_products[0]
+        # First deactivate
+        repo.delete(product_id)
+        row = db.execute("SELECT is_active FROM products WHERE id = ?", (product_id,)).fetchone()
+        assert row["is_active"] == 0
+        # Now reactivate
+        repo.reactivate(product_id)
+        row = db.execute("SELECT is_active FROM products WHERE id = ?", (product_id,)).fetchone()
+        assert row["is_active"] == 1
+        # Product should be found again
+        product = repo.find_by_id(product_id)
+        assert product is not None
+
+    def test_reactivate_already_active(self, db, sample_products):
+        repo = ProductRepo(db)
+        product_id = sample_products[0]
+        # Try to reactivate an already active product
+        with pytest.raises(DataError, match="no encontrado o ya está activo"):
+            repo.reactivate(product_id)
+
 
 # --------------------------------------------------------------- upsert ---
 

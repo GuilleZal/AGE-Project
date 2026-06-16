@@ -146,6 +146,9 @@ class ProductManagementDialog(ctk.CTkToplevel):
         self._prod_tree.grid(row=0, column=0, sticky="nsew")
         sb.grid(row=0, column=1, sticky="ns")
 
+        # Bind selection event to update button states
+        self._prod_tree.bind("<<TreeviewSelect>>", self._on_product_select)
+
         # Buttons
         btn_frame = ctk.CTkFrame(parent)
         btn_frame.grid(row=2, column=0, sticky="ew", pady=8)
@@ -160,10 +163,18 @@ class ProductManagementDialog(ctk.CTkToplevel):
             fg_color="#1f538d", command=self._edit_product,
         ).pack(side="left", padx=5)
 
-        ctk.CTkButton(
+        self._deactivate_btn = ctk.CTkButton(
             btn_frame, text="🚫 Desactivar", width=120,
             fg_color="#8b1a1a", command=self._delete_product,
-        ).pack(side="left", padx=5)
+        )
+        self._deactivate_btn.pack(side="left", padx=5)
+
+        self._activate_btn = ctk.CTkButton(
+            btn_frame, text="✅ Activar", width=120,
+            fg_color="#2d7d2d", command=self._reactivate_product,
+        )
+        self._activate_btn.pack(side="left", padx=5)
+        self._activate_btn.pack_forget()  # Hide by default
 
     # ==================================================== categories tab
 
@@ -332,6 +343,58 @@ class ProductManagementDialog(ctk.CTkToplevel):
             messagebox.showinfo("Desactivado", "Producto desactivado correctamente")
         else:
             messagebox.showerror("Error", res["error"])
+
+    def _reactivate_product(self) -> None:
+        """Reactivate a deactivated product."""
+        sel = self._prod_tree.selection()
+        if not sel:
+            messagebox.showwarning(
+                "Seleccionar", "Seleccione un producto de la lista."
+            )
+            return
+
+        item = self._prod_tree.item(sel[0])
+        pid = int(item["tags"][0])
+        name = item["values"][0]
+        # Remove [DESACTIVADO] prefix if present
+        if name.startswith("[DESACTIVADO] "):
+            name = name[13:]
+
+        confirm = messagebox.askyesno(
+            "Confirmar activación",
+            f'¿Activar el producto "{name}"?\n\n'
+            "El producto volverá a aparecer en la lista de productos activos.",
+        )
+        if not confirm:
+            return
+
+        res = self._controller.reactivate_product(pid)
+        if res["success"]:
+            self._changed = True
+            self._refresh_products()
+            messagebox.showinfo("Activado", "Producto activado correctamente")
+        else:
+            messagebox.showerror("Error", res["error"])
+
+    def _on_product_select(self, event: tk.Event) -> None:
+        """Update button states based on selected product."""
+        sel = self._prod_tree.selection()
+        if not sel:
+            return
+
+        item = self._prod_tree.item(sel[0])
+        tags = item.get("tags", ())
+        
+        # Check if product is inactive
+        is_inactive = "inactive" in tags
+        
+        # Update button visibility and state
+        if is_inactive:
+            self._deactivate_btn.pack_forget()
+            self._activate_btn.pack(side="left", padx=5)
+        else:
+            self._activate_btn.pack_forget()
+            self._deactivate_btn.pack(side="left", padx=5)
 
     # =============================================== category actions
 
@@ -554,6 +617,9 @@ class ProductManagementDialog(ctk.CTkToplevel):
     def _on_show_inactive_changed(self) -> None:
         """Refresh products when show inactive checkbox changes."""
         self._refresh_products()
+        # Reset button to default state (show deactivate, hide activate)
+        self._activate_btn.pack_forget()
+        self._deactivate_btn.pack(side="left", padx=5)
 
     def _on_category_search_changed(self, *_args: Any) -> None:
         """Filter categories by name as user types."""

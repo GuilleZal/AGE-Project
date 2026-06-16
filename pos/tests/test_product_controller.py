@@ -119,6 +119,26 @@ class TestDeleteProduct:
         result = product_ctrl.get_product(pid)
         assert result["success"] is False
 
+    def test_reactivate_product(self, product_ctrl, sample_products):
+        """Test reactivating a deactivated product."""
+        pid = sample_products[0]
+        # First deactivate
+        result = product_ctrl.delete_product(pid)
+        assert result["success"] is True
+        # Now reactivate
+        result = product_ctrl.reactivate_product(pid)
+        assert result["success"] is True
+        # Product should be found again
+        result = product_ctrl.get_product(pid)
+        assert result["success"] is True
+
+    def test_reactivate_already_active(self, product_ctrl, sample_products):
+        """Test reactivating an already active product fails."""
+        pid = sample_products[0]
+        result = product_ctrl.reactivate_product(pid)
+        assert result["success"] is False
+        assert "ya está activo" in result["error"]
+
 
 class TestGetAndListProducts:
     """Product retrieval and listing."""

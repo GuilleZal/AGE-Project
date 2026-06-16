@@ -174,6 +174,19 @@ class ProductRepo:
         if result.rowcount == 0:
             raise DataError(f"Producto con id={product_id} no encontrado")
 
+    def reactivate(self, product_id: int) -> None:
+        """Reactivate a product by setting is_active = 1.
+
+        Raises:
+            DataError: If the product is not found or already active.
+        """
+        result = self._db.execute(
+            "UPDATE products SET is_active = 1, updated_at = datetime('now') WHERE id = ? AND is_active = 0",
+            (product_id,),
+        )
+        if result.rowcount == 0:
+            raise DataError(f"Producto con id={product_id} no encontrado o ya está activo")
+
     # ----------------------------------------------------------- stock ----
 
     def update_stock(self, product_id: int, new_stock: float) -> None:
