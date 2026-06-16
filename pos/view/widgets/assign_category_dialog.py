@@ -164,23 +164,27 @@ class AssignCategoryDialog(ctk.CTkToplevel):
 
         # --- action buttons ---
         btn_frame = ctk.CTkFrame(self)
-        btn_frame.pack(fill="x", padx=10, pady=(5, 10))
+        btn_frame.pack(fill="x", padx=10, pady=(10, 15))
 
         ctk.CTkButton(
             btn_frame,
             text="Cancelar",
-            width=100,
+            width=120,
+            height=35,
             fg_color="gray",
+            font=ctk.CTkFont(size=13, weight="bold"),
             command=self._cancel,
-        ).pack(side="right", padx=5)
+        ).pack(side="right", padx=10)
 
         ctk.CTkButton(
             btn_frame,
             text="Asignar",
-            width=100,
+            width=120,
+            height=35,
             fg_color="#1f538d",
+            font=ctk.CTkFont(size=13, weight="bold"),
             command=self._confirm,
-        ).pack(side="right", padx=5)
+        ).pack(side="right", padx=10)
 
     @property
     def result(self) -> dict[str, Any] | None:
