@@ -95,7 +95,7 @@ class ProductController:
             return {"success": False, "data": None, "error": str(e)}
 
     def delete_product(self, product_id: int) -> dict:
-        """Delete a product (blocked if it has transaction history).
+        """Soft delete a product by setting is_active = 0.
 
         Returns ``{"success": True, "data": None, "error": None}``
         or ``{"success": False, "data": None, "error": message}``.
@@ -210,7 +210,7 @@ class ProductController:
     def generate_template(self, file_path: str) -> dict:
         """Generate an empty Excel template with the correct column headers.
 
-        Columns: barcode, name, sale_price, cost_price, stock, unit_type.
+        Columns: codigo, nombre, categoria, precio_venta, precio_costo, stock, tipo_unidad.
 
         Returns ``{"success": True, "data": file_path, "error": None}``.
         """
@@ -220,10 +220,10 @@ class ProductController:
             wb = openpyxl.Workbook()
             ws = wb.active
             ws.title = "Productos"
-            ws.append(["barcode", "name", "sale_price", "cost_price", "stock", "unit_type"])
+            ws.append(["codigo", "nombre", "categoria", "precio_venta", "precio_costo", "stock", "tipo_unidad"])
 
             # Add a sample row as hint
-            ws.append(["7790000000001", "Ejemplo", 100, 60, 10, "unit"])
+            ws.append(["7790000000001", "Ejemplo", "General", 100, 60, 10, "unit"])
 
             wb.save(file_path)
             return {"success": True, "data": file_path, "error": None}

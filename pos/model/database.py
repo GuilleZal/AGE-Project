@@ -87,6 +87,12 @@ def _run_migrations(conn: sqlite3.Connection) -> None:
             );
         """)
 
+    # Migration 3: Add is_active column to products for soft delete
+    row = conn.execute("PRAGMA table_info(products)").fetchall()
+    columns = [col["name"] for col in row]
+    if "is_active" not in columns:
+        conn.execute("ALTER TABLE products ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1")
+
 
 # ------------------------------------------------------------------ DDL ----
 # NOTE: Currency fields (prices, amounts, totals) use INTEGER to represent
@@ -113,6 +119,7 @@ CREATE TABLE IF NOT EXISTS products (
     unit_type           TEXT NOT NULL CHECK(unit_type IN ('unit','weight_kg','pack')),
     description         TEXT,
     low_stock_threshold REAL DEFAULT 5,
+    is_active           INTEGER NOT NULL DEFAULT 1,
     created_at          TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at          TEXT NOT NULL DEFAULT (datetime('now'))
 );

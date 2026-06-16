@@ -91,18 +91,19 @@ class TestUpdateProduct:
 
 
 class TestDeleteProduct:
-    """Product deletion with transaction history protection."""
+    """Product soft deletion (is_active = 0)."""
 
     def test_delete_product_no_history(self, product_ctrl, sample_products):
         pid = sample_products[4]  # Six-Pack — no sales
         result = product_ctrl.delete_product(pid)
         assert result["success"] is True
 
-        # Verify gone
+        # Verify gone from active products
         result = product_ctrl.get_product(pid)
         assert result["success"] is False
 
-    def test_delete_blocked_on_sales(self, product_ctrl, db, sample_products):
+    def test_delete_with_sales_soft_deletes(self, product_ctrl, db, sample_products):
+        """Products with sales history can be soft deleted."""
         pid = sample_products[0]
         # Create a sale referencing this product
         db.execute("INSERT INTO cash_registers (opening_amount, opening_time, status) VALUES (5000, 'now', 'open')")
@@ -110,9 +111,13 @@ class TestDeleteProduct:
         db.execute("INSERT INTO sale_items (sale_id, product_id, quantity, unit_price, subtotal) VALUES (1, ?, 1, 800, 800)", (pid,))
         db.commit()
 
+        # Should succeed (soft delete)
         result = product_ctrl.delete_product(pid)
+        assert result["success"] is True
+
+        # Product should not be found in active products
+        result = product_ctrl.get_product(pid)
         assert result["success"] is False
-        assert "historial" in result["error"].lower()
 
 
 class TestGetAndListProducts:
@@ -178,4 +183,4 @@ class TestGenerateTemplate:
         wb = openpyxl.load_workbook(str(path))
         ws = wb.active
         headers = [cell.value for cell in next(ws.iter_rows(min_row=1, max_row=1))]
-        assert headers == ["barcode", "name", "sale_price", "cost_price", "stock", "unit_type"]
+        assert headers == ["codigo", "nombre", "categoria", "precio_venta", "precio_costo", "stock", "tipo_unidad"]

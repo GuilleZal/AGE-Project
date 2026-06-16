@@ -153,11 +153,15 @@ class TestDelete:
         repo = ProductRepo(db)
         prod = repo.create(_make_product(barcode="DEL001"))
         repo.delete(prod.id)
+        # Product should not be found (is_active = 0)
         assert repo.find_by_barcode("DEL001") is None
+        # But it should still exist in DB with is_active = 0
+        row = db.execute("SELECT is_active FROM products WHERE id = ?", (prod.id,)).fetchone()
+        assert row["is_active"] == 0
 
-    def test_with_sales_blocks(self, db, sample_products, open_register):
+    def test_with_sales_soft_deletes(self, db, sample_products, open_register):
+        """Products with sales history can be soft deleted."""
         repo = ProductRepo(db)
-        # Create a sale that references a sample product
         product_id = sample_products[0]
         db.execute(
             "INSERT INTO sales (total, payment_method, cash_register_id) VALUES (800, 'cash', ?)",
@@ -170,10 +174,16 @@ class TestDelete:
         )
         db.commit()
 
-        with pytest.raises(DataError, match="historial"):
-            repo.delete(product_id)
+        # Should succeed (soft delete)
+        repo.delete(product_id)
+        # Product should not be found in active products
+        assert repo.find_by_id(product_id) is None
+        # But should exist in DB with is_active = 0
+        row = db.execute("SELECT is_active FROM products WHERE id = ?", (product_id,)).fetchone()
+        assert row["is_active"] == 0
 
-    def test_with_purchases_blocks(self, db, sample_products):
+    def test_with_purchases_soft_deletes(self, db, sample_products):
+        """Products with purchase history can be soft deleted."""
         repo = ProductRepo(db)
         product_id = sample_products[0]
         db.execute(
@@ -191,16 +201,22 @@ class TestDelete:
         )
         db.commit()
 
-        with pytest.raises(DataError, match="historial"):
-            repo.delete(product_id)
+        # Should succeed (soft delete)
+        repo.delete(product_id)
+        # Product should not be found in active products
+        assert repo.find_by_id(product_id) is None
+        # But should exist in DB with is_active = 0
+        row = db.execute("SELECT is_active FROM products WHERE id = ?", (product_id,)).fetchone()
+        assert row["is_active"] == 0
 
     def test_no_transactions_allows_delete(self, db, sample_products):
         repo = ProductRepo(db)
         # Product index 4 (Six-Pack) has no sales or purchases
         product_id = sample_products[4]
         repo.delete(product_id)
-        assert db.execute("SELECT COUNT(*) AS cnt FROM products WHERE id = ?",
-                          (product_id,)).fetchone()["cnt"] == 0
+        # Product should still exist in DB but with is_active = 0
+        row = db.execute("SELECT is_active FROM products WHERE id = ?", (product_id,)).fetchone()
+        assert row["is_active"] == 0
 
 
 # --------------------------------------------------------------- upsert ---
@@ -214,26 +230,27 @@ class TestUpsertFromImport:
         assert result.id is not None
         assert result.name == "Imported Beer"
 
-    def test_updates_existing_preserves_name(self, db):
+    def test_updates_existing_updates_name(self, db):
         repo = ProductRepo(db)
         # First, create with a specific name
         original = repo.create(_make_product(barcode="IMP002", name="Original Name",
                                              sale_price=500, cost_price=300,
                                              stock=5.0))
-        # Now upsert with a different name — name should NOT change
-        import_prod = _make_product(barcode="IMP002", name="Should Not Overwrite",
+        # Now upsert with a different name — name SHOULD change
+        import_prod = _make_product(barcode="IMP002", name="Updated Name",
                                     sale_price=800, cost_price=500, stock=10.0, unit_type="weight_kg")
         result, action = repo.upsert_from_import(import_prod)
         assert action == "updated"
         assert result.id == original.id
 
-        # Verify DB: name unchanged, other fields updated
+        # Verify DB: name updated, other fields updated
         row = db.execute("SELECT * FROM products WHERE id = ?", (original.id,)).fetchone()
-        assert row["name"] == "Original Name"   # preserved
+        assert row["name"] == "Updated Name"     # updated
         assert row["sale_price"] == 800          # updated
         assert row["cost_price"] == 500          # updated
         assert row["stock"] == 10.0              # updated
         assert row["unit_type"] == "weight_kg"   # updated
+        assert row["is_active"] == 1             # reactivated
 
     def test_null_barcode_creates(self, db):
         """Products without barcode are always created (no match on NULL)."""

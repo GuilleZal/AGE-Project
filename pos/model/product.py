@@ -32,5 +32,6 @@ class Product:
     stock: float = 0.0
     description: str | None = None
     low_stock_threshold: float = 5.0
+    is_active: bool = True
     created_at: str | None = None
     updated_at: str | None = None

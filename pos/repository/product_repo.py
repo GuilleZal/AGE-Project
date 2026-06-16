@@ -23,7 +23,7 @@ class ProductRepo:
     def find_by_id(self, product_id: int) -> Optional[Product]:
         """Return the product with the given id, or ``None``."""
         row = self._db.execute(
-            "SELECT * FROM products WHERE id = ?", (product_id,)
+            "SELECT * FROM products WHERE id = ? AND is_active = 1", (product_id,)
         ).fetchone()
         if row is None:
             return None
@@ -32,7 +32,7 @@ class ProductRepo:
     def find_by_barcode(self, barcode: str) -> Optional[Product]:
         """Return the product with the given barcode, or ``None``."""
         row = self._db.execute(
-            "SELECT * FROM products WHERE barcode = ?", (barcode,)
+            "SELECT * FROM products WHERE barcode = ? AND is_active = 1", (barcode,)
         ).fetchone()
         if row is None:
             return None
@@ -44,11 +44,12 @@ class ProductRepo:
         rows = self._db.execute(
             """SELECT DISTINCT p.id, p.barcode, p.name, p.cost_price,
                       p.sale_price, p.stock, p.unit_type, p.description,
-                      p.low_stock_threshold, p.category_id,
+                      p.low_stock_threshold, p.category_id, p.is_active,
                       p.created_at, p.updated_at
                FROM products p
                LEFT JOIN categories c ON p.category_id = c.id
-               WHERE p.barcode LIKE ? OR p.name LIKE ? OR c.name LIKE ?
+               WHERE p.is_active = 1
+                 AND (p.barcode LIKE ? OR p.name LIKE ? OR c.name LIKE ?)
                ORDER BY p.name""",
             (q, q, q),
         ).fetchall()
@@ -57,14 +58,14 @@ class ProductRepo:
     def search(self, query: str) -> list[Product]:
         """Search products by name (``LIKE %query%``)."""
         rows = self._db.execute(
-            "SELECT * FROM products WHERE name LIKE ?", (f"%{query}%",)
+            "SELECT * FROM products WHERE name LIKE ? AND is_active = 1", (f"%{query}%",)
         ).fetchall()
         return [self._from_row(r) for r in rows]
 
     def get_all(self) -> list[Product]:
-        """Return every product, ordered by name."""
+        """Return every active product, ordered by name."""
         rows = self._db.execute(
-            "SELECT * FROM products ORDER BY name"
+            "SELECT * FROM products WHERE is_active = 1 ORDER BY name"
         ).fetchall()
         return [self._from_row(r) for r in rows]
 
@@ -154,25 +155,17 @@ class ProductRepo:
     # ----------------------------------------------------------------- delete
 
     def delete(self, product_id: int) -> None:
-        """Delete a product.
+        """Soft delete a product by setting is_active = 0.
 
         Raises:
-            DataError: If the product is referenced by any sale or purchase.
+            DataError: If the product is not found.
         """
-        sales = self._db.execute(
-            "SELECT COUNT(*) AS cnt FROM sale_items WHERE product_id = ?",
+        result = self._db.execute(
+            "UPDATE products SET is_active = 0, updated_at = datetime('now') WHERE id = ? AND is_active = 1",
             (product_id,),
-        ).fetchone()["cnt"]
-        purchases = self._db.execute(
-            "SELECT COUNT(*) AS cnt FROM purchase_items WHERE product_id = ?",
-            (product_id,),
-        ).fetchone()["cnt"]
-        if sales > 0 or purchases > 0:
-            raise DataError(
-                "El producto tiene historial de transacciones. "
-                "Configure stock=0 en lugar de eliminar."
-            )
-        self._db.execute("DELETE FROM products WHERE id = ?", (product_id,))
+        )
+        if result.rowcount == 0:
+            raise DataError(f"Producto con id={product_id} no encontrado")
 
     # ----------------------------------------------------------- stock ----
 
@@ -199,8 +192,9 @@ class ProductRepo:
         """Insert or selectively update a product from an Excel import.
 
         - Barcode is NOT in DB → full INSERT (returns ``(product, "created")``).
-        - Barcode IS in DB     → UPDATE only price, cost, stock, unit_type.
-          Name is NOT overwritten (human-curated). Returns ``(product, "updated")``.
+        - Barcode IS in DB     → UPDATE price, cost, stock, unit_type, name,
+          category_id, and reactivate (is_active = 1).
+          Returns ``(product, "updated")``.
 
         Returns:
             Tuple of ``(Product, action)`` where *action* is ``"created"`` or ``"updated"``.
@@ -214,10 +208,11 @@ class ProductRepo:
             self._db.execute(
                 """UPDATE products
                    SET sale_price = ?, cost_price = ?, stock = ?,
-                       unit_type = ?, updated_at = datetime('now')
+                       unit_type = ?, name = ?, category_id = ?,
+                       is_active = 1, updated_at = datetime('now')
                    WHERE barcode = ?""",
                 (product.sale_price, product.cost_price, product.stock,
-                 ut, product.barcode),
+                 ut, product.name, product.category_id, product.barcode),
             )
             product.id = existing["id"]
             return product, "updated"
@@ -240,6 +235,7 @@ class ProductRepo:
             unit_type=row["unit_type"],
             description=row["description"],
             low_stock_threshold=row["low_stock_threshold"],
+            is_active=bool(row["is_active"]),
             created_at=row["created_at"],
             updated_at=row["updated_at"],
         )

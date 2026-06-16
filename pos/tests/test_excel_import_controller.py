@@ -25,8 +25,8 @@ class TestValidateExcel:
     def test_valid_file(self, excel_ctrl, tmp_path):
         path = tmp_path / "valid.xlsx"
         _create_xlsx(str(path), [
-            ["barcode", "name", "sale_price", "cost_price", "stock", "unit_type"],
-            ["7790000000001", "Producto A", 500, 300, 10, "unit"],
+            ["codigo", "nombre", "categoria", "precio_venta", "precio_costo", "stock", "tipo_unidad"],
+            ["7790000000001", "Producto A", "General", 500, 300, 10, "unit"],
         ])
         result = excel_ctrl.validate_excel(str(path))
         assert result["success"] is True
@@ -36,7 +36,7 @@ class TestValidateExcel:
     def test_wrong_headers_rejected(self, excel_ctrl, tmp_path):
         path = tmp_path / "bad_headers.xlsx"
         _create_xlsx(str(path), [
-            ["codigo", "nombre", "precio", "costo", "stock", "tipo"],
+            ["barcode", "name", "sale_price", "cost_price", "stock", "unit_type"],
             ["779", "X", 100, 50, 5, "unit"],
         ])
         result = excel_ctrl.validate_excel(str(path))
@@ -51,8 +51,8 @@ class TestValidateExcel:
     def test_invalid_price_rejected(self, excel_ctrl, tmp_path):
         path = tmp_path / "bad_price.xlsx"
         _create_xlsx(str(path), [
-            ["barcode", "name", "sale_price", "cost_price", "stock", "unit_type"],
-            ["7790000000001", "Malo", -100, 50, 10, "unit"],
+            ["codigo", "nombre", "categoria", "precio_venta", "precio_costo", "stock", "tipo_unidad"],
+            ["7790000000001", "Malo", "General", -100, 50, 10, "unit"],
         ])
         result = excel_ctrl.validate_excel(str(path))
         # Validation should flag the row error
@@ -61,8 +61,8 @@ class TestValidateExcel:
     def test_invalid_unit_type_rejected(self, excel_ctrl, tmp_path):
         path = tmp_path / "bad_unit.xlsx"
         _create_xlsx(str(path), [
-            ["barcode", "name", "sale_price", "cost_price", "stock", "unit_type"],
-            ["7790000000001", "Malo", 500, 300, 10, "litros"],
+            ["codigo", "nombre", "categoria", "precio_venta", "precio_costo", "stock", "tipo_unidad"],
+            ["7790000000001", "Malo", "General", 500, 300, 10, "litros"],
         ])
         result = excel_ctrl.validate_excel(str(path))
         assert len(result["data"]["errors"]) >= 1
@@ -71,8 +71,8 @@ class TestValidateExcel:
     def test_empty_name_rejected(self, excel_ctrl, tmp_path):
         path = tmp_path / "no_name.xlsx"
         _create_xlsx(str(path), [
-            ["barcode", "name", "sale_price", "cost_price", "stock", "unit_type"],
-            ["7790000000001", "", 500, 300, 10, "unit"],
+            ["codigo", "nombre", "categoria", "precio_venta", "precio_costo", "stock", "tipo_unidad"],
+            ["7790000000001", "", "General", 500, 300, 10, "unit"],
         ])
         result = excel_ctrl.validate_excel(str(path))
         assert len(result["data"]["errors"]) >= 1
@@ -80,8 +80,8 @@ class TestValidateExcel:
     def test_non_numeric_price_rejected(self, excel_ctrl, tmp_path):
         path = tmp_path / "text_price.xlsx"
         _create_xlsx(str(path), [
-            ["barcode", "name", "sale_price", "cost_price", "stock", "unit_type"],
-            ["7790000000001", "Test", "abc", 300, 10, "unit"],
+            ["codigo", "nombre", "categoria", "precio_venta", "precio_costo", "stock", "tipo_unidad"],
+            ["7790000000001", "Test", "General", "abc", 300, 10, "unit"],
         ])
         result = excel_ctrl.validate_excel(str(path))
         assert len(result["data"]["errors"]) >= 1
@@ -89,8 +89,8 @@ class TestValidateExcel:
     def test_non_numeric_stock_rejected(self, excel_ctrl, tmp_path):
         path = tmp_path / "text_stock.xlsx"
         _create_xlsx(str(path), [
-            ["barcode", "name", "sale_price", "cost_price", "stock", "unit_type"],
-            ["7790000000001", "Test", 500, 300, "mucho", "unit"],
+            ["codigo", "nombre", "categoria", "precio_venta", "precio_costo", "stock", "tipo_unidad"],
+            ["7790000000001", "Test", "General", 500, 300, "mucho", "unit"],
         ])
         result = excel_ctrl.validate_excel(str(path))
         assert len(result["data"]["errors"]) >= 1
@@ -102,10 +102,10 @@ class TestPreviewImport:
     def test_preview_first_rows(self, excel_ctrl, tmp_path):
         path = tmp_path / "preview.xlsx"
         _create_xlsx(str(path), [
-            ["barcode", "name", "sale_price", "cost_price", "stock", "unit_type"],
-            ["1", "P1", 100, 50, 10, "unit"],
-            ["2", "P2", 200, 100, 20, "unit"],
-            ["3", "P3", 300, 150, 30, "weight_kg"],
+            ["codigo", "nombre", "categoria", "precio_venta", "precio_costo", "stock", "tipo_unidad"],
+            ["1", "P1", "General", 100, 50, 10, "unit"],
+            ["2", "P2", "General", 200, 100, 20, "unit"],
+            ["3", "P3", "General", 300, 150, 30, "weight_kg"],
         ])
         result = excel_ctrl.preview_import(str(path))
         assert result["success"] is True
@@ -119,9 +119,9 @@ class TestExecuteImport:
     def test_execute_import_creates_products(self, excel_ctrl, tmp_path):
         path = tmp_path / "import.xlsx"
         _create_xlsx(str(path), [
-            ["barcode", "name", "sale_price", "cost_price", "stock", "unit_type"],
-            ["7790000000100", "Nuevo A", 500, 300, 20, "unit"],
-            ["7790000000200", "Nuevo B", 800, 500, 15, "weight_kg"],
+            ["codigo", "nombre", "categoria", "precio_venta", "precio_costo", "stock", "tipo_unidad"],
+            ["7790000000100", "Nuevo A", "General", 500, 300, 20, "unit"],
+            ["7790000000200", "Nuevo B", "General", 800, 500, 15, "weight_kg"],
         ])
         result = excel_ctrl.execute_import(str(path))
         assert result["success"] is True
@@ -133,18 +133,18 @@ class TestExecuteImport:
         """Import should UPDATE existing products (by barcode)."""
         path = tmp_path / "update.xlsx"
         _create_xlsx(str(path), [
-            ["barcode", "name", "sale_price", "cost_price", "stock", "unit_type"],
-            ["7790895000782", "Coca-Cola Nueva", 900, 550, 50, "unit"],
+            ["codigo", "nombre", "categoria", "precio_venta", "precio_costo", "stock", "tipo_unidad"],
+            ["7790895000782", "Coca-Cola Nueva", "Bebidas", 900, 550, 50, "unit"],
         ])
         result = excel_ctrl.execute_import(str(path))
         assert result["success"] is True
         assert result["data"]["updated"] == 1
 
-        # Name should NOT be overwritten (upsert preserves name)
+        # Name SHOULD be overwritten (upsert updates name)
         from pos.repository.product_repo import ProductRepo
         repo = ProductRepo(excel_ctrl._db)
         product = repo.find_by_barcode("7790895000782")
-        assert product.name == "Coca-Cola 1.5L"  # original name preserved
+        assert product.name == "Coca-Cola Nueva"  # name updated
         assert product.sale_price == 900  # price updated
         assert product.stock == 50.0  # stock updated
 
@@ -153,9 +153,9 @@ class TestExecuteImport:
         path = tmp_path / "rollback.xlsx"
         # First row is valid new product, second row has the same barcode (intra-file duplicate)
         _create_xlsx(str(path), [
-            ["barcode", "name", "sale_price", "cost_price", "stock", "unit_type"],
-            ["7790000000300", "Bueno", 500, 300, 10, "unit"],
-            ["7790000000300", "Duplicado", 600, 400, 20, "pack"],
+            ["codigo", "nombre", "categoria", "precio_venta", "precio_costo", "stock", "tipo_unidad"],
+            ["7790000000300", "Bueno", "General", 500, 300, 10, "unit"],
+            ["7790000000300", "Duplicado", "General", 600, 400, 20, "pack"],
         ])
         result = excel_ctrl.execute_import(str(path))
         # Both rows should be flagged as duplicates
@@ -166,10 +166,10 @@ class TestExecuteImport:
     def test_execute_import_skips_invalid_rows(self, excel_ctrl, tmp_path):
         path = tmp_path / "mixed.xlsx"
         _create_xlsx(str(path), [
-            ["barcode", "name", "sale_price", "cost_price", "stock", "unit_type"],
-            ["7790000000100", "Válido", 500, 300, 10, "unit"],
-            ["7790000000200", "Malo", -100, 50, 5, "unit"],  # invalid price
-            ["7790000000300", "Válido 2", 800, 500, 15, "pack"],
+            ["codigo", "nombre", "categoria", "precio_venta", "precio_costo", "stock", "tipo_unidad"],
+            ["7790000000100", "Válido", "General", 500, 300, 10, "unit"],
+            ["7790000000200", "Malo", "General", -100, 50, 5, "unit"],  # invalid price
+            ["7790000000300", "Válido 2", "General", 800, 500, 15, "pack"],
         ])
         result = excel_ctrl.execute_import(str(path))
         assert result["success"] is True
@@ -179,7 +179,7 @@ class TestExecuteImport:
     def test_execute_import_empty_file(self, excel_ctrl, tmp_path):
         path = tmp_path / "empty.xlsx"
         _create_xlsx(str(path), [
-            ["barcode", "name", "sale_price", "cost_price", "stock", "unit_type"],
+            ["codigo", "nombre", "categoria", "precio_venta", "precio_costo", "stock", "tipo_unidad"],
         ])
         result = excel_ctrl.execute_import(str(path))
         assert result["success"] is True
@@ -200,8 +200,8 @@ class TestExecuteImport:
     def test_get_import_result_after_import(self, excel_ctrl, tmp_path):
         path = tmp_path / "result.xlsx"
         _create_xlsx(str(path), [
-            ["barcode", "name", "sale_price", "cost_price", "stock", "unit_type"],
-            ["7790000000100", "Test", 500, 300, 10, "unit"],
+            ["codigo", "nombre", "categoria", "precio_venta", "precio_costo", "stock", "tipo_unidad"],
+            ["7790000000100", "Test", "General", 500, 300, 10, "unit"],
         ])
         excel_ctrl.execute_import(str(path))
         result = excel_ctrl.get_import_result()

@@ -11,10 +11,22 @@ from pos.model.enums import UnitType
 from pos.model.exceptions import POSException
 from pos.model.product import Product
 from pos.repository.product_repo import ProductRepo
+from pos.repository.category_repo import CategoryRepo
 
 
-# Expected columns in the Excel file (exact match required)
-_EXPECTED_HEADERS = ["barcode", "name", "sale_price", "cost_price", "stock", "unit_type"]
+# Expected columns in the Excel file (exact match required, in Spanish)
+_EXPECTED_HEADERS = ["codigo", "nombre", "categoria", "precio_venta", "precio_costo", "stock", "tipo_unidad"]
+
+# Mapping from Spanish headers to internal field names
+_HEADER_MAP = {
+    "codigo": "barcode",
+    "nombre": "name",
+    "categoria": "category_name",
+    "precio_venta": "sale_price",
+    "precio_costo": "cost_price",
+    "stock": "stock",
+    "tipo_unidad": "unit_type",
+}
 
 
 class ExcelImportController:
@@ -23,6 +35,7 @@ class ExcelImportController:
     def __init__(self, db: sqlite3.Connection) -> None:
         self._db = db
         self._product_repo = ProductRepo(db)
+        self._category_repo = CategoryRepo(db)
         self._last_result: dict | None = None
 
     # ---------------------------------------------------------- validate ----
@@ -149,9 +162,23 @@ class ExcelImportController:
                 self._db.execute("BEGIN")
 
                 for row in final_rows:
+                    # Resolve category name to category_id
+                    category_name = str(row.get("category_name", "") or "").strip()
+                    category_id = None
+                    if category_name:
+                        # Try to find existing category
+                        existing_cat = self._category_repo.find_by_name(category_name)
+                        if existing_cat:
+                            category_id = existing_cat.id
+                        else:
+                            # Create new category
+                            new_cat = self._category_repo.create(category_name)
+                            category_id = new_cat.id
+
                     product = Product(
                         barcode=str(row["barcode"]).strip() if row["barcode"] else None,
                         name=str(row["name"]).strip(),
+                        category_id=category_id,
                         sale_price=int(row["sale_price"]),
                         cost_price=int(row["cost_price"]),
                         stock=float(row["stock"]),
@@ -208,7 +235,7 @@ def _read_and_validate_headers(file_path: str) -> tuple[list[dict], list[str]]:
     """Open an .xlsx file and validate headers.
 
     Returns:
-        ``(rows, errors)`` — *rows* is a list of dicts keyed by header names,
+        ``(rows, errors)`` — *rows* is a list of dicts keyed by internal field names,
         *errors* is a list of error strings (empty if valid).
     """
     if not file_path.lower().endswith(".xlsx"):
@@ -235,7 +262,9 @@ def _read_and_validate_headers(file_path: str) -> tuple[list[dict], list[str]]:
         row_dict = {}
         for i, header in enumerate(_EXPECTED_HEADERS):
             value = row_cells[i] if i < len(row_cells) else None
-            row_dict[header] = value
+            # Map Spanish header to internal field name
+            internal_name = _HEADER_MAP[header]
+            row_dict[internal_name] = value
         rows.append(row_dict)
 
     wb.close()
@@ -270,23 +299,23 @@ def _validate_single_row(row: dict, row_num: int) -> list[dict]:
     # name is required
     name = str(row.get("name", "") or "").strip()
     if not name:
-        errs.append({"row": row_num, "field": "name", "value": name, "error": "El nombre es obligatorio"})
+        errs.append({"row": row_num, "field": "nombre", "value": name, "error": "El nombre es obligatorio"})
 
     # sale_price: must be numeric and ≥ 0
     try:
         sp = float(row.get("sale_price", -1))
         if sp < 0:
-            errs.append({"row": row_num, "field": "sale_price", "value": row.get("sale_price"), "error": "El precio debe ser ≥ 0"})
+            errs.append({"row": row_num, "field": "precio_venta", "value": row.get("sale_price"), "error": "El precio debe ser ≥ 0"})
     except (ValueError, TypeError):
-        errs.append({"row": row_num, "field": "sale_price", "value": row.get("sale_price"), "error": "Precio no numérico"})
+        errs.append({"row": row_num, "field": "precio_venta", "value": row.get("sale_price"), "error": "Precio no numérico"})
 
     # cost_price: must be numeric and ≥ 0
     try:
         cp = float(row.get("cost_price", -1))
         if cp < 0:
-            errs.append({"row": row_num, "field": "cost_price", "value": row.get("cost_price"), "error": "El costo debe ser ≥ 0"})
+            errs.append({"row": row_num, "field": "precio_costo", "value": row.get("cost_price"), "error": "El costo debe ser ≥ 0"})
     except (ValueError, TypeError):
-        errs.append({"row": row_num, "field": "cost_price", "value": row.get("cost_price"), "error": "Costo no numérico"})
+        errs.append({"row": row_num, "field": "precio_costo", "value": row.get("cost_price"), "error": "Costo no numérico"})
 
     # stock: must be numeric and ≥ 0
     try:
@@ -303,6 +332,6 @@ def _validate_single_row(row: dict, row_num: int) -> list[dict]:
     row["unit_type"] = ut
     valid_units = {"unit", "weight_kg", "pack"}
     if ut not in valid_units:
-        errs.append({"row": row_num, "field": "unit_type", "value": ut, "error": f"Tipo inválido. Use: {', '.join(sorted(valid_units))}"})
+        errs.append({"row": row_num, "field": "tipo_unidad", "value": ut, "error": f"Tipo inválido. Use: unit, weight_kg, pack"})
 
     return errs
