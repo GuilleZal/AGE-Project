@@ -36,7 +36,7 @@ class AssignCategoryDialog(ctk.CTkToplevel):
     ) -> None:
         super().__init__(master, **kwargs)
         self.title("Asignar categoría a productos")
-        self.geometry("650x500")
+        self.geometry("650x650")
         self.resizable(True, True)
 
         self.grab_set()
