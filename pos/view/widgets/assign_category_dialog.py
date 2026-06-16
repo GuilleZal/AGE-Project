@@ -65,41 +65,84 @@ class AssignCategoryDialog(ctk.CTkToplevel):
         )
         self._category_menu.pack(side="left", padx=5)
 
-        # --- product list with checkboxes ---
+        # --- product list as treeview ---
         list_frame = ctk.CTkFrame(self)
         list_frame.pack(fill="both", expand=True, padx=10, pady=5)
 
         ctk.CTkLabel(
             list_frame,
-            text="Seleccionar productos:",
+            text="Seleccionar productos (Ctrl+click para selección múltiple):",
             font=ctk.CTkFont(size=13, weight="bold"),
         ).pack(anchor="w", pady=(5, 5))
 
-        # Scrollable frame for checkboxes
-        self._scrollable_frame = ctk.CTkScrollableFrame(list_frame)
-        self._scrollable_frame.pack(fill="both", expand=True, pady=(0, 5))
+        # Treeview frame
+        tree_frame = ctk.CTkFrame(list_frame)
+        tree_frame.pack(fill="both", expand=True, pady=(0, 5))
+        tree_frame.grid_columnconfigure(0, weight=1)
+        tree_frame.grid_rowconfigure(0, weight=1)
 
-        # Create checkboxes for each product
-        self._checkbox_vars: dict[int, tk.BooleanVar] = {}
+        # Create treeview with two columns
+        cols = ("nombre", "categoria")
+        self._tree = ttk.Treeview(
+            tree_frame,
+            columns=cols,
+            show="headings",
+            selectmode="extended",
+            height=15,
+        )
+        self._tree.heading("nombre", text="Nombre")
+        self._tree.heading("categoria", text="Categoría actual")
+        self._tree.column("nombre", width=350, anchor="w")
+        self._tree.column("categoria", width=200, anchor="w")
+
+        # Configure style for dark theme
+        style = ttk.Style(self)
+        style.theme_use("clam")
+        style.configure(
+            "Treeview",
+            background="#2b2b2b",
+            foreground="#dce4ee",
+            fieldbackground="#2b2b2b",
+            borderwidth=0,
+        )
+        style.configure(
+            "Treeview.Heading",
+            background="#505050",
+            foreground="#ffffff",
+            relief="raised",
+            borderwidth=1,
+            font=("Segoe UI", 10, "bold"),
+        )
+        style.map(
+            "Treeview",
+            background=[("selected", "#1f538d")],
+            foreground=[("selected", "#dce4ee")],
+        )
+
+        # Scrollbar
+        scrollbar = ttk.Scrollbar(
+            tree_frame,
+            orient="vertical",
+            command=self._tree.yview,
+        )
+        self._tree.configure(yscrollcommand=scrollbar.set)
+
+        self._tree.grid(row=0, column=0, sticky="nsew")
+        scrollbar.grid(row=0, column=1, sticky="ns")
+
+        # Populate treeview with products
         for product in products:
             pid = getattr(product, "id", None)
             name = getattr(product, "name", "")
-            barcode = getattr(product, "barcode", "") or ""
             category_id = getattr(product, "category_id", None)
             current_cat = self._category_map.get(category_id, "Sin categoría")
 
-            var = tk.BooleanVar(value=False)
-            self._checkbox_vars[pid] = var
-
-            # Format: [ ] Product Name (Barcode) - Current Category
-            text = f"{name} ({barcode}) - {current_cat}"
-            cb = ctk.CTkCheckBox(
-                self._scrollable_frame,
-                text=text,
-                variable=var,
-                font=ctk.CTkFont(size=12),
+            self._tree.insert(
+                "",
+                "end",
+                iid=str(pid),
+                values=(name, current_cat),
             )
-            cb.pack(anchor="w", pady=2, padx=5)
 
         # --- selection buttons ---
         select_frame = ctk.CTkFrame(self)
@@ -150,14 +193,13 @@ class AssignCategoryDialog(ctk.CTkToplevel):
         }
 
     def _select_all(self) -> None:
-        """Select all product checkboxes."""
-        for var in self._checkbox_vars.values():
-            var.set(True)
+        """Select all products in the treeview."""
+        all_items = self._tree.get_children()
+        self._tree.selection_set(all_items)
 
     def _deselect_all(self) -> None:
-        """Deselect all product checkboxes."""
-        for var in self._checkbox_vars.values():
-            var.set(False)
+        """Deselect all products in the treeview."""
+        self._tree.selection_remove(self._tree.selection())
 
     def _confirm(self) -> None:
         """Confirm the category assignment."""
@@ -178,12 +220,9 @@ class AssignCategoryDialog(ctk.CTkToplevel):
             )
             return
 
-        # Get selected products
-        selected_ids = [
-            pid for pid, var in self._checkbox_vars.items() if var.get()
-        ]
-
-        if not selected_ids:
+        # Get selected products from treeview
+        selected_items = self._tree.selection()
+        if not selected_items:
             from tkinter import messagebox
             messagebox.showwarning(
                 "Sin productos",
@@ -191,6 +230,8 @@ class AssignCategoryDialog(ctk.CTkToplevel):
                 parent=self,
             )
             return
+
+        selected_ids = [int(item) for item in selected_items]
 
         self._selected_category_id = category_id
         self._selected_product_ids = selected_ids
