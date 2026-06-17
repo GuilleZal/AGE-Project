@@ -5,8 +5,10 @@ from typing import Any
 
 import customtkinter as ctk
 
+from pos.view.widgets.centered_dialog import CenteredDialog
 
-class PaymentDialog(ctk.CTkToplevel):
+
+class PaymentDialog(CenteredDialog):
     """Modal dialog for payment method selection and cash handling.
 
     Shows a "Monto recibido" field only when the payment method is cash.
@@ -38,13 +40,7 @@ class PaymentDialog(ctk.CTkToplevel):
         payment_method: str = "cash",
         **kwargs,
     ) -> None:
-        super().__init__(master, **kwargs)
-        self.title("Pago")
-        self.geometry("420x380")
-        self.resizable(False, False)
-
-        self.grab_set()
-        self.transient(master)
+        super().__init__(master, width=420, height=380, title="Pago", **kwargs)
 
         self._total = total
         self._result: dict[str, Any] | None = None

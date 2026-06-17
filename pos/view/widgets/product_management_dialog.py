@@ -12,6 +12,7 @@ from typing import Any
 
 import customtkinter as ctk
 
+from pos.view.widgets.centered_dialog import CenteredDialog
 from pos.view.widgets.column_persistence import (
     load_column_widths,
     save_column_widths,
@@ -21,7 +22,7 @@ from pos.view.widgets.column_persistence import (
 from pos.view.widgets.treeview_sorting import add_sorting_to_treeview
 
 
-class ProductManagementDialog(ctk.CTkToplevel):
+class ProductManagementDialog(CenteredDialog):
     """Modal dialog for managing products and categories together.
 
     Parameters
@@ -35,13 +36,7 @@ class ProductManagementDialog(ctk.CTkToplevel):
     """
 
     def __init__(self, master: tk.Widget, controller: Any, **kwargs) -> None:
-        super().__init__(master, **kwargs)
-        self.title("Gestionar productos y categorías")
-        self.geometry("750x550")
-        self.resizable(True, True)
-
-        self.grab_set()
-        self.transient(master)
+        super().__init__(master, width=750, height=550, title="Gestionar productos y categorías", resizable=(True, True), **kwargs)
 
         self._controller = controller
         self._changed = False

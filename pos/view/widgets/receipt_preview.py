@@ -10,8 +10,10 @@ from typing import Any
 
 import customtkinter as ctk
 
+from pos.view.widgets.centered_dialog import CenteredDialog
 
-class ReceiptPreview(ctk.CTkToplevel):
+
+class ReceiptPreview(CenteredDialog):
     """Modal on-screen receipt displayed after a successful sale.
 
     Parameters
@@ -28,12 +30,7 @@ class ReceiptPreview(ctk.CTkToplevel):
     def __init__(
         self, master: tk.Widget, sale_data: dict[str, Any], **kwargs
     ) -> None:
-        super().__init__(master, **kwargs)
-        self.title("Comprobante de venta")
-        self.resizable(False, False)
-
-        self.grab_set()
-        self.transient(master)
+        super().__init__(master, width=500, height=500, title="Comprobante de venta", **kwargs)
 
         sale = sale_data.get("sale", {})
         items = sale_data.get("items", [])
@@ -136,24 +133,7 @@ class ReceiptPreview(ctk.CTkToplevel):
             command=self.destroy,
         ).pack(pady=(5, 20))
 
-        # --- calculate geometry: center relative to master ---
-        self.update_idletasks()
-        w = max(500, self.winfo_reqwidth())
-        h = self.winfo_reqheight()
-        self.minsize(w, h)
-        self._center_on_master(master, w, h)
-
     # --------------------------------------------------------------- private ---
-
-    def _center_on_master(
-        self, master: tk.Widget, width: int, height: int
-    ) -> None:
-        """Position the dialog centered relative to *master*."""
-        mw, mh = master.winfo_width(), master.winfo_height()
-        mx, my = master.winfo_rootx(), master.winfo_rooty()
-        x = mx + (mw - width) // 2
-        y = my + (mh - height) // 2
-        self.geometry(f"{width}x{height}+{x}+{y}")
 
 
 # --------------------------------------------------------------- helpers ---

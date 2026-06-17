@@ -11,8 +11,10 @@ from typing import Any
 
 import customtkinter as ctk
 
+from pos.view.widgets.centered_dialog import CenteredDialog
 
-class ProductFormDialog(ctk.CTkToplevel):
+
+class ProductFormDialog(CenteredDialog):
     """Modal dialog to create or edit a product.
 
     Parameters
@@ -38,12 +40,8 @@ class ProductFormDialog(ctk.CTkToplevel):
         categories: list[dict[str, Any]] | None = None,
         **kwargs,
     ) -> None:
-        super().__init__(master, **kwargs)
-        self.title("Editar producto" if product else "Nuevo producto")
-        self.resizable(False, False)
-
-        self.grab_set()
-        self.transient(master)
+        title = "Editar producto" if product else "Nuevo producto"
+        super().__init__(master, width=480, height=540, title=title, **kwargs)
 
         self._result: dict[str, Any] | None = None
 
@@ -212,9 +210,6 @@ class ProductFormDialog(ctk.CTkToplevel):
         self._name_entry.focus_set()
         self._name_entry.bind("<Return>", lambda _e: self._confirm())
 
-        self.geometry("480x540")
-        self._center_on_master(master)
-
     @property
     def result(self) -> dict[str, Any] | None:
         """Product data dict on confirm, ``None`` on cancel."""
@@ -303,13 +298,3 @@ class ProductFormDialog(ctk.CTkToplevel):
     def _cancel(self) -> None:
         self._result = None
         self.destroy()
-
-    def _center_on_master(self, master: tk.Widget) -> None:
-        self.update_idletasks()
-        mw, mh = master.winfo_width(), master.winfo_height()
-        mx, my = master.winfo_rootx(), master.winfo_rooty()
-        w = max(480, self.winfo_reqwidth())
-        h = self.winfo_reqheight()
-        x = mx + (mw - w) // 2
-        y = my + (mh - h) // 2
-        self.geometry(f"+{x}+{y}")

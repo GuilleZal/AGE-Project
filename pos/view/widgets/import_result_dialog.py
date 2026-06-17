@@ -5,8 +5,10 @@ from typing import Any
 
 import customtkinter as ctk
 
+from pos.view.widgets.centered_dialog import CenteredDialog
 
-class ImportResultDialog(ctk.CTkToplevel):
+
+class ImportResultDialog(CenteredDialog):
     """Modal dialog to display detailed import results with errors.
     
     Parameters
@@ -25,13 +27,7 @@ class ImportResultDialog(ctk.CTkToplevel):
         result: dict,
         **kwargs,
     ) -> None:
-        super().__init__(master, **kwargs)
-        self.title("Resultado de Importación")
-        self.geometry("600x500")
-        self.resizable(True, True)
-
-        self.grab_set()
-        self.transient(master)
+        super().__init__(master, width=600, height=500, title="Resultado de Importación", resizable=(True, True), **kwargs)
 
         self._result = result
 

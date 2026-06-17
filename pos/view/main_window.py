@@ -4,7 +4,7 @@ Uses ``CTkTabview`` to provide five tabs: Ventas, Productos,
 Devoluciones, Caja, Reportes.  Each tab holds a ``CTkFrame`` ready
 for its corresponding view to be embedded.
 
-Defaults to dark theme at 1200×800 with the Sales tab active.
+Defaults to dark theme at 1280x720, centered on screen, with the Sales tab active.
 """
 
 import tkinter as tk
@@ -23,11 +23,17 @@ class MainWindow(ctk.CTk):
         "Reportes",
     )
 
+    # Window dimensions optimized for modern displays (720p+)
+    WINDOW_WIDTH = 1280
+    WINDOW_HEIGHT = 720
+
     def __init__(self) -> None:
         super().__init__()
 
         self.title("Sistema POS")
-        self.geometry("1200x800")
+
+        # Center window on screen with optimized resolution
+        self._center_on_screen()
 
         ctk.set_appearance_mode("dark")
         ctk.set_default_color_theme("blue")
@@ -52,3 +58,24 @@ class MainWindow(ctk.CTk):
     def get_tab_frame(self, tab_name: str) -> ctk.CTkFrame | None:
         """Return the container frame for *tab_name* so views can embed."""
         return self._tab_frames.get(tab_name)
+
+    # --------------------------------------------------------------- private ---
+
+    def _center_on_screen(self) -> None:
+        """Center the main window on the screen with optimized dimensions.
+
+        Uses 1280x720 as the base resolution, which works well on modern displays.
+        If the screen is smaller, adjusts to 90% of screen size.
+        """
+        screen_width = self.winfo_screenwidth()
+        screen_height = self.winfo_screenheight()
+
+        # Use optimal size or 90% of screen if screen is smaller
+        width = min(self.WINDOW_WIDTH, int(screen_width * 0.9))
+        height = min(self.WINDOW_HEIGHT, int(screen_height * 0.9))
+
+        # Calculate center position
+        x = (screen_width - width) // 2
+        y = (screen_height - height) // 2
+
+        self.geometry(f"{width}x{height}+{x}+{y}")

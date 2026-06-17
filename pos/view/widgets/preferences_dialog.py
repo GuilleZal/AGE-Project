@@ -6,8 +6,10 @@ from typing import Any
 
 import customtkinter as ctk
 
+from pos.view.widgets.centered_dialog import CenteredDialog
 
-class PreferencesDialog(ctk.CTkToplevel):
+
+class PreferencesDialog(CenteredDialog):
     """Modal dialog to configure global preferences.
 
     Allows setting the global low-stock threshold and profit margin percentage.
@@ -24,13 +26,7 @@ class PreferencesDialog(ctk.CTkToplevel):
     """
 
     def __init__(self, master: tk.Widget, controller: Any, **kwargs) -> None:
-        super().__init__(master, **kwargs)
-        self.title("Preferencias")
-        self.geometry("500x550")
-        self.resizable(False, False)
-
-        self.grab_set()
-        self.transient(master)
+        super().__init__(master, width=500, height=550, title="Preferencias", **kwargs)
 
         self._controller = controller
         self._applied = False

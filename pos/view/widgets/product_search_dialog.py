@@ -7,6 +7,7 @@ from typing import Any
 import customtkinter as ctk
 
 from pos.model.product import Product
+from pos.view.widgets.centered_dialog import CenteredDialog
 from pos.view.widgets.column_persistence import (
     load_column_widths,
     save_column_widths,
@@ -16,7 +17,7 @@ from pos.view.widgets.column_persistence import (
 from pos.view.widgets.treeview_sorting import add_sorting_to_treeview
 
 
-class ProductSearchDialog(ctk.CTkToplevel):
+class ProductSearchDialog(CenteredDialog):
     """Modal dialog showing search results for the user to select from.
 
     Parameters
@@ -35,13 +36,7 @@ class ProductSearchDialog(ctk.CTkToplevel):
         self, master: tk.Widget, products: list[Product], 
         categories: list[dict] | None = None, **kwargs
     ) -> None:
-        super().__init__(master, **kwargs)
-        self.title("Seleccionar producto")
-        self.geometry("600x450")
-        self.resizable(False, False)
-
-        self.grab_set()
-        self.transient(master)
+        super().__init__(master, width=600, height=450, title="Seleccionar producto", **kwargs)
 
         self._result: Product | None = None
         self._all_products = products

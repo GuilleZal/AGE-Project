@@ -6,13 +6,15 @@ from typing import Any
 
 import customtkinter as ctk
 
+from pos.view.widgets.centered_dialog import CenteredDialog
+
 
 # Checkbox symbols
 _CHECKBOX_OFF = "☐"
 _CHECKBOX_ON = "☑"
 
 
-class AssignCategoryDialog(ctk.CTkToplevel):
+class AssignCategoryDialog(CenteredDialog):
     """Modal dialog to assign a category to multiple products at once.
 
     Parameters
@@ -34,13 +36,7 @@ class AssignCategoryDialog(ctk.CTkToplevel):
         categories: list[dict[str, Any]],
         **kwargs,
     ) -> None:
-        super().__init__(master, **kwargs)
-        self.title("Asignar categoría a productos")
-        self.geometry("650x550")
-        self.resizable(True, True)
-
-        self.grab_set()
-        self.transient(master)
+        super().__init__(master, width=650, height=550, title="Asignar categoría a productos", resizable=(True, True), **kwargs)
 
         self._products = products
         self._categories = categories

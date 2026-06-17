@@ -5,8 +5,10 @@ from typing import Any
 
 import customtkinter as ctk
 
+from pos.view.widgets.centered_dialog import CenteredDialog
 
-class QuickCreateDialog(ctk.CTkToplevel):
+
+class QuickCreateDialog(CenteredDialog):
     """Modal dialog to register a new product when a barcode is not found.
 
     Pre-fills the scanned barcode (read-only) and prompts for the product
@@ -24,13 +26,7 @@ class QuickCreateDialog(ctk.CTkToplevel):
     """
 
     def __init__(self, master: tk.Widget, barcode: str, **kwargs) -> None:
-        super().__init__(master, **kwargs)
-        self.title("Nuevo producto")
-        self.geometry("400x380")
-        self.resizable(False, False)
-
-        self.grab_set()
-        self.transient(master)
+        super().__init__(master, width=400, height=380, title="Nuevo producto", **kwargs)
 
         self._result: dict[str, Any] | None = None
 
