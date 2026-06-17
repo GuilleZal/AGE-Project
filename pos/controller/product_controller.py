@@ -27,7 +27,7 @@ class ProductController:
     def create_product(self, data: dict) -> dict:
         """Create a new product with validation.
 
-        Required keys: ``name``, ``sale_price``, ``cost_price``, ``unit_type``.
+        Required keys: ``name``, ``sale_price``, ``cost_price``.
         Optional: ``barcode``, ``category_id``, ``stock``, ``description``, ``low_stock_threshold``.
 
         Returns ``{"success": True, "data": Product, "error": None}`` or error dict.
@@ -45,11 +45,11 @@ class ProductController:
                 sale_price=int(data["sale_price"]),
                 cost_price=int(data["cost_price"]),
                 stock=float(data.get("stock", 0)),
-                unit_type=data.get("unit_type", "unit"),
                 description=data.get("description"),
                 low_stock_threshold=float(data.get("low_stock_threshold", 5)),
             )
             created = self._product_repo.create(product)
+            self._db.commit()
             return {"success": True, "data": created, "error": None}
         except POSException as e:
             return {"success": False, "data": None, "error": str(e)}
@@ -82,14 +82,13 @@ class ProductController:
                 existing.cost_price = int(data["cost_price"])
             if "stock" in data:
                 existing.stock = float(data["stock"])
-            if "unit_type" in data:
-                existing.unit_type = data["unit_type"]
             if "description" in data:
                 existing.description = data["description"]
             if "low_stock_threshold" in data:
                 existing.low_stock_threshold = float(data["low_stock_threshold"])
 
             updated = self._product_repo.update(existing)
+            self._db.commit()
             return {"success": True, "data": updated, "error": None}
         except POSException as e:
             return {"success": False, "data": None, "error": str(e)}
@@ -102,6 +101,7 @@ class ProductController:
         """
         try:
             self._product_repo.delete(product_id)
+            self._db.commit()
             return {"success": True, "data": None, "error": None}
         except POSException as e:
             return {"success": False, "data": None, "error": str(e)}
@@ -114,6 +114,7 @@ class ProductController:
         """
         try:
             self._product_repo.reactivate(product_id)
+            self._db.commit()
             return {"success": True, "data": None, "error": None}
         except POSException as e:
             return {"success": False, "data": None, "error": str(e)}
@@ -128,6 +129,7 @@ class ProductController:
         """
         try:
             self._product_repo.hard_delete(product_id)
+            self._db.commit()
             return {"success": True, "data": None, "error": None}
         except POSException as e:
             return {"success": False, "data": None, "error": str(e)}
@@ -148,6 +150,7 @@ class ProductController:
         """
         try:
             result = self._product_repo.smart_delete_batch(product_ids)
+            self._db.commit()
             return {"success": True, "data": result, "error": None}
         except POSException as e:
             return {"success": False, "data": None, "error": str(e)}
@@ -260,7 +263,7 @@ class ProductController:
     def generate_template(self, file_path: str) -> dict:
         """Generate an empty Excel template with the correct column headers.
 
-        Columns: codigo, nombre, categoria, precio_venta, precio_costo, stock, tipo_unidad.
+        Columns: codigo, nombre, categoria, precio_venta, precio_costo, stock.
 
         Returns ``{"success": True, "data": file_path, "error": None}``.
         """
@@ -270,10 +273,10 @@ class ProductController:
             wb = openpyxl.Workbook()
             ws = wb.active
             ws.title = "Productos"
-            ws.append(["codigo", "nombre", "categoria", "precio_venta", "precio_costo", "stock", "tipo_unidad"])
+            ws.append(["codigo", "nombre", "categoria", "precio_venta", "precio_costo", "stock"])
 
             # Add a sample row as hint
-            ws.append(["7790000000001", "Ejemplo", "General", 100, 60, 10, "unit"])
+            ws.append(["7790000000001", "Ejemplo", "General", 100, 60, 10])
 
             wb.save(file_path)
             return {"success": True, "data": file_path, "error": None}
@@ -353,6 +356,3 @@ def _validate_product_data(data: dict) -> None:
         raise ValueError("El precio de venta no puede ser negativo")
     if int(data.get("cost_price", -1)) < 0:
         raise ValueError("El precio de costo no puede ser negativo")
-    unit_type = data.get("unit_type", "unit")
-    if unit_type not in ("unit", "weight_kg", "pack"):
-        raise ValueError(f"Tipo de unidad no válido: {unit_type}. Valores permitidos: unit, weight_kg, pack")

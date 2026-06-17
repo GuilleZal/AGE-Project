@@ -170,4 +170,3 @@ class TestLookupProduct:
     def test_lookup_weight_product(self, return_ctrl, sample_products):
         result = return_ctrl.lookup_product("7791234000100")  # Queso
         assert result["success"] is True
-        assert result["data"]["unit_type"] == "weight_kg"

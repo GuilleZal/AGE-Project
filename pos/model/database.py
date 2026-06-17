@@ -93,6 +93,48 @@ def _run_migrations(conn: sqlite3.Connection) -> None:
     if "is_active" not in columns:
         conn.execute("ALTER TABLE products ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1")
 
+    # Migration 4: Remove unit_type column from products (MVP assumes all units)
+    row = conn.execute("PRAGMA table_info(products)").fetchall()
+    columns = [col["name"] for col in row]
+    if "unit_type" in columns:
+        # SQLite doesn't support DROP COLUMN in older versions, so we recreate the table.
+        # Must disable FK checks temporarily because sale_items, purchase_items, and
+        # returns all reference products(id).
+        conn.execute("PRAGMA foreign_keys=OFF")
+        conn.executescript("""
+            CREATE TABLE products_new (
+                id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+                barcode             TEXT UNIQUE,
+                name                TEXT NOT NULL,
+                category_id         INTEGER REFERENCES categories(id),
+                sale_price          INTEGER NOT NULL,
+                cost_price          INTEGER NOT NULL,
+                stock               REAL NOT NULL DEFAULT 0,
+                description         TEXT,
+                low_stock_threshold REAL DEFAULT 5,
+                is_active           INTEGER NOT NULL DEFAULT 1,
+                created_at          TEXT NOT NULL DEFAULT (datetime('now')),
+                updated_at          TEXT NOT NULL DEFAULT (datetime('now'))
+            );
+            
+            INSERT INTO products_new (id, barcode, name, category_id, sale_price, cost_price, 
+                                     stock, description, low_stock_threshold, is_active, 
+                                     created_at, updated_at)
+            SELECT id, barcode, name, category_id, sale_price, cost_price, 
+                   stock, description, low_stock_threshold, is_active, 
+                   created_at, updated_at
+            FROM products;
+            
+            DROP TABLE products;
+            
+            ALTER TABLE products_new RENAME TO products;
+            
+            CREATE INDEX IF NOT EXISTS idx_products_barcode ON products(barcode);
+            CREATE INDEX IF NOT EXISTS idx_products_name ON products(name);
+            CREATE INDEX IF NOT EXISTS idx_products_category ON products(category_id);
+        """)
+        conn.execute("PRAGMA foreign_keys=ON")
+
 
 # ------------------------------------------------------------------ DDL ----
 # NOTE: Currency fields (prices, amounts, totals) use INTEGER to represent
@@ -116,7 +158,6 @@ CREATE TABLE IF NOT EXISTS products (
     sale_price          INTEGER NOT NULL,
     cost_price          INTEGER NOT NULL,
     stock               REAL NOT NULL DEFAULT 0,
-    unit_type           TEXT NOT NULL CHECK(unit_type IN ('unit','weight_kg','pack')),
     description         TEXT,
     low_stock_threshold REAL DEFAULT 5,
     is_active           INTEGER NOT NULL DEFAULT 1,

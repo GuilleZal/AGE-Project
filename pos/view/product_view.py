@@ -377,7 +377,6 @@ class ProductView(ctk.CTkFrame):
             "sale_price": product.sale_price,
             "cost_price": product.cost_price,
             "stock": product.stock,
-            "unit_type": product.unit_type,
             "description": getattr(product, "description", None),
             "low_stock_threshold": getattr(product, "low_stock_threshold", 5),
         }
@@ -418,6 +417,7 @@ class ProductView(ctk.CTkFrame):
                 dialog = ImportResultDialog(self, data)
                 self.wait_window(dialog)
                 self._refresh_products()
+                self._refresh_categories()  # Import may create new categories
             else:
                 messagebox.showerror("Error", result["error"])
 

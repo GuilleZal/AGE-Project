@@ -19,7 +19,6 @@ class TestCreateProduct:
             "barcode": "7790000000001",
             "sale_price": 600,
             "cost_price": 350,
-            "unit_type": "unit",
             "category_id": cat1,
             "stock": 20,
         })
@@ -32,30 +31,30 @@ class TestCreateProduct:
         cat1, _ = sample_category
         product_ctrl.create_product({
             "name": "X", "barcode": "7790000000001",
-            "sale_price": 100, "cost_price": 50, "unit_type": "unit",
+            "sale_price": 100, "cost_price": 50,
         })
         result = product_ctrl.create_product({
             "name": "Y", "barcode": "7790000000001",
-            "sale_price": 200, "cost_price": 100, "unit_type": "unit",
+            "sale_price": 200, "cost_price": 100,
         })
         assert result["success"] is False
         assert "ya existe" in result["error"].lower()
 
     def test_create_empty_name_blocked(self, product_ctrl):
         result = product_ctrl.create_product({
-            "name": "  ", "sale_price": 100, "cost_price": 50, "unit_type": "unit",
+            "name": "  ", "sale_price": 100, "cost_price": 50,
         })
         assert result["success"] is False
 
     def test_create_negative_price_blocked(self, product_ctrl):
         result = product_ctrl.create_product({
-            "name": "Test", "sale_price": -10, "cost_price": 50, "unit_type": "unit",
+            "name": "Test", "sale_price": -10, "cost_price": 50,
         })
         assert result["success"] is False
 
     def test_create_default_values(self, product_ctrl):
         result = product_ctrl.create_product({
-            "name": "Minimal", "sale_price": 100, "cost_price": 50, "unit_type": "unit",
+            "name": "Minimal", "sale_price": 100, "cost_price": 50,
         })
         assert result["success"] is True
         p = result["data"]
@@ -254,4 +253,4 @@ class TestGenerateTemplate:
         wb = openpyxl.load_workbook(str(path))
         ws = wb.active
         headers = [cell.value for cell in next(ws.iter_rows(min_row=1, max_row=1))]
-        assert headers == ["codigo", "nombre", "categoria", "precio_venta", "precio_costo", "stock", "tipo_unidad"]
+        assert headers == ["codigo", "nombre", "categoria", "precio_venta", "precio_costo", "stock"]

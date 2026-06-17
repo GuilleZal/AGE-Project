@@ -7,7 +7,6 @@ All valid rows are applied atomically — any DB error rolls back the entire imp
 
 import sqlite3
 
-from pos.model.enums import UnitType
 from pos.model.exceptions import POSException
 from pos.model.product import Product
 from pos.repository.product_repo import ProductRepo
@@ -15,7 +14,7 @@ from pos.repository.category_repo import CategoryRepo
 
 
 # Expected columns in the Excel file (exact match required, in Spanish)
-_EXPECTED_HEADERS = ["codigo", "nombre", "categoria", "precio_venta", "precio_costo", "stock", "tipo_unidad"]
+_EXPECTED_HEADERS = ["codigo", "nombre", "categoria", "precio_venta", "precio_costo", "stock"]
 
 # Mapping from Spanish headers to internal field names
 _HEADER_MAP = {
@@ -25,7 +24,6 @@ _HEADER_MAP = {
     "precio_venta": "sale_price",
     "precio_costo": "cost_price",
     "stock": "stock",
-    "tipo_unidad": "unit_type",
 }
 
 
@@ -194,7 +192,6 @@ class ExcelImportController:
                             sale_price=int(row["sale_price"]),
                             cost_price=int(row["cost_price"]),
                             stock=float(row["stock"]),
-                            unit_type=str(row["unit_type"]).strip(),
                         )
                         _, action = self._product_repo.upsert_from_import(product)
                         if action == "created":
@@ -345,15 +342,6 @@ def _validate_single_row(row: dict, row_num: int) -> list[dict]:
             errs.append({"row": row_num, "field": "stock", "value": row.get("stock"), "error": "El stock debe ser ≥ 0"})
     except (ValueError, TypeError):
         errs.append({"row": row_num, "field": "stock", "value": row.get("stock"), "error": "Stock no numérico"})
-
-    # unit_type: must be one of the valid values (normalize common abbreviations)
-    _UNIT_ALIASES = {"u": "unit", "uni": "unit", "kg": "weight_kg", "p": "pack", "paq": "pack"}
-    ut = str(row.get("unit_type", "") or "").strip().lower()
-    ut = _UNIT_ALIASES.get(ut, ut)
-    row["unit_type"] = ut
-    valid_units = {"unit", "weight_kg", "pack"}
-    if ut not in valid_units:
-        errs.append({"row": row_num, "field": "tipo_unidad", "value": ut, "error": f"Tipo inválido. Use: unit, weight_kg, pack"})
 
     return errs
 

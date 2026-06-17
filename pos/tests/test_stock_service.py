@@ -5,8 +5,6 @@ import sqlite3
 import pytest
 
 from pos.model.sale import SaleItem
-from pos.model.product import Product
-from pos.model.enums import UnitType
 from pos.model.exceptions import DataError
 from pos.repository.product_repo import ProductRepo
 from pos.service.stock_service import StockService
@@ -163,8 +161,8 @@ class TestLowStockProducts:
         """No products below threshold returns empty list."""
         # First add a product with high stock
         db.execute(
-            """INSERT INTO products (name, sale_price, cost_price, stock, unit_type)
-               VALUES ('Test High', 100, 50, 100, 'unit')"""
+            """INSERT INTO products (name, sale_price, cost_price, stock)
+               VALUES ('Test High', 100, 50, 100)"""
         )
         db.commit()
 

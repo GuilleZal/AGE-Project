@@ -54,7 +54,6 @@ class ReturnController:
                     "barcode": product.barcode,
                     "name": product.name,
                     "sale_price": product.sale_price,
-                    "unit_type": product.unit_type,
                 },
                 "error": None,
             }

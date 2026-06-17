@@ -307,7 +307,6 @@ class ProductManagementDialog(ctk.CTkToplevel):
             "sale_price": product.sale_price,
             "cost_price": product.cost_price,
             "stock": product.stock,
-            "unit_type": product.unit_type,
             "description": getattr(product, "description", None),
             "low_stock_threshold": getattr(product, "low_stock_threshold", 5),
         }
@@ -326,32 +325,70 @@ class ProductManagementDialog(ctk.CTkToplevel):
                 messagebox.showerror("Error", res["error"])
 
     def _delete_product(self) -> None:
+        """Deactivate one or more products."""
         sel = self._prod_tree.selection()
         if not sel:
             messagebox.showwarning(
-                "Seleccionar", "Seleccione un producto de la lista."
+                "Seleccionar", "Seleccione al menos un producto de la lista."
             )
             return
 
-        item = self._prod_tree.item(sel[0])
-        pid = int(item["tags"][0])
-        name = item["values"][0]
+        count = len(sel)
+        
+        # Get product names for confirmation message
+        product_names = []
+        product_ids = []
+        for item_id in sel:
+            item = self._prod_tree.item(item_id)
+            pid = int(item["tags"][0])
+            name = item["values"][0]
+            # Remove [DESACTIVADO] prefix if present
+            if name.startswith("[DESACTIVADO] "):
+                name = name[13:]
+            product_names.append(name)
+            product_ids.append(pid)
+
+        if count == 1:
+            confirm_msg = f'¿Desactivar el producto "{product_names[0]}"?\n\n'
+        else:
+            confirm_msg = f"¿Desactivar {count} productos seleccionados?\n\n"
+        
+        confirm_msg += "El producto dejará de aparecer en la lista pero mantendrá su historial."
 
         confirm = messagebox.askyesno(
             "Confirmar desactivación",
-            f'¿Desactivar el producto "{name}"?\n\n'
-            "El producto dejará de aparecer en la lista pero mantendrá su historial.",
+            confirm_msg,
         )
         if not confirm:
             return
 
-        res = self._controller.delete_product(pid)
-        if res["success"]:
+        # Deactivate all selected products
+        success_count = 0
+        errors = []
+        for pid in product_ids:
+            res = self._controller.delete_product(pid)
+            if res["success"]:
+                success_count += 1
+            else:
+                errors.append(f"Producto ID {pid}: {res['error']}")
+
+        if success_count > 0:
             self._changed = True
             self._refresh_products()
-            messagebox.showinfo("Desactivado", "Producto desactivado correctamente")
-        else:
-            messagebox.showerror("Error", res["error"])
+            
+            if count == 1:
+                messagebox.showinfo("Desactivado", "Producto desactivado correctamente")
+            else:
+                msg = f"✅ {success_count} producto(s) desactivado(s) correctamente"
+                if errors:
+                    msg += f"\n\n❌ {len(errors)} error(es):"
+                    for error in errors[:5]:
+                        msg += f"\n  • {error}"
+                    if len(errors) > 5:
+                        msg += f"\n  ... y {len(errors) - 5} error(es) más"
+                messagebox.showinfo("Desactivación completada", msg)
+        elif errors:
+            messagebox.showerror("Error", "\n".join(errors))
 
     def _reactivate_product(self) -> None:
         """Reactivate one or more deactivated products."""
@@ -487,18 +524,24 @@ class ProductManagementDialog(ctk.CTkToplevel):
         if not sel:
             return
 
-        item = self._prod_tree.item(sel[0])
-        tags = item.get("tags", ())
-        
-        # Check if product is inactive
-        is_inactive = "inactive" in tags
-        
-        # Update button visibility and state
-        if is_inactive:
+        inactive_count = 0
+        for sid in sel:
+            tags = self._prod_tree.item(sid).get("tags", ())
+            if "inactive" in tags:
+                inactive_count += 1
+
+        total = len(sel)
+        all_inactive = inactive_count == total
+        all_active = inactive_count == 0
+
+        if all_inactive:
             self._deactivate_btn.pack_forget()
             self._activate_btn.pack(side="left", padx=5)
-        else:
+        elif all_active:
             self._activate_btn.pack_forget()
+            self._deactivate_btn.pack(side="left", padx=5)
+        else:
+            self._activate_btn.pack(side="left", padx=5)
             self._deactivate_btn.pack(side="left", padx=5)
 
     # =============================================== category actions

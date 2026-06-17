@@ -83,7 +83,7 @@ class SaleController:
         """Create a minimal product for an unknown barcode and add it to the cart.
 
         Uses quick-create defaults: ``cost_price=0``, ``stock=0``,
-        ``unit_type='unit'``, ``low_stock_threshold=5``.
+        ``low_stock_threshold=5``.
 
         Args:
             barcode:    Scanned barcode.
@@ -114,7 +114,6 @@ class SaleController:
                 sale_price=sale_price,
                 cost_price=0,
                 stock=0.0,
-                unit_type="unit",
                 low_stock_threshold=5.0,
             )
             created = self._product_repo.create(product)

@@ -22,7 +22,7 @@ class ProductFormDialog(ctk.CTkToplevel):
     product : dict[str, Any] | None
         Existing product data for edit mode (must include keys like
         ``barcode``, ``name``, ``category_id``, ``sale_price``,
-        ``cost_price``, ``stock``, ``unit_type``, ``description``,
+        ``cost_price``, ``stock``, ``description``,
         ``low_stock_threshold``).  ``None`` for create mode.
     categories : list[dict[str, Any]] | None
         Category list with keys ``id`` and ``name``.  If provided, a
@@ -30,12 +30,6 @@ class ProductFormDialog(ctk.CTkToplevel):
     **kwargs :
         Forwarded to ``ctk.CTkToplevel``.
     """
-
-    UNIT_TYPES: list[tuple[str, str]] = [
-        ("Unidad", "unit"),
-        ("Peso (kg)", "weight_kg"),
-        ("Pack", "pack"),
-    ]
 
     def __init__(
         self,
@@ -62,8 +56,6 @@ class ProductFormDialog(ctk.CTkToplevel):
             self._cat_map = {"— Sin categoría —": None}
 
         cat_names = list(self._cat_map.keys())
-        unit_labels = [label for label, _ in self.UNIT_TYPES]
-        unit_values = {label: value for label, value in self.UNIT_TYPES}
 
         # Determine current values for edit mode
         prev = product or {}
@@ -78,11 +70,6 @@ class ProductFormDialog(ctk.CTkToplevel):
         prev_sale = str(prev.get("sale_price", ""))
         prev_cost = str(prev.get("cost_price", ""))
         prev_stock = str(prev.get("stock", ""))
-        prev_unit_label = "Unidad"
-        for label, value in self.UNIT_TYPES:
-            if value == prev.get("unit_type", "unit"):
-                prev_unit_label = label
-                break
         prev_desc = prev.get("description", "") or ""
         prev_threshold = str(prev.get("low_stock_threshold", "5"))
 
@@ -117,37 +104,20 @@ class ProductFormDialog(ctk.CTkToplevel):
         self._name_entry.grid(row=row, column=0, sticky="ew", padx=15, pady=(0, 5))
         row += 1
 
-        # Category + Unit Type (side by side)
-        cat_unit_frame = ctk.CTkFrame(body, fg_color="transparent")
-        cat_unit_frame.grid(row=row, column=0, sticky="ew", padx=15, pady=5)
-        cat_unit_frame.grid_columnconfigure(0, weight=1)
-        cat_unit_frame.grid_columnconfigure(1, weight=1)
+        # Category
+        ctk.CTkLabel(body, text="Categoría", font=ctk.CTkFont(size=12)).grid(
+            row=row, column=0, sticky="w", padx=15, pady=(5, 0)
+        )
         row += 1
-
-        ctk.CTkLabel(cat_unit_frame, text="Categoría", font=ctk.CTkFont(size=12)).grid(
-            row=0, column=0, sticky="w", padx=(0, 5)
-        )
-        ctk.CTkLabel(cat_unit_frame, text="Tipo de unidad", font=ctk.CTkFont(size=12)).grid(
-            row=0, column=1, sticky="w", padx=(5, 0)
-        )
-
         self._category_var = tk.StringVar(value=prev_cat_name)
         self._category_menu = ctk.CTkOptionMenu(
-            cat_unit_frame,
+            body,
             values=cat_names,
             variable=self._category_var,
-            width=180,
+            width=400,
         )
-        self._category_menu.grid(row=1, column=0, sticky="w", padx=(0, 5), pady=(2, 0))
-
-        self._unit_var = tk.StringVar(value=prev_unit_label)
-        self._unit_menu = ctk.CTkOptionMenu(
-            cat_unit_frame,
-            values=unit_labels,
-            variable=self._unit_var,
-            width=140,
-        )
-        self._unit_menu.grid(row=1, column=1, sticky="w", padx=(5, 0), pady=(2, 0))
+        self._category_menu.grid(row=row, column=0, sticky="w", padx=15, pady=(0, 5))
+        row += 1
 
         # Sale price + Cost price (side by side)
         price_frame = ctk.CTkFrame(body, fg_color="transparent")
@@ -310,14 +280,6 @@ class ProductFormDialog(ctk.CTkToplevel):
         # Barcode
         barcode = self._barcode_entry.get().strip() or None
 
-        # Unit type
-        unit_label = self._unit_var.get()
-        unit_type = "unit"
-        for label, value in self.UNIT_TYPES:
-            if label == unit_label:
-                unit_type = value
-                break
-
         # Category
         cat_name = self._category_var.get()
         category_id = self._cat_map.get(cat_name, None)
@@ -333,7 +295,6 @@ class ProductFormDialog(ctk.CTkToplevel):
             "sale_price": sale_price,
             "cost_price": cost_price,
             "stock": stock,
-            "unit_type": unit_type,
             "description": description,
             "low_stock_threshold": low_stock_threshold,
         }

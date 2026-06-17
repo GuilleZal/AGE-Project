@@ -228,7 +228,7 @@ class TestCompleteSale:
         """DB has no open register — sale should be blocked."""
         # Need to add a product first (use a direct product insert)
         db.execute(
-            "INSERT INTO products (barcode, name, sale_price, cost_price, stock, unit_type) VALUES ('111', 'Test', 100, 50, 10, 'unit')"
+            "INSERT INTO products (barcode, name, sale_price, cost_price, stock) VALUES ('111', 'Test', 100, 50, 10)"
         )
         db.commit()
         sale_ctrl.add_by_barcode("111")

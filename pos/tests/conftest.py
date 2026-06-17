@@ -45,33 +45,33 @@ def sample_category(db: sqlite3.Connection) -> tuple[int, int]:
 # ------------------------------------------------------ SAMPLE PRODUCTS ---
 @pytest.fixture
 def sample_products(db: sqlite3.Connection, sample_category: tuple[int, int]) -> list[int]:
-    """Insert 5 test products (mix of unit/weight_kg/pack) and return their IDs.
+    """Insert 5 test products and return their IDs.
 
     Products created:
-        1. Coca-Cola 1.5L   → unit,     $800
-        2. Fernet Branca    → unit,     $2500
-        3. Queso Cremoso    → weight_kg, $9500/kg
-        4. Maní             → weight_kg, $3000/kg (low stock: 0.3 kg)
-        5. Six-Pack Cerveza → pack,     $2000
+        1. Coca-Cola 1.5L   → $800
+        2. Fernet Branca    → $2500
+        3. Queso Cremoso    → $9500/kg
+        4. Maní             → $3000/kg (low stock: 0.3 kg)
+        5. Six-Pack Cerveza → $2000
     """
     bebidas, snacks = sample_category
 
     products = [
-        ("7790895000782", "Coca-Cola 1.5L",    bebidas, 800,  500,  24.0,   "unit"),
-        ("7790895000997", "Fernet Branca 750ml", bebidas, 2500, 1600, 12.0,   "unit"),
-        ("7791234000100", "Queso Cremoso x Kg",  snacks,  9500, 6000, 2.5,    "weight_kg"),
-        ("7794321000200", "Maní Salado x Kg",    snacks,  3000, 1800, 0.3,    "weight_kg"),
-        ("7795555000300", "Six-Pack Cerveza IPA", bebidas, 2000, 1200, 8.0,    "pack"),
+        ("7790895000782", "Coca-Cola 1.5L",    bebidas, 800,  500,  24.0),
+        ("7790895000997", "Fernet Branca 750ml", bebidas, 2500, 1600, 12.0),
+        ("7791234000100", "Queso Cremoso x Kg",  snacks,  9500, 6000, 2.5),
+        ("7794321000200", "Maní Salado x Kg",    snacks,  3000, 1800, 0.3),
+        ("7795555000300", "Six-Pack Cerveza IPA", bebidas, 2000, 1200, 8.0),
     ]
 
     ids: list[int] = []
-    for barcode, name, cat_id, price, cost, stock, unit_type in products:
+    for barcode, name, cat_id, price, cost, stock in products:
         cur = db.execute(
             """INSERT INTO products
-               (barcode, name, category_id, sale_price, cost_price, stock, unit_type)
-               VALUES (?, ?, ?, ?, ?, ?, ?)
+               (barcode, name, category_id, sale_price, cost_price, stock)
+               VALUES (?, ?, ?, ?, ?, ?)
                RETURNING id""",
-            (barcode, name, cat_id, price, cost, stock, unit_type),
+            (barcode, name, cat_id, price, cost, stock),
         )
         ids.append(cur.fetchone()["id"])
 

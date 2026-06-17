@@ -3,7 +3,6 @@
 import pytest
 
 from pos.model.product import Product
-from pos.model.enums import UnitType
 from pos.model.exceptions import DataError
 from pos.repository.product_repo import ProductRepo
 
@@ -15,7 +14,6 @@ def _make_product(**overrides) -> Product:
         "name": "Test Product",
         "sale_price": 1000,
         "cost_price": 600,
-        "unit_type": UnitType.UNIT,
         "barcode": "1234567890",
         "stock": 10.0,
     }
@@ -97,14 +95,6 @@ class TestCreate:
         b = repo.create(_make_product(barcode=None, name="B"))
         assert a.id != b.id
 
-    def test_create_with_enum_unit_type(self, db):
-        """Creating with UnitType enum should store the string value."""
-        repo = ProductRepo(db)
-        prod = _make_product(unit_type=UnitType.WEIGHT_KG, barcode="WT001")
-        created = repo.create(prod)
-        row = db.execute("SELECT unit_type FROM products WHERE id = ?", (created.id,)).fetchone()
-        assert row["unit_type"] == "weight_kg"
-
 
 # ---------------------------------------------------------------- update --
 
@@ -123,8 +113,7 @@ class TestUpdate:
 
     def test_not_found(self, db):
         repo = ProductRepo(db)
-        ghost = Product(id=99999, name="Ghost", sale_price=100, cost_price=50,
-                        unit_type="unit")
+        ghost = Product(id=99999, name="Ghost", sale_price=100, cost_price=50)
         with pytest.raises(DataError, match="no encontrado"):
             repo.update(ghost)
 
@@ -136,14 +125,6 @@ class TestUpdate:
         second.barcode = "DUP001"
         with pytest.raises(DataError, match="ya existe"):
             repo.update(second)
-
-    def test_unit_type_persists_as_string(self, db):
-        repo = ProductRepo(db)
-        prod = repo.create(_make_product(barcode="UT001", unit_type="unit"))
-        prod.unit_type = UnitType.PACK
-        repo.update(prod)
-        row = db.execute("SELECT unit_type FROM products WHERE id = ?", (prod.id,)).fetchone()
-        assert row["unit_type"] == "pack"
 
 
 # ---------------------------------------------------------------- delete --
@@ -359,7 +340,7 @@ class TestUpsertFromImport:
                                              stock=5.0))
         # Now upsert with a different name — name SHOULD change
         import_prod = _make_product(barcode="IMP002", name="Updated Name",
-                                    sale_price=800, cost_price=500, stock=10.0, unit_type="weight_kg")
+                                    sale_price=800, cost_price=500, stock=10.0)
         result, action = repo.upsert_from_import(import_prod)
         assert action == "updated"
         assert result.id == original.id
@@ -370,7 +351,6 @@ class TestUpsertFromImport:
         assert row["sale_price"] == 800          # updated
         assert row["cost_price"] == 500          # updated
         assert row["stock"] == 10.0              # updated
-        assert row["unit_type"] == "weight_kg"   # updated
         assert row["is_active"] == 1             # reactivated
 
     def test_null_barcode_creates(self, db):

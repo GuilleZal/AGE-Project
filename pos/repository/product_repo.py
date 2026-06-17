@@ -8,7 +8,6 @@ import sqlite3
 from typing import Optional
 
 from pos.model.product import Product
-from pos.model.enums import UnitType
 from pos.model.exceptions import DataError
 
 
@@ -52,7 +51,7 @@ class ProductRepo:
         q = f"%{query}%"
         rows = self._db.execute(
             """SELECT DISTINCT p.id, p.barcode, p.name, p.cost_price,
-                      p.sale_price, p.stock, p.unit_type, p.description,
+                      p.sale_price, p.stock, p.description,
                       p.low_stock_threshold, p.category_id, p.is_active,
                       p.created_at, p.updated_at
                FROM products p
@@ -93,13 +92,12 @@ class ProductRepo:
         Raises:
             DataError: If the barcode (when not ``None``) already exists.
         """
-        ut = _unit_type_str(product.unit_type)
         try:
             cur = self._db.execute(
                 """INSERT INTO products
                    (barcode, name, category_id, sale_price, cost_price,
-                    stock, unit_type, description, low_stock_threshold)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    stock, description, low_stock_threshold)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                    RETURNING id, created_at, updated_at""",
                 (
                     product.barcode,
@@ -108,7 +106,6 @@ class ProductRepo:
                     product.sale_price,
                     product.cost_price,
                     product.stock,
-                    ut,
                     product.description,
                     product.low_stock_threshold,
                 ),
@@ -133,12 +130,11 @@ class ProductRepo:
         Raises:
             DataError: If the product id is not found or a barcode conflict exists.
         """
-        ut = _unit_type_str(product.unit_type)
         try:
             cur = self._db.execute(
                 """UPDATE products
                    SET barcode = ?, name = ?, category_id = ?, sale_price = ?,
-                       cost_price = ?, stock = ?, unit_type = ?,
+                       cost_price = ?, stock = ?,
                        description = ?, low_stock_threshold = ?,
                        updated_at = datetime('now')
                    WHERE id = ?
@@ -150,7 +146,6 @@ class ProductRepo:
                     product.sale_price,
                     product.cost_price,
                     product.stock,
-                    ut,
                     product.description,
                     product.low_stock_threshold,
                     product.id,
@@ -339,7 +334,7 @@ class ProductRepo:
         """Insert or selectively update a product from an Excel import.
 
         - Barcode is NOT in DB → full INSERT (returns ``(product, "created")``).
-        - Barcode IS in DB     → UPDATE price, cost, stock, unit_type, name,
+        - Barcode IS in DB     → UPDATE price, cost, stock, name,
           category_id, and reactivate (is_active = 1).
           Returns ``(product, "updated")``.
 
@@ -351,15 +346,14 @@ class ProductRepo:
         ).fetchone()
 
         if existing:
-            ut = _unit_type_str(product.unit_type)
             self._db.execute(
                 """UPDATE products
                    SET sale_price = ?, cost_price = ?, stock = ?,
-                       unit_type = ?, name = ?, category_id = ?,
+                       name = ?, category_id = ?,
                        is_active = 1, updated_at = datetime('now')
                    WHERE barcode = ?""",
                 (product.sale_price, product.cost_price, product.stock,
-                 ut, product.name, product.category_id, product.barcode),
+                 product.name, product.category_id, product.barcode),
             )
             product.id = existing["id"]
             return product, "updated"
@@ -379,17 +373,9 @@ class ProductRepo:
             sale_price=row["sale_price"],
             cost_price=row["cost_price"],
             stock=row["stock"],
-            unit_type=row["unit_type"],
             description=row["description"],
             low_stock_threshold=row["low_stock_threshold"],
             is_active=bool(row["is_active"]),
             created_at=row["created_at"],
             updated_at=row["updated_at"],
         )
-
-
-# ----------------------------------------------------------------- helpers ---
-
-def _unit_type_str(ut: UnitType | str) -> str:
-    """Normalize *ut* to a plain string for DB storage."""
-    return ut.value if isinstance(ut, UnitType) else ut

@@ -22,13 +22,6 @@ def test_sample_products_count(sample_products, db):
     assert count == 5
 
 
-def test_sample_products_unit_types(db, sample_products):
-    """Products include a mix of unit, weight_kg, and pack types."""
-    rows = db.execute("SELECT DISTINCT unit_type FROM products").fetchall()
-    types = {r["unit_type"] for r in rows}
-    assert types == {"unit", "weight_kg", "pack"}
-
-
 def test_sample_category_count(sample_category, db):
     """sample_category fixture inserts exactly 2 categories."""
     cat1, cat2 = sample_category

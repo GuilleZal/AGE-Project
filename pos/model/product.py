@@ -2,8 +2,6 @@
 
 from dataclasses import dataclass, field
 
-from pos.model.enums import UnitType
-
 
 @dataclass
 class Category:
@@ -19,13 +17,12 @@ class Product:
     """A sellable item with optional barcode, category, and stock tracking.
 
     Currency fields (sale_price, cost_price) are ``int`` (whole ARS pesos).
-    Stock is ``float`` to support ``weight_kg`` fractional values.
+    Stock is ``float``. All products operate by unit.
     """
 
     name: str
     sale_price: int
     cost_price: int
-    unit_type: UnitType | str = UnitType.UNIT
     id: int | None = None
     barcode: str | None = None
     category_id: int | None = None
