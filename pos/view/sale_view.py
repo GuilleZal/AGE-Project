@@ -1,8 +1,10 @@
 """Sale view — POS terminal layout for the main sales screen.
 
-Embeds the barcode entry widget, cart treeview, running total, and
-payment-method buttons.  All business logic lives in
-``SaleController`` — this view only emits callbacks.
+Two-column layout matching the reference design:
+- Left column: barcode search, product table, delete button
+- Right column: payment sidebar with totals, payment methods, and action buttons
+
+All business logic lives in ``SaleController`` — this view only emits callbacks.
 """
 
 import tkinter as tk
@@ -13,11 +15,10 @@ import customtkinter as ctk
 
 from pos.view.widgets.barcode_entry import BarcodeEntry
 from pos.view.widgets.cart_treeview import CartTreeview
-from pos.view.widgets.payment_dialog import PaymentDialog
 
 
 class SaleView(ctk.CTkFrame):
-    """POS terminal — barcode entry, cart treeview, total, and payment.
+    """POS terminal — two-column layout with integrated payment sidebar.
 
     Parameters
     ----------
@@ -30,7 +31,7 @@ class SaleView(ctk.CTkFrame):
         Forwarded to ``ctk.CTkFrame``.
     """
 
-    PAYMENT_BUTTONS: list[tuple[str, str]] = [
+    PAYMENT_METHODS: list[tuple[str, str]] = [
         ("Efectivo", "cash"),
         ("Tarjeta", "card"),
         ("Transferencia", "transfer"),
@@ -61,15 +62,24 @@ class SaleView(ctk.CTkFrame):
         )
 
         self._total: int = 0
+        self._selected_payment_method: str = "cash"
 
-        self.grid_columnconfigure(0, weight=1)
-        self.grid_rowconfigure(1, weight=1)  # cart row stretches
+        # --- main two-column layout ---
+        self.grid_columnconfigure(0, weight=1)  # left column stretches
+        self.grid_columnconfigure(1, weight=0)  # right column fixed width
+        self.grid_rowconfigure(0, weight=1)
 
-        # --- row 0: top bar (barcode entry + search button) ---
-        self._top_frame = ctk.CTkFrame(self)
-        self._top_frame.grid(
-            row=0, column=0, sticky="ew", padx=10, pady=(10, 5)
-        )
+        # ============================================================
+        # LEFT COLUMN: Sales area
+        # ============================================================
+        left_frame = ctk.CTkFrame(self, fg_color="transparent")
+        left_frame.grid(row=0, column=0, sticky="nsew", padx=(10, 5), pady=10)
+        left_frame.grid_columnconfigure(0, weight=1)
+        left_frame.grid_rowconfigure(1, weight=1)  # cart row stretches
+
+        # --- row 0: top bar (barcode entry + settings button) ---
+        self._top_frame = ctk.CTkFrame(left_frame)
+        self._top_frame.grid(row=0, column=0, sticky="ew", pady=(0, 5))
         self._top_frame.grid_columnconfigure(0, weight=1)
 
         # --- barcode entry (always visible, always focused) ---
@@ -78,67 +88,224 @@ class SaleView(ctk.CTkFrame):
             on_scan=self._handle_scan,
             on_search=self._handle_search,
             height=45,
-            font=ctk.CTkFont(size=18),
+            font=ctk.CTkFont(size=16),
         )
-        self._barcode_entry.grid(
-            row=0, column=0, sticky="ew", padx=(0, 5)
-        )
+        self._barcode_entry.grid(row=0, column=0, sticky="ew", padx=(0, 5))
 
-        # --- search button (magnifying glass) ---
-        self._search_btn = ctk.CTkButton(
+        # --- settings button (gear icon) ---
+        self._settings_btn = ctk.CTkButton(
             self._top_frame,
-            text="🔍",
+            text="⚙",
             width=50,
             height=45,
             font=ctk.CTkFont(size=18),
-            command=self._handle_search_button,
+            fg_color="#2b2b2b",
+            hover_color="#3b3b3b",
+            command=self._handle_settings_button,
         )
-        self._search_btn.grid(row=0, column=1, sticky="e")
+        self._settings_btn.grid(row=0, column=1, sticky="e")
 
         # --- row 1: cart treeview ---
         self._cart_tree = CartTreeview(
-            self,
+            left_frame,
             on_delete=self._handle_remove,
         )
-        self._cart_tree.grid(row=1, column=0, sticky="nsew", padx=10, pady=5)
+        self._cart_tree.grid(row=1, column=0, sticky="nsew")
 
-        # --- row 2: bottom bar (total + payment buttons) ---
-        self._bottom_frame = ctk.CTkFrame(self)
-        self._bottom_frame.grid(
-            row=2, column=0, sticky="ew", padx=10, pady=(5, 10)
-        )
-        self._bottom_frame.grid_columnconfigure(0, weight=1)
-
-        self._total_label = ctk.CTkLabel(
-            self._bottom_frame,
-            text="Total: $0",
-            font=ctk.CTkFont(size=28, weight="bold"),
-        )
-        self._total_label.grid(row=0, column=0, sticky="w", padx=10, pady=10)
-
-        self._remove_btn = ctk.CTkButton(
-            self._bottom_frame,
+        # --- row 2: delete button (bottom left) ---
+        self._delete_btn = ctk.CTkButton(
+            left_frame,
             text="Eliminar",
-            width=100,
-            fg_color="#993333",
-            hover_color="#772222",
+            width=120,
+            height=40,
+            fg_color="#dc2626",
+            hover_color="#b91c1c",
             font=ctk.CTkFont(size=14, weight="bold"),
             command=self._handle_remove_button,
         )
-        self._remove_btn.grid(row=0, column=1, sticky="e", padx=(10, 5), pady=10)
+        self._delete_btn.grid(row=2, column=0, sticky="w", pady=(10, 0))
 
-        self._payment_frame = ctk.CTkFrame(self._bottom_frame)
-        self._payment_frame.grid(row=0, column=2, sticky="e", padx=10, pady=10)
+        # ============================================================
+        # RIGHT COLUMN: Payment sidebar
+        # ============================================================
+        self._payment_sidebar = ctk.CTkFrame(self, width=320)
+        self._payment_sidebar.grid(row=0, column=1, sticky="nsew", padx=(5, 10), pady=10)
+        self._payment_sidebar.grid_columnconfigure(0, weight=1)
+        self._payment_sidebar.grid_rowconfigure(4, weight=1)  # payment methods stretch
 
-        for idx, (label, method) in enumerate(self.PAYMENT_BUTTONS):
-            btn = ctk.CTkButton(
-                self._payment_frame,
-                text=label,
-                width=130,
-                font=ctk.CTkFont(size=14, weight="bold"),
-                command=lambda m=method: self._handle_payment(m),
+        # --- Totals section ---
+        totals_frame = ctk.CTkFrame(self._payment_sidebar, fg_color="transparent")
+        totals_frame.grid(row=0, column=0, sticky="ew", padx=15, pady=(15, 10))
+        totals_frame.grid_columnconfigure(1, weight=0)
+
+        # Title
+        ctk.CTkLabel(
+            totals_frame,
+            text="Pago",
+            font=ctk.CTkFont(size=20, weight="bold"),
+            anchor="w",
+        ).grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 10))
+
+        # Separator line
+        separator = ctk.CTkFrame(totals_frame, height=2, fg_color="#3e3e3e")
+        separator.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(0, 10))
+
+        # Subtotal
+        ctk.CTkLabel(
+            totals_frame,
+            text="Subtotal:",
+            font=ctk.CTkFont(size=16),
+            text_color="#a0a0a0",
+            anchor="w",
+        ).grid(row=2, column=0, sticky="w", pady=2)
+        self._subtotal_label = ctk.CTkLabel(
+            totals_frame,
+            text="$0",
+            font=ctk.CTkFont(size=16, weight="bold"),
+            anchor="e",
+        )
+        self._subtotal_label.grid(row=2, column=1, sticky="e", pady=2)
+
+        # Discount
+        ctk.CTkLabel(
+            totals_frame,
+            text="Descuento:",
+            font=ctk.CTkFont(size=16),
+            text_color="#a0a0a0",
+            anchor="w",
+        ).grid(row=3, column=0, sticky="w", pady=2)
+        self._discount_label = ctk.CTkLabel(
+            totals_frame,
+            text="0%",
+            font=ctk.CTkFont(size=16, weight="bold"),
+            anchor="e",
+        )
+        self._discount_label.grid(row=3, column=1, sticky="e", pady=2)
+
+        # Total box
+        total_box = ctk.CTkFrame(totals_frame, fg_color="#2b2b2b", corner_radius=8)
+        total_box.grid(row=4, column=0, columnspan=2, sticky="ew", pady=(15, 0))
+        total_box.grid_columnconfigure(0, weight=1)
+
+        ctk.CTkLabel(
+            total_box,
+            text="TOTAL A PAGAR",
+            font=ctk.CTkFont(size=11),
+            text_color="#a0a0a0",
+        ).grid(row=0, column=0, pady=(10, 0))
+        self._total_label = ctk.CTkLabel(
+            total_box,
+            text="$0",
+            font=ctk.CTkFont(size=32, weight="bold"),
+            text_color="#ffffff",
+        )
+        self._total_label.grid(row=1, column=0, pady=(0, 10))
+
+        # --- Payment method selection ---
+        payment_methods_frame = ctk.CTkFrame(self._payment_sidebar, fg_color="transparent")
+        payment_methods_frame.grid(row=1, column=0, sticky="ew", padx=15, pady=(15, 10))
+        payment_methods_frame.grid_columnconfigure(0, weight=1)
+
+        self._payment_method_var = tk.StringVar(value="cash")
+
+        for idx, (label, method) in enumerate(self.PAYMENT_METHODS):
+            method_frame = ctk.CTkFrame(
+                payment_methods_frame,
+                fg_color="#2b2b2b" if method == "cash" else "transparent",
+                border_width=2,
+                border_color="#0078d4" if method == "cash" else "#3e3e3e",
+                corner_radius=12,
             )
-            btn.grid(row=0, column=idx, padx=3)
+            method_frame.grid(row=idx, column=0, sticky="ew", pady=3)
+            method_frame.grid_columnconfigure(1, weight=1)
+
+            # Radio button indicator
+            radio_frame = ctk.CTkFrame(method_frame, fg_color="transparent", width=30)
+            radio_frame.grid(row=0, column=0, padx=(10, 5))
+
+            ctk.CTkRadioButton(
+                radio_frame,
+                text="",
+                variable=self._payment_method_var,
+                value=method,
+                command=lambda m=method: self._on_payment_method_changed(m),
+                width=20,
+                height=20,
+            ).pack(pady=5)
+
+            # Label
+            ctk.CTkLabel(
+                method_frame,
+                text=label,
+                font=ctk.CTkFont(size=14, weight="bold" if method == "cash" else "normal"),
+                anchor="w",
+            ).grid(row=0, column=1, sticky="w", padx=(0, 10), pady=10)
+
+        # --- Amount received ---
+        amount_frame = ctk.CTkFrame(self._payment_sidebar, fg_color="transparent")
+        amount_frame.grid(row=2, column=0, sticky="ew", padx=15, pady=(15, 10))
+        amount_frame.grid_columnconfigure(0, weight=1)
+
+        ctk.CTkLabel(
+            amount_frame,
+            text="Monto recibido ($):",
+            font=ctk.CTkFont(size=12),
+            text_color="#a0a0a0",
+        ).grid(row=0, column=0, pady=(0, 5))
+
+        self._received_entry = ctk.CTkEntry(
+            amount_frame,
+            placeholder_text="Ej: 5000",
+            height=40,
+            font=ctk.CTkFont(size=16),
+        )
+        self._received_entry.grid(row=1, column=0, sticky="ew")
+        self._received_entry.bind("<KeyRelease>", self._on_received_changed)
+
+        # Change display
+        change_frame = ctk.CTkFrame(amount_frame, fg_color="transparent")
+        change_frame.grid(row=2, column=0, pady=(10, 0))
+
+        ctk.CTkLabel(
+            change_frame,
+            text="Vuelto:",
+            font=ctk.CTkFont(size=16),
+            text_color="#a0a0a0",
+        ).pack(side="left", padx=(0, 5))
+        self._change_label = ctk.CTkLabel(
+            change_frame,
+            text="$0",
+            font=ctk.CTkFont(size=20, weight="bold"),
+        )
+        self._change_label.pack(side="left")
+
+        # --- Action buttons ---
+        buttons_frame = ctk.CTkFrame(self._payment_sidebar, fg_color="transparent")
+        buttons_frame.grid(row=3, column=0, sticky="ew", padx=15, pady=(20, 15))
+        buttons_frame.grid_columnconfigure(0, weight=1)
+        buttons_frame.grid_columnconfigure(1, weight=1)
+
+        self._cancel_btn = ctk.CTkButton(
+            buttons_frame,
+            text="Cancelar",
+            height=40,
+            fg_color="#52525b",
+            hover_color="#71717a",
+            font=ctk.CTkFont(size=14, weight="bold"),
+            command=self._handle_cancel,
+        )
+        self._cancel_btn.grid(row=0, column=0, sticky="ew", padx=(0, 5))
+
+        self._confirm_btn = ctk.CTkButton(
+            buttons_frame,
+            text="Confirmar",
+            height=40,
+            fg_color="#0078d4",
+            hover_color="#106ebe",
+            font=ctk.CTkFont(size=14, weight="bold"),
+            command=self._handle_confirm,
+        )
+        self._confirm_btn.grid(row=0, column=1, sticky="ew", padx=(5, 0))
 
         # --- auto-focus barcode entry whenever the frame is mapped ---
         self.bind("<Map>", lambda _e: self._barcode_entry.focus_set())
@@ -150,9 +317,11 @@ class SaleView(ctk.CTkFrame):
         self._cart_tree.update_cart(items)
 
     def update_total(self, total: int) -> None:
-        """Update the displayed cart total."""
+        """Update the displayed cart total and related fields."""
         self._total = total
-        self._total_label.configure(text=f"Total: ${total:,}")
+        self._total_label.configure(text=f"${total:,}")
+        self._subtotal_label.configure(text=f"${total:,}")
+        self._on_received_changed()  # Recalculate change
 
     def focus_barcode(self) -> None:
         """Force focus onto the barcode entry widget."""
@@ -164,30 +333,9 @@ class SaleView(ctk.CTkFrame):
         *sale_data* is the controller response ``data`` field, expected
         to contain ``sale``, ``items``, and ``change``.
         """
-        from tkinter import messagebox
+        from pos.view.widgets.receipt_preview import ReceiptPreview
 
-        sale = sale_data.get("sale", {})
-        items = sale_data.get("items", [])
-        change = sale_data.get("change", 0)
-
-        lines = [
-            f"Venta #{sale.get('id', '—')}",
-            f"Fecha: {sale.get('created_at', '—')}",
-            f"Método: {sale.get('payment_method', '—')}",
-            "",
-            "--- Productos ---",
-        ]
-        for item in items:
-            lines.append(
-                f"  {item['name']}  x{item['quantity']}  "
-                f"${item['unit_price']:,}  =  ${item['subtotal']:,}"
-            )
-        lines.append("")
-        lines.append(f"TOTAL:  ${sale.get('total', 0):,}")
-        if change:
-            lines.append(f"Vuelto:  ${change:,}")
-
-        messagebox.showinfo("Comprobante de venta", "\n".join(lines))
+        ReceiptPreview(self, sale_data)
 
     # ----------------------------------------------------------- callbacks ----
 
@@ -302,16 +450,17 @@ class SaleView(ctk.CTkFrame):
 
     def _controller_payment(self, method: str, received: int) -> None:
         """Process payment via controller and show receipt on success."""
-        from pos.view.widgets.receipt_preview import ReceiptPreview
-
         result = self._controller.complete_sale(
             payment_method=method,
             amount_received=received,
         )
         if result["success"]:
             # Show receipt preview
-            ReceiptPreview(self, result["data"])
+            self.show_receipt(result["data"])
             self._clear_cart()
+            # Reset payment sidebar
+            self._received_entry.delete(0, tk.END)
+            self._change_label.configure(text="$0")
             # Notify other views (e.g., cash register) that a sale completed
             if self._on_sale_completed is not None:
                 self._on_sale_completed()
@@ -335,6 +484,30 @@ class SaleView(ctk.CTkFrame):
         self._barcode_entry.focus_set()
 
     # --------------------------------------------------------------- private ---
+
+    def _on_payment_method_changed(self, method: str) -> None:
+        """Update visual state when payment method changes."""
+        self._selected_payment_method = method
+        # Update border colors to show selection
+        # This is handled by the radio button state
+
+    def _on_received_changed(self, event: tk.Event | None = None) -> None:
+        """Recalculate change as the user types the received amount."""
+        raw = self._received_entry.get().strip()
+        if not raw:
+            self._change_label.configure(text="$0")
+            return
+        try:
+            received = int(raw)
+        except ValueError:
+            self._change_label.configure(text="$0")
+            return
+
+        change = received - self._total
+        if change >= 0:
+            self._change_label.configure(text=f"${change:,}")
+        else:
+            self._change_label.configure(text=f"-${abs(change):,}")
 
     def _handle_scan(self, barcode: str) -> None:
         if self._on_scan is not None:
@@ -379,6 +552,10 @@ class SaleView(ctk.CTkFrame):
             else:
                 messagebox.showerror("Error", add_result.get("error", "Error desconocido"))
         self._barcode_entry.focus_set()
+
+    def _handle_settings_button(self) -> None:
+        """Open search dialog with all products for manual browsing."""
+        self._handle_search_button()
 
     def _handle_search_button(self) -> None:
         """Open search dialog with all products for manual browsing."""
@@ -425,15 +602,43 @@ class SaleView(ctk.CTkFrame):
             return
         self._handle_remove(selected["product_id"])
 
-    def _handle_payment(self, method: str) -> None:
-        """Open PaymentDialog and, if confirmed, invoke the on_payment callback."""
-        dialog = PaymentDialog(
-            self, total=self._total, payment_method=method
-        )
-        self.wait_window(dialog)
-        result = dialog.result
-        if result is not None and self._on_payment is not None:
-            self._on_payment(
-                result["payment_method"],
-                result.get("received", 0),
+    def _handle_cancel(self) -> None:
+        """Cancel the current sale and clear the cart."""
+        if self._total > 0:
+            confirm = messagebox.askyesno(
+                "Cancelar venta",
+                "¿Está seguro de cancelar la venta actual?\n\nSe perderán todos los productos del carrito.",
             )
+            if not confirm:
+                return
+        
+        self._clear_cart()
+        self._received_entry.delete(0, tk.END)
+        self._change_label.configure(text="$0")
+
+    def _handle_confirm(self) -> None:
+        """Process the payment with the selected method and received amount."""
+        if self._total == 0:
+            messagebox.showwarning("Pago", "No hay productos en el carrito")
+            return
+
+        method = self._payment_method_var.get()
+        
+        if method == "cash":
+            raw = self._received_entry.get().strip()
+            try:
+                received = int(raw)
+            except ValueError:
+                messagebox.showerror("Error", "Ingrese un monto válido")
+                self._received_entry.focus_set()
+                return
+
+            if received < self._total:
+                messagebox.showerror("Error", "Monto insuficiente")
+                self._received_entry.focus_set()
+                return
+        else:
+            received = 0
+
+        if self._on_payment is not None:
+            self._on_payment(method, received)
