@@ -30,7 +30,7 @@ class ReceiptPreview(CenteredDialog):
     def __init__(
         self, master: tk.Widget, sale_data: dict[str, Any], **kwargs
     ) -> None:
-        super().__init__(master, width=500, height=500, title="Comprobante de venta", **kwargs)
+        super().__init__(master, width=500, height=560, title="Comprobante de venta", **kwargs)
 
         sale = sale_data.get("sale", {})
         items = sale_data.get("items", [])
