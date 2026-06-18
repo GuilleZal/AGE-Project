@@ -551,6 +551,9 @@ class SaleView(ctk.CTkFrame):
         """Clear the cart via controller and reset UI."""
         self._controller.clear_cart()
         self.update_cart([])
+        # Reset discount state
+        self._discount_pct = 0.0
+        self._discount_amount = 0
         self.update_total(0)
         self._barcode_entry.focus_set()
 
