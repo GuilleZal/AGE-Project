@@ -364,6 +364,7 @@ class SaleController:
                     "sale": {
                         "id": created_sale.id,
                         "total": created_sale.total,
+                        "discount": created_sale.discount,
                         "payment_method": pm,
                         "created_at": created_sale.created_at,
                     },

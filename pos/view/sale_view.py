@@ -197,6 +197,7 @@ class SaleView(ctk.CTkFrame):
             text="$0",
             font=ctk.CTkFont(size=14, weight="bold"),
             anchor="e",
+            text_color="#a0a0a0",
         )
         self._discount_label.grid(row=3, column=1, sticky="e", pady=1, padx=(15, 0))
 
@@ -360,7 +361,19 @@ class SaleView(ctk.CTkFrame):
         final_total = total - self._discount_amount
         
         self._subtotal_label.configure(text=f"${total:,}")
-        self._discount_label.configure(text=f"${self._discount_amount:,}")
+        
+        # Update discount label with color and percentage
+        if self._discount_amount > 0:
+            self._discount_label.configure(
+                text=f"${self._discount_amount:,} ({self._discount_pct:.0f}%)",
+                text_color="#2ecc71",  # Green color for active discount
+            )
+        else:
+            self._discount_label.configure(
+                text="$0",
+                text_color="#a0a0a0",  # Gray when no discount
+            )
+        
         self._total_label.configure(text=f"${final_total:,}")
         self._on_received_changed()  # Recalculate change
 

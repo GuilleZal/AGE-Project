@@ -112,9 +112,29 @@ class ReceiptPreview(CenteredDialog):
         totals_frame = ctk.CTkFrame(self)
         totals_frame.pack(fill="x", padx=20, pady=(5, 10))
 
+        sale_total = sale.get('total', 0)
+        discount = sale.get('discount', 0)
+        subtotal = sale_total + discount  # Recalculate subtotal from total + discount
+
+        # Subtotal (if there was a discount, show it)
+        if discount > 0:
+            ctk.CTkLabel(
+                totals_frame,
+                text=f"Subtotal:  ${subtotal:,}",
+                font=ctk.CTkFont(size=14),
+                text_color="#a0a0a0",
+            ).pack(anchor="e", padx=10, pady=(5, 0))
+
+            ctk.CTkLabel(
+                totals_frame,
+                text=f"Descuento:  -${discount:,}",
+                font=ctk.CTkFont(size=14),
+                text_color="#2ecc71",
+            ).pack(anchor="e", padx=10, pady=(2, 0))
+
         ctk.CTkLabel(
             totals_frame,
-            text=f"TOTAL:  ${sale.get('total', 0):,}",
+            text=f"TOTAL:  ${sale_total:,}",
             font=ctk.CTkFont(size=20, weight="bold"),
         ).pack(anchor="e", padx=10, pady=5)
 

@@ -7,10 +7,10 @@
     "stock": 173
   },
   "cash_register_movements": {
-    "tipo": 88,
-    "monto": 80,
-    "descripcion": 98,
-    "hora": 127
+    "tipo": 102,
+    "monto": 78,
+    "descripcion": 85,
+    "hora": 124
   },
   "cash_register_history": {
     "id": 23,
