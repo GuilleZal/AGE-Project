@@ -338,9 +338,9 @@ class ProductView(ctk.CTkFrame):
         # Update search bar callback so live typing hits the controller
         self._search_bar.set_on_search(self._controller_search)
 
-        # Initial load
-        self._refresh_products()
+        # Initial load - categories first, then products (products need category names)
         self._refresh_categories()
+        self._refresh_products()
 
     # ---------------------------------------------------- controller handlers ---
 
