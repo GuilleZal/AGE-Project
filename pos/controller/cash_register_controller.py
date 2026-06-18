@@ -292,10 +292,15 @@ class CashRegisterController:
         except POSException as e:
             return {"success": False, "data": None, "error": str(e)}
 
-    def get_history(self) -> dict:
-        """Return all cash register sessions, most-recent first."""
+    def get_history(self, start_date: str | None = None, end_date: str | None = None) -> dict:
+        """Return cash register sessions filtered by date range, most-recent first.
+        
+        Args:
+            start_date: Optional start date in 'YYYY-MM-DD' format (inclusive).
+            end_date: Optional end date in 'YYYY-MM-DD' format (inclusive).
+        """
         try:
-            registers = self._register_repo.get_history()
+            registers = self._register_repo.get_history(start_date, end_date)
             return {
                 "success": True,
                 "data": [

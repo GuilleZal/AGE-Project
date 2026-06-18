@@ -118,11 +118,33 @@ class CashRegisterRepo:
 
     # -------------------------------------------------------------- history
 
-    def get_history(self) -> list[CashRegister]:
-        """Return all registers, most-recent first."""
-        rows = self._db.execute(
-            "SELECT * FROM cash_registers ORDER BY opening_time DESC"
-        ).fetchall()
+    def get_history(self, start_date: str | None = None, end_date: str | None = None) -> list[CashRegister]:
+        """Return registers filtered by date range, most-recent first.
+        
+        Args:
+            start_date: Optional start date in 'YYYY-MM-DD' format (inclusive).
+            end_date: Optional end date in 'YYYY-MM-DD' format (inclusive).
+        
+        Returns:
+            List of CashRegister objects matching the date range.
+        """
+        query = "SELECT * FROM cash_registers"
+        params: list = []
+        
+        if start_date or end_date:
+            query += " WHERE "
+            conditions = []
+            if start_date:
+                conditions.append("opening_time >= ?")
+                params.append(f"{start_date} 00:00:00")
+            if end_date:
+                conditions.append("opening_time <= ?")
+                params.append(f"{end_date} 23:59:59")
+            query += " AND ".join(conditions)
+        
+        query += " ORDER BY opening_time DESC"
+        
+        rows = self._db.execute(query, params).fetchall()
         return [self._from_row(r) for r in rows]
 
     # ----------------------------------------------------------- helpers ---

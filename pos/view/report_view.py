@@ -11,6 +11,7 @@ from tkinter import filedialog, messagebox, ttk
 from typing import Any, Callable
 
 import customtkinter as ctk
+from tkcalendar import DateEntry
 
 from pos.view.widgets.column_persistence import (
     load_column_widths,
@@ -100,20 +101,32 @@ class ReportView(ctk.CTkFrame):
         ctk.CTkLabel(
             self._custom_frame, text="Desde:", font=ctk.CTkFont(size=12)
         ).pack(side="left", padx=2)
-        self._start_entry = ctk.CTkEntry(
+        self._start_entry = DateEntry(
             self._custom_frame,
-            width=110,
-            placeholder_text="YYYY-MM-DD",
+            width=11,
+            background="#2d5a3d",
+            foreground="white",
+            borderwidth=1,
+            bordercolor="#505050",
+            arrowcolor="#2d5a3d",
+            date_pattern="yyyy-mm-dd",
+            locale="es_AR",
         )
         self._start_entry.pack(side="left", padx=2)
 
         ctk.CTkLabel(
             self._custom_frame, text="Hasta:", font=ctk.CTkFont(size=12)
         ).pack(side="left", padx=(5, 2))
-        self._end_entry = ctk.CTkEntry(
+        self._end_entry = DateEntry(
             self._custom_frame,
-            width=110,
-            placeholder_text="YYYY-MM-DD",
+            width=11,
+            background="#2d5a3d",
+            foreground="white",
+            borderwidth=1,
+            bordercolor="#505050",
+            arrowcolor="#2d5a3d",
+            date_pattern="yyyy-mm-dd",
+            locale="es_AR",
         )
         self._end_entry.pack(side="left", padx=2)
 
@@ -406,23 +419,10 @@ class ReportView(ctk.CTkFrame):
             start = today.replace(day=1)
             return start.isoformat(), f"{today.isoformat()} 23:59:59"
         elif period == "Personalizado":
-            start_raw = self._start_entry.get().strip()
-            end_raw = self._end_entry.get().strip()
-            if not start_raw or not end_raw:
-                messagebox.showwarning(
-                    "Fechas requeridas",
-                    "Ingrese las fechas de inicio y fin (YYYY-MM-DD).",
-                )
-                return None
-            try:
-                datetime.strptime(start_raw, "%Y-%m-%d")
-                datetime.strptime(end_raw, "%Y-%m-%d")
-            except ValueError:
-                messagebox.showwarning(
-                    "Formato inválido",
-                    "Las fechas deben tener el formato YYYY-MM-DD.",
-                )
-                return None
+            start_date = self._start_entry.get_date()
+            end_date = self._end_entry.get_date()
+            start_raw = start_date.strftime("%Y-%m-%d")
+            end_raw = end_date.strftime("%Y-%m-%d")
             return start_raw, f"{end_raw} 23:59:59"
         return None
 

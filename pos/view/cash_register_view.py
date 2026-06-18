@@ -11,6 +11,7 @@ from tkinter import messagebox, ttk
 from typing import Any, Callable
 
 import customtkinter as ctk
+from tkcalendar import DateEntry
 
 from pos.view.widgets.column_persistence import (
     load_column_widths,
@@ -272,7 +273,7 @@ class CashRegisterView(ctk.CTkFrame):
         self._history_frame.grid(
             row=1, column=0, sticky="nsew", padx=15, pady=(0, 10)
         )
-        self._history_frame.grid_rowconfigure(1, weight=1)
+        self._history_frame.grid_rowconfigure(2, weight=1)
         self._history_frame.grid_columnconfigure(0, weight=1)
 
         # Title for history section
@@ -281,6 +282,68 @@ class CashRegisterView(ctk.CTkFrame):
             text="Historial de cajas",
             font=ctk.CTkFont(size=15, weight="bold"),
         ).grid(row=0, column=0, sticky="w", padx=5, pady=(5, 2), columnspan=2)
+
+        # Date filter row
+        filter_frame = ctk.CTkFrame(self._history_frame)
+        filter_frame.grid(row=1, column=0, sticky="ew", padx=5, pady=(0, 5), columnspan=2)
+
+        ctk.CTkLabel(
+            filter_frame,
+            text="Desde:",
+            font=ctk.CTkFont(size=12),
+        ).pack(side="left", padx=(5, 3))
+
+        self._start_date_entry = DateEntry(
+            filter_frame,
+            width=11,
+            background="#2d5a3d",
+            foreground="white",
+            borderwidth=1,
+            bordercolor="#505050",
+            arrowcolor="#2d5a3d",
+            date_pattern="yyyy-mm-dd",
+            locale="es_AR",
+        )
+        self._start_date_entry.pack(side="left", padx=(0, 10))
+
+        ctk.CTkLabel(
+            filter_frame,
+            text="Hasta:",
+            font=ctk.CTkFont(size=12),
+        ).pack(side="left", padx=(5, 3))
+
+        self._end_date_entry = DateEntry(
+            filter_frame,
+            width=11,
+            background="#2d5a3d",
+            foreground="white",
+            borderwidth=1,
+            bordercolor="#505050",
+            arrowcolor="#2d5a3d",
+            date_pattern="yyyy-mm-dd",
+            locale="es_AR",
+        )
+        self._end_date_entry.pack(side="left", padx=(0, 10))
+
+        ctk.CTkButton(
+            filter_frame,
+            text="Filtrar",
+            width=70,
+            height=26,
+            fg_color="#1f538d",
+            font=ctk.CTkFont(size=11),
+            command=self._apply_date_filter,
+        ).pack(side="left", padx=3)
+
+        ctk.CTkButton(
+            filter_frame,
+            text="Limpiar",
+            width=70,
+            height=26,
+            fg_color="#505050",
+            font=ctk.CTkFont(size=11),
+            command=self._clear_date_filter,
+        ).pack(side="left", padx=3)
 
         self._history_columns = (
             "id",
@@ -352,9 +415,9 @@ class CashRegisterView(ctk.CTkFrame):
             xscrollcommand=self._history_hscroll.set,
         )
 
-        self._history_tree.grid(row=1, column=0, sticky="nsew")
-        self._history_scroll.grid(row=1, column=1, sticky="ns")
-        self._history_hscroll.grid(row=2, column=0, sticky="ew")
+        self._history_tree.grid(row=2, column=0, sticky="nsew")
+        self._history_scroll.grid(row=2, column=1, sticky="ns")
+        self._history_hscroll.grid(row=3, column=0, sticky="ew")
 
         # Bind selection event to show movements preview
         self._history_tree.bind("<<TreeviewSelect>>", self._handle_history_select)
@@ -538,15 +601,34 @@ class CashRegisterView(ctk.CTkFrame):
         else:
             messagebox.showerror("Error", result["error"])
 
-    def _refresh_history(self) -> None:
-        """Reload register history from controller and update treeview."""
-        result = self._controller.get_history()
+    def _refresh_history(self, start_date: str | None = None, end_date: str | None = None) -> None:
+        """Reload register history from controller and update treeview.
+        
+        Args:
+            start_date: Optional start date in 'YYYY-MM-DD' format.
+            end_date: Optional end date in 'YYYY-MM-DD' format.
+        """
+        result = self._controller.get_history(start_date, end_date)
         if result["success"]:
             self.update_history(result["data"])
             # Auto-show movements for active register if one is open
             self._auto_preview_active_register()
         else:
             messagebox.showerror("Error", result["error"])
+
+    def _apply_date_filter(self) -> None:
+        """Apply date filter from the DateEntry widgets and refresh history."""
+        start_date = self._start_date_entry.get_date().strftime("%Y-%m-%d")
+        end_date = self._end_date_entry.get_date().strftime("%Y-%m-%d")
+        self._refresh_history(start_date, end_date)
+
+    def _clear_date_filter(self) -> None:
+        """Clear date filters and show all history."""
+        from datetime import date
+        today = date.today()
+        self._start_date_entry.set_date(today)
+        self._end_date_entry.set_date(today)
+        self._refresh_history()
 
     def _auto_preview_active_register(self) -> None:
         """Show movements for the active register in the preview panel."""

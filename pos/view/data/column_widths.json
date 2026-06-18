@@ -7,19 +7,19 @@
     "stock": 173
   },
   "cash_register_movements": {
-    "tipo": 102,
-    "monto": 78,
-    "descripcion": 85,
-    "hora": 124
+    "tipo": 94,
+    "monto": 61,
+    "descripcion": 102,
+    "hora": 132
   },
   "cash_register_history": {
-    "id": 23,
-    "apertura": 99,
-    "cierre": 102,
-    "inicial": 51,
-    "final": 48,
-    "diferencia": 54,
-    "estado": 26
+    "id": 24,
+    "apertura": 100,
+    "cierre": 104,
+    "inicial": 53,
+    "final": 49,
+    "diferencia": 55,
+    "estado": 27
   },
   "product_view": {
     "codigo": 185,
