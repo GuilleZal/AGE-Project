@@ -94,6 +94,18 @@ class ProductManagementDialog(CenteredDialog):
         )
         self._show_inactive_check.grid(row=0, column=2, padx=(10, 5))
 
+        # Help button
+        ctk.CTkButton(
+            search_frame,
+            text="?",
+            width=30,
+            height=30,
+            fg_color="#505050",
+            hover_color="#606060",
+            font=ctk.CTkFont(size=14, weight="bold"),
+            command=self._show_products_help,
+        ).grid(row=0, column=3, padx=(5, 10))
+
         # Treeview
         tree_frame = ctk.CTkFrame(parent)
         tree_frame.grid(row=1, column=0, sticky="nsew", pady=(0, 0))
@@ -698,6 +710,28 @@ class ProductManagementDialog(CenteredDialog):
             )
 
     # ======================================================== helpers
+
+    def _show_products_help(self) -> None:
+        """Show help dialog explaining product table selection controls."""
+        help_text = (
+            "Cómo seleccionar productos:\n\n"
+            "• Click simple: Selecciona un producto (deselecciona los demás).\n\n"
+            "• Ctrl + Click: Agrega o quita productos individuales de la selección.\n"
+            "  Úselo para seleccionar productos no consecutivos.\n\n"
+            "• Shift + Click: Selecciona un rango completo desde el último\n"
+            "  producto seleccionado hasta el actual.\n\n"
+            "Ejemplo:\n"
+            "1. Haga click en un producto.\n"
+            "2. Mantenga Ctrl y haga click en otros para agregarlos.\n"
+            "3. O use Shift + click para seleccionar todos entre dos puntos.\n\n"
+            "Los productos seleccionados se pueden editar, desactivar o eliminar\n"
+            "en conjunto usando los botones correspondientes."
+        )
+        messagebox.showinfo(
+            "Ayuda — Selección múltiple",
+            help_text,
+            parent=self,
+        )
 
     def _prompt_category_name(
         self, title: str, initial: str = ""
