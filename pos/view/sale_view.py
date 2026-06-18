@@ -128,14 +128,14 @@ class SaleView(ctk.CTkFrame):
         # ============================================================
         # RIGHT COLUMN: Payment sidebar
         # ============================================================
-        self._payment_sidebar = ctk.CTkFrame(self, width=320)
+        self._payment_sidebar = ctk.CTkFrame(self, width=280)
         self._payment_sidebar.grid(row=0, column=1, sticky="nsew", padx=(5, 10), pady=(10, 10))
         self._payment_sidebar.grid_columnconfigure(0, weight=1)
         self._payment_sidebar.grid_rowconfigure(2, weight=1)  # payment methods stretch
 
         # --- Totals section ---
         totals_frame = ctk.CTkFrame(self._payment_sidebar, fg_color="transparent")
-        totals_frame.grid(row=0, column=0, sticky="ew", padx=15, pady=(5, 10))
+        totals_frame.grid(row=0, column=0, sticky="ew", padx=12, pady=(5, 8))
         totals_frame.grid_columnconfigure(0, weight=1)
         totals_frame.grid_columnconfigure(1, weight=0)
 
@@ -143,78 +143,78 @@ class SaleView(ctk.CTkFrame):
         ctk.CTkLabel(
             totals_frame,
             text="Pago",
-            font=ctk.CTkFont(size=20, weight="bold"),
+            font=ctk.CTkFont(size=16, weight="bold"),
             anchor="w",
-        ).grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 8))
+        ).grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 6))
 
         # Separator line
         separator = ctk.CTkFrame(totals_frame, height=2, fg_color="#3e3e3e")
-        separator.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(0, 10))
+        separator.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(0, 8))
 
         # Subtotal row
         ctk.CTkLabel(
             totals_frame,
             text="Subtotal:",
-            font=ctk.CTkFont(size=16),
+            font=ctk.CTkFont(size=14),
             text_color="#a0a0a0",
             anchor="w",
-        ).grid(row=2, column=0, sticky="w", pady=2)
+        ).grid(row=2, column=0, sticky="w", pady=1)
         self._subtotal_label = ctk.CTkLabel(
             totals_frame,
             text="$0",
-            font=ctk.CTkFont(size=16, weight="bold"),
+            font=ctk.CTkFont(size=14, weight="bold"),
             anchor="e",
         )
-        self._subtotal_label.grid(row=2, column=1, sticky="e", pady=2, padx=(20, 0))
+        self._subtotal_label.grid(row=2, column=1, sticky="e", pady=1, padx=(15, 0))
 
         # Discount row
         ctk.CTkLabel(
             totals_frame,
             text="Descuento:",
-            font=ctk.CTkFont(size=16),
+            font=ctk.CTkFont(size=14),
             text_color="#a0a0a0",
             anchor="w",
-        ).grid(row=3, column=0, sticky="w", pady=2)
+        ).grid(row=3, column=0, sticky="w", pady=1)
         self._discount_label = ctk.CTkLabel(
             totals_frame,
             text="$0",
-            font=ctk.CTkFont(size=16, weight="bold"),
+            font=ctk.CTkFont(size=14, weight="bold"),
             anchor="e",
         )
-        self._discount_label.grid(row=3, column=1, sticky="e", pady=2, padx=(20, 0))
+        self._discount_label.grid(row=3, column=1, sticky="e", pady=1, padx=(15, 0))
 
         # Total box
         total_box = ctk.CTkFrame(totals_frame, fg_color="#2b2b2b", corner_radius=8)
-        total_box.grid(row=4, column=0, columnspan=2, sticky="ew", pady=(12, 0))
+        total_box.grid(row=4, column=0, columnspan=2, sticky="ew", pady=(10, 0))
         total_box.grid_columnconfigure(0, weight=1)
 
         ctk.CTkLabel(
             total_box,
             text="TOTAL A PAGAR",
-            font=ctk.CTkFont(size=11),
+            font=ctk.CTkFont(size=10),
             text_color="#a0a0a0",
-        ).grid(row=0, column=0, pady=(10, 0))
+        ).grid(row=0, column=0, pady=(8, 0))
         self._total_label = ctk.CTkLabel(
             total_box,
             text="$0",
-            font=ctk.CTkFont(size=32, weight="bold"),
+            font=ctk.CTkFont(size=24, weight="bold"),
             text_color="#ffffff",
         )
-        self._total_label.grid(row=1, column=0, pady=(0, 10))
+        self._total_label.grid(row=1, column=0, pady=(0, 8))
 
         # --- Payment method selection ---
         payment_methods_frame = ctk.CTkFrame(self._payment_sidebar, fg_color="transparent")
-        payment_methods_frame.grid(row=1, column=0, sticky="ew", padx=15, pady=(10, 10))
+        payment_methods_frame.grid(row=1, column=0, sticky="ew", padx=12, pady=(8, 8))
         payment_methods_frame.grid_columnconfigure(0, weight=1)
 
         # Title for payment methods
         ctk.CTkLabel(
             payment_methods_frame,
             text="Método de pago",
-            font=ctk.CTkFont(size=14, weight="bold"),
+            font=ctk.CTkFont(size=12, weight="bold"),
             text_color="#a0a0a0",
             anchor="w",
-        ).grid(row=0, column=0, sticky="w", pady=(0, 8))
+        ).grid(row=0, column=0, sticky="w", pady=(0, 6))
 
         self._payment_method_var = tk.StringVar(value="cash")
         self._method_frames: dict[str, ctk.CTkFrame] = {}
@@ -225,16 +225,16 @@ class SaleView(ctk.CTkFrame):
                 fg_color="#2b2b2b" if method == "cash" else "transparent",
                 border_width=2,
                 border_color="#0078d4" if method == "cash" else "#3e3e3e",
-                corner_radius=12,
+                corner_radius=10,
                 cursor="hand2",
             )
-            method_frame.grid(row=idx + 1, column=0, sticky="ew", pady=3)
+            method_frame.grid(row=idx + 1, column=0, sticky="ew", pady=2)
             method_frame.grid_columnconfigure(1, weight=1)
             self._method_frames[method] = method_frame
 
             # Radio button indicator
-            radio_frame = ctk.CTkFrame(method_frame, fg_color="transparent", width=30)
-            radio_frame.grid(row=0, column=0, padx=(10, 5))
+            radio_frame = ctk.CTkFrame(method_frame, fg_color="transparent", width=26)
+            radio_frame.grid(row=0, column=0, padx=(8, 4))
 
             ctk.CTkRadioButton(
                 radio_frame,
@@ -242,17 +242,17 @@ class SaleView(ctk.CTkFrame):
                 variable=self._payment_method_var,
                 value=method,
                 command=lambda m=method: self._on_payment_method_changed(m),
-                width=20,
-                height=20,
-            ).pack(pady=5)
+                width=18,
+                height=18,
+            ).pack(pady=3)
 
             # Label
             ctk.CTkLabel(
                 method_frame,
                 text=label,
-                font=ctk.CTkFont(size=14, weight="bold" if method == "cash" else "normal"),
+                font=ctk.CTkFont(size=13, weight="bold" if method == "cash" else "normal"),
                 anchor="w",
-            ).grid(row=0, column=1, sticky="w", padx=(0, 10), pady=10)
+            ).grid(row=0, column=1, sticky="w", padx=(0, 8), pady=8)
 
             # Bind click on entire frame to select this method
             method_frame.bind("<Button-1>", lambda e, m=method: self._select_payment_method(m))
@@ -262,69 +262,69 @@ class SaleView(ctk.CTkFrame):
 
         # --- Amount received ---
         self._amount_frame = ctk.CTkFrame(self._payment_sidebar, fg_color="transparent")
-        self._amount_frame.grid(row=2, column=0, sticky="ew", padx=15, pady=(5, 10))
+        self._amount_frame.grid(row=2, column=0, sticky="ew", padx=12, pady=(4, 8))
         self._amount_frame.grid_columnconfigure(0, weight=1)
 
         ctk.CTkLabel(
             self._amount_frame,
             text="Monto recibido ($):",
-            font=ctk.CTkFont(size=12),
+            font=ctk.CTkFont(size=11),
             text_color="#a0a0a0",
-        ).grid(row=0, column=0, pady=(0, 5))
+        ).grid(row=0, column=0, pady=(0, 3))
 
         self._received_entry = ctk.CTkEntry(
             self._amount_frame,
             placeholder_text="Ej: 5000",
-            height=40,
-            font=ctk.CTkFont(size=16),
+            height=32,
+            font=ctk.CTkFont(size=14),
         )
         self._received_entry.grid(row=1, column=0, sticky="ew")
         self._received_entry.bind("<KeyRelease>", self._on_received_changed)
 
         # Change display
         change_frame = ctk.CTkFrame(self._amount_frame, fg_color="transparent")
-        change_frame.grid(row=2, column=0, pady=(10, 0))
+        change_frame.grid(row=2, column=0, pady=(6, 0))
 
         ctk.CTkLabel(
             change_frame,
             text="Vuelto:",
-            font=ctk.CTkFont(size=16),
+            font=ctk.CTkFont(size=14),
             text_color="#a0a0a0",
-        ).pack(side="left", padx=(0, 5))
+        ).pack(side="left", padx=(0, 4))
         self._change_label = ctk.CTkLabel(
             change_frame,
             text="$0",
-            font=ctk.CTkFont(size=20, weight="bold"),
+            font=ctk.CTkFont(size=16, weight="bold"),
         )
         self._change_label.pack(side="left")
 
         # --- Action buttons ---
         buttons_frame = ctk.CTkFrame(self._payment_sidebar, fg_color="transparent")
-        buttons_frame.grid(row=3, column=0, sticky="ew", padx=15, pady=(20, 15))
+        buttons_frame.grid(row=3, column=0, sticky="ew", padx=12, pady=(12, 10))
         buttons_frame.grid_columnconfigure(0, weight=1)
         buttons_frame.grid_columnconfigure(1, weight=1)
 
         self._cancel_btn = ctk.CTkButton(
             buttons_frame,
             text="Cancelar",
-            height=40,
+            height=32,
             fg_color="#52525b",
             hover_color="#71717a",
-            font=ctk.CTkFont(size=14, weight="bold"),
+            font=ctk.CTkFont(size=12, weight="bold"),
             command=self._handle_cancel,
         )
-        self._cancel_btn.grid(row=0, column=0, sticky="ew", padx=(0, 5))
+        self._cancel_btn.grid(row=0, column=0, sticky="ew", padx=(0, 4))
 
         self._confirm_btn = ctk.CTkButton(
             buttons_frame,
             text="Confirmar",
-            height=40,
+            height=32,
             fg_color="#0078d4",
             hover_color="#106ebe",
-            font=ctk.CTkFont(size=14, weight="bold"),
+            font=ctk.CTkFont(size=12, weight="bold"),
             command=self._handle_confirm,
         )
-        self._confirm_btn.grid(row=0, column=1, sticky="ew", padx=(5, 0))
+        self._confirm_btn.grid(row=0, column=1, sticky="ew", padx=(4, 0))
 
         # --- auto-focus barcode entry whenever the frame is mapped ---
         self.bind("<Map>", lambda _e: self._barcode_entry.focus_set())
