@@ -60,8 +60,13 @@ class SaleView(ctk.CTkFrame):
         self._on_sale_completed: Callable[[], None] | None = callbacks.get(
             "on_sale_completed"
         )
+        self._on_discount: Callable[[float], None] | None = callbacks.get(
+            "on_discount"
+        )
 
         self._total: int = 0
+        self._discount_pct: float = 0.0
+        self._discount_amount: int = 0
         self._selected_payment_method: str = "cash"
 
         # --- main two-column layout ---
@@ -112,7 +117,7 @@ class SaleView(ctk.CTkFrame):
         )
         self._cart_tree.grid(row=1, column=0, sticky="nsew")
 
-        # --- row 2: delete button (bottom left) ---
+        # --- row 2: delete button (bottom left) + discount button (bottom right) ---
         self._delete_btn = ctk.CTkButton(
             left_frame,
             text="Eliminar",
@@ -124,6 +129,18 @@ class SaleView(ctk.CTkFrame):
             command=self._handle_remove_button,
         )
         self._delete_btn.grid(row=2, column=0, sticky="w", pady=(10, 0))
+
+        self._discount_btn = ctk.CTkButton(
+            left_frame,
+            text="Descuento",
+            width=120,
+            height=40,
+            fg_color="#f59e0b",
+            hover_color="#d97706",
+            font=ctk.CTkFont(size=14, weight="bold"),
+            command=self._handle_discount_button,
+        )
+        self._discount_btn.grid(row=2, column=0, sticky="e", pady=(10, 0))
 
         # ============================================================
         # RIGHT COLUMN: Payment sidebar
@@ -338,8 +355,13 @@ class SaleView(ctk.CTkFrame):
     def update_total(self, total: int) -> None:
         """Update the displayed cart total and related fields."""
         self._total = total
-        self._total_label.configure(text=f"${total:,}")
+        # Recalculate discount amount based on new subtotal
+        self._discount_amount = int(total * self._discount_pct / 100)
+        final_total = total - self._discount_amount
+        
         self._subtotal_label.configure(text=f"${total:,}")
+        self._discount_label.configure(text=f"${self._discount_amount:,}")
+        self._total_label.configure(text=f"${final_total:,}")
         self._on_received_changed()  # Recalculate change
 
     def focus_barcode(self) -> None:
@@ -374,6 +396,10 @@ class SaleView(ctk.CTkFrame):
         """Wire the payment callback."""
         self._on_payment = callback
 
+    def set_on_discount(self, callback: Callable[[float], None]) -> None:
+        """Wire the discount callback."""
+        self._on_discount = callback
+
     # ------------------------------------------------------- controller wire ---
 
     def set_controller(self, controller: Any) -> None:
@@ -389,6 +415,7 @@ class SaleView(ctk.CTkFrame):
         self._on_update_qty = self._controller_update_qty
         self._on_remove_item = self._controller_remove_item
         self._on_payment = self._controller_payment
+        self._on_discount = self._controller_discount
         self._controller_search = self._controller.search_products
 
         self._update_cart()
@@ -464,6 +491,18 @@ class SaleView(ctk.CTkFrame):
         result = self._controller.remove_item(product_id)
         if result["success"]:
             self._update_cart()
+        else:
+            messagebox.showerror("Error", result["error"])
+
+    def _controller_discount(self, discount_pct: float) -> None:
+        """Handle discount application via controller."""
+        result = self._controller.apply_discount(discount_pct)
+        if result["success"]:
+            # Update the discount percentage in the view
+            self._discount_pct = discount_pct
+            self._discount_amount = result["data"]["discount_amount"]
+            # Refresh the display
+            self.update_total(self._total)
         else:
             messagebox.showerror("Error", result["error"])
 
@@ -543,7 +582,9 @@ class SaleView(ctk.CTkFrame):
             self._change_label.configure(text="$0")
             return
 
-        change = received - self._total
+        # Use total after discount
+        final_total = self._total - self._discount_amount
+        change = received - final_total
         if change >= 0:
             self._change_label.configure(text=f"${change:,}")
         else:
@@ -638,6 +679,21 @@ class SaleView(ctk.CTkFrame):
             return
         self._handle_remove(selected["product_id"])
 
+    def _handle_discount_button(self) -> None:
+        """Open discount dialog to apply a percentage discount."""
+        from pos.view.widgets.discount_dialog import DiscountDialog
+
+        dialog = DiscountDialog(
+            self,
+            subtotal=self._total,
+            current_discount_pct=self._discount_pct,
+        )
+        self.wait_window(dialog)
+        result = dialog.result
+
+        if result is not None and self._on_discount is not None:
+            self._on_discount(result)
+
     def _handle_cancel(self) -> None:
         """Cancel the current sale and clear the cart."""
         if self._total > 0:
@@ -660,6 +716,9 @@ class SaleView(ctk.CTkFrame):
 
         method = self._payment_method_var.get()
         
+        # Calculate final total after discount
+        final_total = self._total - self._discount_amount
+        
         if method == "cash":
             raw = self._received_entry.get().strip()
             try:
@@ -669,7 +728,7 @@ class SaleView(ctk.CTkFrame):
                 self._received_entry.focus_set()
                 return
 
-            if received < self._total:
+            if received < final_total:
                 messagebox.showerror("Error", "Monto insuficiente")
                 self._received_entry.focus_set()
                 return

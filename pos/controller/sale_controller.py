@@ -31,6 +31,8 @@ class SaleController:
         self._cash_register_repo = CashRegisterRepo(db)
         self._sale_service = SaleService(db)
         self._cart: list[dict] = []
+        self._discount_pct: float = 0.0
+        self._discount_amount: int = 0
 
     # ---------------------------------------------------------------- cart ---
 
@@ -224,7 +226,52 @@ class SaleController:
     def clear_cart(self) -> dict:
         """Empty the cart after a successful sale."""
         self._cart.clear()
+        self._discount_pct = 0.0
+        self._discount_amount = 0
         return {"success": True, "data": None, "error": None}
+
+    def apply_discount(self, discount_pct: float) -> dict:
+        """Apply a percentage discount to the current sale.
+
+        Args:
+            discount_pct: Discount percentage (0-100).
+
+        Returns:
+            ``{"success": True, "data": {"discount_pct": float, "discount_amount": int, "final_total": int}, "error": None}``
+            or ``{"success": False, "data": None, "error": message}``.
+        """
+        if discount_pct < 0 or discount_pct > 100:
+            return {
+                "success": False,
+                "data": None,
+                "error": "El porcentaje de descuento debe estar entre 0 y 100",
+            }
+
+        self._discount_pct = discount_pct
+        subtotal = self._calculate_total()
+        self._discount_amount = int(subtotal * discount_pct / 100)
+        final_total = subtotal - self._discount_amount
+
+        return {
+            "success": True,
+            "data": {
+                "discount_pct": discount_pct,
+                "discount_amount": self._discount_amount,
+                "final_total": final_total,
+            },
+            "error": None,
+        }
+
+    def get_discount_info(self) -> dict:
+        """Return current discount information."""
+        return {
+            "success": True,
+            "data": {
+                "discount_pct": self._discount_pct,
+                "discount_amount": self._discount_amount,
+            },
+            "error": None,
+        }
 
     # ------------------------------------------------------------- complete ----
 
@@ -273,22 +320,23 @@ class SaleController:
             }
 
         total = self._calculate_total()
+        final_total = total - self._discount_amount
 
         # Cash validation
         change = 0
         if pm == "cash":
-            if amount_received < total:
+            if amount_received < final_total:
                 return {
                     "success": False,
                     "data": None,
                     "error": "Monto insuficiente",
                 }
-            change = amount_received - total
+            change = amount_received - final_total
 
         # --- Build domain objects ---
         sale = Sale(
-            total=total,
-            discount=0,
+            total=final_total,
+            discount=self._discount_amount,
             payment_method=pm,
             cash_register_id=active_register.id,
         )
