@@ -129,13 +129,14 @@ class SaleView(ctk.CTkFrame):
         # RIGHT COLUMN: Payment sidebar
         # ============================================================
         self._payment_sidebar = ctk.CTkFrame(self, width=320)
-        self._payment_sidebar.grid(row=0, column=1, sticky="nsew", padx=(5, 10), pady=10)
+        self._payment_sidebar.grid(row=0, column=1, sticky="nsew", padx=(5, 10), pady=(10, 10))
         self._payment_sidebar.grid_columnconfigure(0, weight=1)
-        self._payment_sidebar.grid_rowconfigure(4, weight=1)  # payment methods stretch
+        self._payment_sidebar.grid_rowconfigure(2, weight=1)  # payment methods stretch
 
         # --- Totals section ---
         totals_frame = ctk.CTkFrame(self._payment_sidebar, fg_color="transparent")
-        totals_frame.grid(row=0, column=0, sticky="ew", padx=15, pady=(15, 10))
+        totals_frame.grid(row=0, column=0, sticky="ew", padx=15, pady=(5, 10))
+        totals_frame.grid_columnconfigure(0, weight=1)
         totals_frame.grid_columnconfigure(1, weight=0)
 
         # Title
@@ -144,13 +145,13 @@ class SaleView(ctk.CTkFrame):
             text="Pago",
             font=ctk.CTkFont(size=20, weight="bold"),
             anchor="w",
-        ).grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 10))
+        ).grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 8))
 
         # Separator line
         separator = ctk.CTkFrame(totals_frame, height=2, fg_color="#3e3e3e")
         separator.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(0, 10))
 
-        # Subtotal
+        # Subtotal row
         ctk.CTkLabel(
             totals_frame,
             text="Subtotal:",
@@ -164,9 +165,9 @@ class SaleView(ctk.CTkFrame):
             font=ctk.CTkFont(size=16, weight="bold"),
             anchor="e",
         )
-        self._subtotal_label.grid(row=2, column=1, sticky="e", pady=2)
+        self._subtotal_label.grid(row=2, column=1, sticky="e", pady=2, padx=(20, 0))
 
-        # Discount
+        # Discount row
         ctk.CTkLabel(
             totals_frame,
             text="Descuento:",
@@ -176,15 +177,15 @@ class SaleView(ctk.CTkFrame):
         ).grid(row=3, column=0, sticky="w", pady=2)
         self._discount_label = ctk.CTkLabel(
             totals_frame,
-            text="0%",
+            text="$0",
             font=ctk.CTkFont(size=16, weight="bold"),
             anchor="e",
         )
-        self._discount_label.grid(row=3, column=1, sticky="e", pady=2)
+        self._discount_label.grid(row=3, column=1, sticky="e", pady=2, padx=(20, 0))
 
         # Total box
         total_box = ctk.CTkFrame(totals_frame, fg_color="#2b2b2b", corner_radius=8)
-        total_box.grid(row=4, column=0, columnspan=2, sticky="ew", pady=(15, 0))
+        total_box.grid(row=4, column=0, columnspan=2, sticky="ew", pady=(12, 0))
         total_box.grid_columnconfigure(0, weight=1)
 
         ctk.CTkLabel(
@@ -203,10 +204,11 @@ class SaleView(ctk.CTkFrame):
 
         # --- Payment method selection ---
         payment_methods_frame = ctk.CTkFrame(self._payment_sidebar, fg_color="transparent")
-        payment_methods_frame.grid(row=1, column=0, sticky="ew", padx=15, pady=(15, 10))
+        payment_methods_frame.grid(row=1, column=0, sticky="ew", padx=15, pady=(10, 10))
         payment_methods_frame.grid_columnconfigure(0, weight=1)
 
         self._payment_method_var = tk.StringVar(value="cash")
+        self._method_frames: dict[str, ctk.CTkFrame] = {}
 
         for idx, (label, method) in enumerate(self.PAYMENT_METHODS):
             method_frame = ctk.CTkFrame(
@@ -215,9 +217,11 @@ class SaleView(ctk.CTkFrame):
                 border_width=2,
                 border_color="#0078d4" if method == "cash" else "#3e3e3e",
                 corner_radius=12,
+                cursor="hand2",
             )
             method_frame.grid(row=idx, column=0, sticky="ew", pady=3)
             method_frame.grid_columnconfigure(1, weight=1)
+            self._method_frames[method] = method_frame
 
             # Radio button indicator
             radio_frame = ctk.CTkFrame(method_frame, fg_color="transparent", width=30)
@@ -240,6 +244,12 @@ class SaleView(ctk.CTkFrame):
                 font=ctk.CTkFont(size=14, weight="bold" if method == "cash" else "normal"),
                 anchor="w",
             ).grid(row=0, column=1, sticky="w", padx=(0, 10), pady=10)
+
+            # Bind click on entire frame to select this method
+            method_frame.bind("<Button-1>", lambda e, m=method: self._select_payment_method(m))
+            # Also bind on child widgets so clicks propagate
+            for child in method_frame.winfo_children():
+                child.bind("<Button-1>", lambda e, m=method: self._select_payment_method(m))
 
         # --- Amount received ---
         amount_frame = ctk.CTkFrame(self._payment_sidebar, fg_color="transparent")
@@ -485,11 +495,26 @@ class SaleView(ctk.CTkFrame):
 
     # --------------------------------------------------------------- private ---
 
+    def _select_payment_method(self, method: str) -> None:
+        """Select a payment method when clicking on its frame."""
+        self._payment_method_var.set(method)
+        self._on_payment_method_changed(method)
+
     def _on_payment_method_changed(self, method: str) -> None:
         """Update visual state when payment method changes."""
         self._selected_payment_method = method
-        # Update border colors to show selection
-        # This is handled by the radio button state
+        # Update border colors and backgrounds to show selection
+        for m, frame in self._method_frames.items():
+            if m == method:
+                frame.configure(
+                    fg_color="#2b2b2b",
+                    border_color="#0078d4",
+                )
+            else:
+                frame.configure(
+                    fg_color="transparent",
+                    border_color="#3e3e3e",
+                )
 
     def _on_received_changed(self, event: tk.Event | None = None) -> None:
         """Recalculate change as the user types the received amount."""
