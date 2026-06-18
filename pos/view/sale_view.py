@@ -92,18 +92,18 @@ class SaleView(ctk.CTkFrame):
         )
         self._barcode_entry.grid(row=0, column=0, sticky="ew", padx=(0, 5))
 
-        # --- settings button (gear icon) ---
-        self._settings_btn = ctk.CTkButton(
+        # --- search button (magnifying glass) ---
+        self._search_btn = ctk.CTkButton(
             self._top_frame,
-            text="⚙",
+            text="🔍",
             width=50,
             height=45,
             font=ctk.CTkFont(size=18),
             fg_color="#2b2b2b",
             hover_color="#3b3b3b",
-            command=self._handle_settings_button,
+            command=self._handle_search_button,
         )
-        self._settings_btn.grid(row=0, column=1, sticky="e")
+        self._search_btn.grid(row=0, column=1, sticky="e")
 
         # --- row 1: cart treeview ---
         self._cart_tree = CartTreeview(
@@ -207,6 +207,15 @@ class SaleView(ctk.CTkFrame):
         payment_methods_frame.grid(row=1, column=0, sticky="ew", padx=15, pady=(10, 10))
         payment_methods_frame.grid_columnconfigure(0, weight=1)
 
+        # Title for payment methods
+        ctk.CTkLabel(
+            payment_methods_frame,
+            text="Método de pago",
+            font=ctk.CTkFont(size=14, weight="bold"),
+            text_color="#a0a0a0",
+            anchor="w",
+        ).grid(row=0, column=0, sticky="w", pady=(0, 8))
+
         self._payment_method_var = tk.StringVar(value="cash")
         self._method_frames: dict[str, ctk.CTkFrame] = {}
 
@@ -219,7 +228,7 @@ class SaleView(ctk.CTkFrame):
                 corner_radius=12,
                 cursor="hand2",
             )
-            method_frame.grid(row=idx, column=0, sticky="ew", pady=3)
+            method_frame.grid(row=idx + 1, column=0, sticky="ew", pady=3)
             method_frame.grid_columnconfigure(1, weight=1)
             self._method_frames[method] = method_frame
 
@@ -252,19 +261,19 @@ class SaleView(ctk.CTkFrame):
                 child.bind("<Button-1>", lambda e, m=method: self._select_payment_method(m))
 
         # --- Amount received ---
-        amount_frame = ctk.CTkFrame(self._payment_sidebar, fg_color="transparent")
-        amount_frame.grid(row=2, column=0, sticky="ew", padx=15, pady=(15, 10))
-        amount_frame.grid_columnconfigure(0, weight=1)
+        self._amount_frame = ctk.CTkFrame(self._payment_sidebar, fg_color="transparent")
+        self._amount_frame.grid(row=2, column=0, sticky="ew", padx=15, pady=(5, 10))
+        self._amount_frame.grid_columnconfigure(0, weight=1)
 
         ctk.CTkLabel(
-            amount_frame,
+            self._amount_frame,
             text="Monto recibido ($):",
             font=ctk.CTkFont(size=12),
             text_color="#a0a0a0",
         ).grid(row=0, column=0, pady=(0, 5))
 
         self._received_entry = ctk.CTkEntry(
-            amount_frame,
+            self._amount_frame,
             placeholder_text="Ej: 5000",
             height=40,
             font=ctk.CTkFont(size=16),
@@ -273,7 +282,7 @@ class SaleView(ctk.CTkFrame):
         self._received_entry.bind("<KeyRelease>", self._on_received_changed)
 
         # Change display
-        change_frame = ctk.CTkFrame(amount_frame, fg_color="transparent")
+        change_frame = ctk.CTkFrame(self._amount_frame, fg_color="transparent")
         change_frame.grid(row=2, column=0, pady=(10, 0))
 
         ctk.CTkLabel(
@@ -515,6 +524,12 @@ class SaleView(ctk.CTkFrame):
                     fg_color="transparent",
                     border_color="#3e3e3e",
                 )
+        
+        # Show/hide amount received field based on payment method
+        if method == "cash":
+            self._amount_frame.grid()
+        else:
+            self._amount_frame.grid_remove()
 
     def _on_received_changed(self, event: tk.Event | None = None) -> None:
         """Recalculate change as the user types the received amount."""
@@ -577,10 +592,6 @@ class SaleView(ctk.CTkFrame):
             else:
                 messagebox.showerror("Error", add_result.get("error", "Error desconocido"))
         self._barcode_entry.focus_set()
-
-    def _handle_settings_button(self) -> None:
-        """Open search dialog with all products for manual browsing."""
-        self._handle_search_button()
 
     def _handle_search_button(self) -> None:
         """Open search dialog with all products for manual browsing."""
