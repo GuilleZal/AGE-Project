@@ -1,9 +1,11 @@
-"""Report view — period selector, metrics cards, top-10 treeview, and
-CSV export.
+"""Report view — modular dashboard layout with KPIs, top products,
+low stock, payment methods chart, and expense summary.
 
-Provides a period filter (Today, Week, Month, Custom range), a set of
-metric cards (total sales, count, average ticket, profit, margin %),
-a top-10 products treeview, and an export-to-CSV button.
+Provides a period filter (Today, Week, Month, Custom range), metric
+cards (total sales, operations, purchases, gross profit, margin %),
+top products treeview with configurable limit, low stock treeview,
+a reserved frame for payment methods chart, and an expense summary
+ticket-style panel.
 """
 
 import tkinter as tk
@@ -12,6 +14,15 @@ from typing import Any, Callable
 
 import customtkinter as ctk
 from tkcalendar import DateEntry
+
+try:
+    import matplotlib
+    matplotlib.use("TkAgg")
+    from matplotlib.figure import Figure
+    from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+    HAS_MATPLOTLIB = True
+except ImportError:
+    HAS_MATPLOTLIB = False
 
 from pos.view.widgets.column_persistence import (
     load_column_widths,
@@ -23,7 +34,7 @@ from pos.view.widgets.treeview_sorting import add_sorting_to_treeview
 
 
 class ReportView(ctk.CTkFrame):
-    """Reports tab — metrics, top products, and export.
+    """Reports dashboard — KPIs, top products, low stock, chart, and exports.
 
     Parameters
     ----------
@@ -31,7 +42,8 @@ class ReportView(ctk.CTkFrame):
         Parent frame (typically the "Reportes" tab frame).
     callbacks : dict[str, Callable] | None
         Optional dict with keys ``on_generate`` (receives ``{start, end}``),
-        and ``on_export`` (no arguments).
+        ``on_export_diario`` (no arguments), ``on_export_top`` (no arguments),
+        and ``on_export_faltantes`` (no arguments).
     **kwargs :
         Forwarded to ``ctk.CTkFrame``.
     """
@@ -50,6 +62,8 @@ class ReportView(ctk.CTkFrame):
         "Personalizado",
     ]
 
+    TOP_PRODUCT_LIMITS = ["5", "10", "20", "30"]
+
     def __init__(
         self,
         master: tk.Widget,
@@ -62,21 +76,46 @@ class ReportView(ctk.CTkFrame):
         self._on_generate: (
             Callable[[str, str], None] | None
         ) = callbacks.get("on_generate")
-        self._on_export: Callable[[], None] | None = callbacks.get(
-            "on_export"
+        self._on_export_diario: Callable[[], None] | None = callbacks.get(
+            "on_export_diario"
+        )
+        self._on_export_top: Callable[[], None] | None = callbacks.get(
+            "on_export_top"
+        )
+        self._on_export_faltantes: Callable[[], None] | None = callbacks.get(
+            "on_export_faltantes"
         )
 
-        # Cache the last report data for CSV export
+        # Cache the last report data for CSV exports
         self._report_data: dict[str, Any] = {}
 
+        # Configure main grid: 3 rows, 2 columns
         self.grid_columnconfigure(0, weight=1)
-        self.grid_rowconfigure(2, weight=1)  # treeview row
+        self.grid_columnconfigure(1, weight=1)
+        self.grid_rowconfigure(0, weight=0)   # top bar
+        self.grid_rowconfigure(1, weight=0)   # KPIs
+        self.grid_rowconfigure(2, weight=1)   # data panel
 
-        # --- row 0: period selector ---
-        selector_frame = ctk.CTkFrame(self)
-        selector_frame.grid(
-            row=0, column=0, sticky="ew", padx=10, pady=(10, 5)
-        )
+        # --- Row 0: Top bar (period selector + buttons) ---
+        self._build_top_bar()
+
+        # --- Row 1: KPI cards ---
+        self._build_kpi_panel()
+
+        # --- Row 2: Data panel (2 columns) ---
+        self._build_data_panel()
+
+    # ------------------------------------------------------------------ UI builders ---
+
+    def _build_top_bar(self) -> None:
+        """Build the top bar with period selector and export button."""
+        top_bar = ctk.CTkFrame(self)
+        top_bar.grid(row=0, column=0, columnspan=2, sticky="ew", padx=10, pady=(10, 5))
+        top_bar.grid_columnconfigure(1, weight=1)  # spacer
+
+        # Left side: period selector
+        selector_frame = ctk.CTkFrame(top_bar)
+        selector_frame.grid(row=0, column=0, sticky="w")
 
         ctk.CTkLabel(
             selector_frame,
@@ -94,7 +133,7 @@ class ReportView(ctk.CTkFrame):
         )
         self._period_menu.pack(side="left", padx=5)
 
-        # Custom date range — shown only when "Personalizado" is selected
+        # Custom date range
         self._custom_frame = ctk.CTkFrame(selector_frame)
         self._custom_frame.pack(side="left", padx=10)
 
@@ -141,29 +180,43 @@ class ReportView(ctk.CTkFrame):
             command=self._handle_generate,
         ).pack(side="left", padx=(15, 10))
 
-        # --- row 1: metrics cards ---
-        self._metrics_frame = ctk.CTkFrame(self)
-        self._metrics_frame.grid(
-            row=1, column=0, sticky="ew", padx=10, pady=5
+        # Right side: export diario button
+        self._export_diario_btn = ctk.CTkButton(
+            top_bar,
+            text="Exportar Libro Diario (CSV)",
+            width=200,
+            height=35,
+            fg_color="#3b3b3b",
+            command=self._handle_export_diario,
         )
+        self._export_diario_btn.grid(row=0, column=2, sticky="e", padx=(10, 15))
+
+    def _build_kpi_panel(self) -> None:
+        """Build the KPI cards row with 5 metric cards."""
+        kpi_frame = ctk.CTkFrame(self)
+        kpi_frame.grid(row=1, column=0, columnspan=2, sticky="ew", padx=10, pady=5)
+
+        # Configure 5 equal columns
+        for col in range(5):
+            kpi_frame.grid_columnconfigure(col, weight=1)
 
         self._metric_cards: dict[str, ctk.CTkLabel] = {}
+
         card_defs = [
-            ("Total ventas", "total", 0, "$0"),
-            ("Operaciones", "count", 1, "0"),
-            ("Ganancia", "profit", 2, "$0"),
-            ("Margen", "margin", 3, "0%"),
+            ("Ventas Totales", "total_ventas", 0, "$0", "#2b2b2b"),
+            ("Operaciones", "operaciones", 1, "0", "#2b2b2b"),
+            ("Compras a Proveedores", "compras", 2, "$0", "#2b2b2b"),
+            ("Ganancia Bruta", "ganancia_bruta", 3, "$0", "#2b2b2b"),
+            ("Margen Bruto", "margen_bruto", 4, "0%", "#2b2b2b"),
         ]
-        for label, key, col, default in card_defs:
+
+        for label, key, col, default, color in card_defs:
             card = ctk.CTkFrame(
-                self._metrics_frame,
-                fg_color="#2b2b2b",
+                kpi_frame,
+                fg_color=color,
                 corner_radius=8,
             )
-            card.grid(
-                row=0, column=col, padx=5, pady=10, sticky="nsew"
-            )
-            self._metrics_frame.grid_columnconfigure(col, weight=1)
+            card.grid(row=0, column=col, padx=5, pady=10, sticky="nsew")
 
             ctk.CTkLabel(
                 card,
@@ -180,20 +233,60 @@ class ReportView(ctk.CTkFrame):
             value_lbl.pack(pady=(0, 8))
             self._metric_cards[key] = value_lbl
 
-        # --- row 2: top-10 treeview ---
-        self._tree_frame = ctk.CTkFrame(self)
-        self._tree_frame.grid(
-            row=2, column=0, sticky="nsew", padx=10, pady=5
-        )
-        self._tree_frame.grid_rowconfigure(0, weight=1)
-        self._tree_frame.grid_columnconfigure(0, weight=1)
+    def _build_data_panel(self) -> None:
+        """Build the data panel with 2 columns: left (trees) and right (chart + summary)."""
+        # Left column: Top products + Low stock
+        left_frame = ctk.CTkFrame(self)
+        left_frame.grid(row=2, column=0, sticky="nsew", padx=(10, 5), pady=5)
+        left_frame.grid_columnconfigure(0, weight=1)
+        left_frame.grid_rowconfigure(1, weight=1)  # top products tree
+        left_frame.grid_rowconfigure(3, weight=1)  # low stock tree
 
-        self._style = ttk.Style(self._tree_frame)
+        # Top products section
+        top_header = ctk.CTkFrame(left_frame)
+        top_header.grid(row=0, column=0, sticky="ew", pady=(0, 5))
+        top_header.grid_columnconfigure(1, weight=1)
+
+        ctk.CTkLabel(
+            top_header,
+            text="Top Productos más vendidos",
+            font=ctk.CTkFont(size=14, weight="bold"),
+        ).grid(row=0, column=0, sticky="w", padx=10, pady=5)
+
+        # Limit selector
+        self._top_limit_var = tk.StringVar(value="10")
+        self._top_limit_combo = ctk.CTkComboBox(
+            top_header,
+            values=self.TOP_PRODUCT_LIMITS,
+            variable=self._top_limit_var,
+            width=70,
+            command=self._handle_top_limit_changed,
+        )
+        self._top_limit_combo.grid(row=0, column=1, sticky="e", padx=5)
+
+        ctk.CTkLabel(
+            top_header,
+            text="Ver Top:",
+            font=ctk.CTkFont(size=12),
+        ).grid(row=0, column=2, sticky="e", padx=(5, 2))
+
+        self._export_top_btn = ctk.CTkButton(
+            top_header,
+            text="Exportar Top CSV",
+            width=130,
+            height=28,
+            fg_color="#3b3b3b",
+            command=self._handle_export_top,
+        )
+        self._export_top_btn.grid(row=0, column=3, sticky="e", padx=(5, 10))
+
+        # Top products treeview
+        self._style = ttk.Style(left_frame)
         self._configure_style()
 
         self._top_columns = ("pos", "producto", "cantidad", "monto")
         self._top_tree = ttk.Treeview(
-            self._tree_frame,
+            left_frame,
             columns=self._top_columns,
             show="headings",
             selectmode="none",
@@ -210,8 +303,8 @@ class ReportView(ctk.CTkFrame):
         self._top_tree.column("monto", width=130, anchor="e")
 
         # Load saved column widths
-        saved_widths = load_column_widths("report_view")
-        self._top_tree._view_name = "report_view"
+        saved_widths = load_column_widths("report_view_top")
+        self._top_tree._view_name = "report_view_top"
         apply_treeview_widths(self._top_tree, saved_widths)
 
         # Add column sorting
@@ -227,56 +320,209 @@ class ReportView(ctk.CTkFrame):
         )
 
         self._top_scroll = ttk.Scrollbar(
-            self._tree_frame,
+            left_frame,
             orient="vertical",
             command=self._top_tree.yview,
         )
         self._top_tree.configure(yscrollcommand=self._top_scroll.set)
-        self._top_tree.grid(row=0, column=0, sticky="nsew")
-        self._top_scroll.grid(row=0, column=1, sticky="ns")
+        self._top_tree.grid(row=1, column=0, sticky="nsew", pady=(0, 10))
+        self._top_scroll.grid(row=1, column=1, sticky="ns", pady=(0, 10))
 
-        # --- row 3: export button ---
-        self._export_btn = ctk.CTkButton(
-            self,
-            text="📥 Exportar CSV",
-            width=140,
-            height=35,
+        # Low stock section
+        low_header = ctk.CTkFrame(left_frame)
+        low_header.grid(row=2, column=0, sticky="ew", pady=(5, 5))
+        low_header.grid_columnconfigure(0, weight=1)
+
+        ctk.CTkLabel(
+            low_header,
+            text="⚠ Productos bajo stock",
+            font=ctk.CTkFont(size=14, weight="bold"),
+            text_color="#ff6b6b",
+        ).grid(row=0, column=0, sticky="w", padx=10, pady=5)
+
+        self._export_faltantes_btn = ctk.CTkButton(
+            low_header,
+            text="Exportar Faltantes CSV",
+            width=150,
+            height=28,
             fg_color="#3b3b3b",
-            command=self._handle_export,
+            command=self._handle_export_faltantes,
         )
-        self._export_btn.grid(
-            row=3, column=0, sticky="e", padx=10, pady=(5, 10)
+        self._export_faltantes_btn.grid(row=0, column=1, sticky="e", padx=(5, 10))
+
+        # Low stock treeview
+        self._low_columns = ("pos", "producto", "stock_actual", "ubicacion")
+        self._low_tree = ttk.Treeview(
+            left_frame,
+            columns=self._low_columns,
+            show="headings",
+            selectmode="none",
+            height=8,
         )
+        self._low_tree.heading("pos", text="#")
+        self._low_tree.heading("producto", text="Producto")
+        self._low_tree.heading("stock_actual", text="Stock Actual")
+        self._low_tree.heading("ubicacion", text="Ubicación")
+
+        self._low_tree.column("pos", width=40, anchor="center")
+        self._low_tree.column("producto", width=240, stretch=True)
+        self._low_tree.column("stock_actual", width=100, anchor="center")
+        self._low_tree.column("ubicacion", width=150, anchor="w")
+
+        # Load saved column widths
+        saved_widths = load_column_widths("report_view_low")
+        self._low_tree._view_name = "report_view_low"
+        apply_treeview_widths(self._low_tree, saved_widths)
+
+        # Add column sorting
+        add_sorting_to_treeview(
+            self._low_tree,
+            list(self._low_columns),
+            column_types={
+                "pos": "int",
+                "producto": "str",
+                "stock_actual": "int",
+                "ubicacion": "str",
+            }
+        )
+
+        self._low_scroll = ttk.Scrollbar(
+            left_frame,
+            orient="vertical",
+            command=self._low_tree.yview,
+        )
+        self._low_tree.configure(yscrollcommand=self._low_scroll.set)
+        self._low_tree.grid(row=3, column=0, sticky="nsew")
+        self._low_scroll.grid(row=3, column=1, sticky="ns")
+
+        # Right column: Payment chart + Expense summary
+        right_frame = ctk.CTkFrame(self)
+        right_frame.grid(row=2, column=1, sticky="nsew", padx=(5, 10), pady=5)
+        right_frame.grid_columnconfigure(0, weight=1)
+        right_frame.grid_rowconfigure(0, weight=0)  # chart (compact)
+        right_frame.grid_rowconfigure(1, weight=1)  # summary (expands)
+
+        # Payment methods chart (reserved for matplotlib)
+        self._chart_frame = ctk.CTkFrame(right_frame)
+        self._chart_frame.grid(row=0, column=0, sticky="nsew", pady=(0, 3))
+        self._chart_frame.grid_columnconfigure(0, weight=1)
+        self._chart_frame.grid_rowconfigure(0, weight=0)  # title
+        self._chart_frame.grid_rowconfigure(1, weight=1)  # canvas
+
+        ctk.CTkLabel(
+            self._chart_frame,
+            text="Ventas por Método de Pago",
+            font=ctk.CTkFont(size=14, weight="bold"),
+        ).grid(row=0, column=0, sticky="n", pady=(10, 5))
+
+        # Placeholder for matplotlib canvas
+        self._chart_canvas_frame = ctk.CTkFrame(
+            self._chart_frame,
+            fg_color="#1a1a1a",
+            corner_radius=8,
+        )
+        self._chart_canvas_frame.grid(row=1, column=0, sticky="nsew", padx=3, pady=3)
+
+        # Placeholder label
+        ctk.CTkLabel(
+            self._chart_canvas_frame,
+            text="[ Gráfico circular - matplotlib ]",
+            font=ctk.CTkFont(size=12),
+            text_color="#666",
+        ).pack(expand=True)
+
+        # Expense summary (ticket style)
+        summary_frame = ctk.CTkFrame(right_frame)
+        summary_frame.grid(row=1, column=0, sticky="nsew")
+        summary_frame.grid_columnconfigure(0, weight=1)
+        summary_frame.grid_columnconfigure(1, weight=0)
+
+        # Title row
+        ctk.CTkLabel(
+            summary_frame,
+            text="Resumen de Egresos y Pérdidas",
+            font=ctk.CTkFont(size=13, weight="bold"),
+        ).grid(row=0, column=0, sticky="w", padx=10, pady=(10, 5))
+
+        # Export button row
+        self._export_resumen_btn = ctk.CTkButton(
+            summary_frame,
+            text="Exportar CSV",
+            width=100,
+            height=28,
+            fg_color="#3b3b3b",
+            command=self._handle_export_diario,  # Reuses diario export for now
+        )
+        self._export_resumen_btn.grid(row=0, column=1, sticky="e", padx=10, pady=(10, 5))
+
+        # Summary labels
+        self._summary_labels: dict[str, ctk.CTkLabel] = {}
+
+        summary_items = [
+            ("Compras a Proveedores:", "compras", "$0", "#888"),
+            ("Pérdidas:", "mermas", "$0", "#888"),
+            ("Gastos Operativos:", "gastos", "$0", "#888"),
+            ("Ganancia Neta:", "ganancia_neta", "$0", "#4CAF50"),
+        ]
+
+        for idx, (label, key, default, color) in enumerate(summary_items, start=1):
+            font_size = 18 if key == "ganancia_neta" else 13
+            font_weight = "bold" if key == "ganancia_neta" else "normal"
+
+            ctk.CTkLabel(
+                summary_frame,
+                text=label,
+                font=ctk.CTkFont(size=font_size, weight=font_weight),
+            ).grid(row=idx, column=0, sticky="w", padx=10, pady=5)
+
+            value_lbl = ctk.CTkLabel(
+                summary_frame,
+                text=default,
+                font=ctk.CTkFont(size=font_size, weight=font_weight),
+                text_color=color,
+            )
+            value_lbl.grid(row=idx, column=1, sticky="e", padx=10, pady=5)
+            self._summary_labels[key] = value_lbl
 
     # ---------------------------------------------------------------- public ---
 
     def update_report(self, data: dict[str, Any]) -> None:
-        """Refresh metrics and top-10 treeview with report *data*.
+        """Refresh metrics, trees, and summary with report *data*.
 
         Expected keys:
             ``sales``: {total, count, avg_ticket}
             ``profit``: {revenue, cost, profit, margin_pct}
             ``top_products``: [{name, total_quantity, total_amount}, ...]
+            ``low_stock``: [{name, stock, location}, ...]
+            ``payment_methods``: [{payment_method, total_amount, percentage}, ...]
+            ``expenses``: {purchases, shrinkage, operating_expenses, net_profit}
         """
         sales = data.get("sales") or {}
         profit = data.get("profit") or {}
         top = data.get("top_products") or []
+        low_stock = data.get("low_stock") or []
+        expenses = data.get("expenses") or {}
 
-        self._metric_cards["total"].configure(
+        # Update KPI cards
+        self._metric_cards["total_ventas"].configure(
             text=f"${sales.get('total', 0):,}"
         )
-        self._metric_cards["count"].configure(
+        self._metric_cards["operaciones"].configure(
             text=str(sales.get("count", 0))
         )
-        self._metric_cards["profit"].configure(
+        # Compras a Proveedores KPI = same as expenses summary
+        self._metric_cards["compras"].configure(
+            text=f"${expenses.get('purchases', 0):,}"
+        )
+        self._metric_cards["ganancia_bruta"].configure(
             text=f"${profit.get('profit', 0):,}"
         )
         margin = profit.get("margin_pct", 0)
-        self._metric_cards["margin"].configure(
+        self._metric_cards["margen_bruto"].configure(
             text=f"{margin:.1f}%"
         )
 
-        # Update top-10
+        # Update top products
         for child in self._top_tree.get_children():
             self._top_tree.delete(child)
 
@@ -292,6 +538,106 @@ class ReportView(ctk.CTkFrame):
                 ),
             )
 
+        # Update low stock
+        for child in self._low_tree.get_children():
+            self._low_tree.delete(child)
+
+        for idx, item in enumerate(low_stock, 1):
+            self._low_tree.insert(
+                "",
+                "end",
+                values=(
+                    idx,
+                    item.get("name", "—"),
+                    item.get("stock", 0),  # Use 'stock' key from repo
+                    item.get("location", "—"),
+                ),
+            )
+
+        # Update expense summary
+        self._summary_labels["compras"].configure(
+            text=f"${expenses.get('purchases', 0):,}"
+        )
+        self._summary_labels["mermas"].configure(
+            text=f"${expenses.get('shrinkage', 0):,}"
+        )
+        self._summary_labels["gastos"].configure(
+            text=f"${expenses.get('operating_expenses', 0):,}"
+        )
+        net_profit = expenses.get("net_profit", 0)
+        self._summary_labels["ganancia_neta"].configure(
+            text=f"${net_profit:,}"
+        )
+
+    def _update_payment_chart(self, payment_methods: list[dict]) -> None:
+        """Update the payment methods bar chart.
+        
+        Args:
+            payment_methods: List of dicts with keys ``payment_method``, ``total_amount``, ``percentage``.
+        """
+        if not HAS_MATPLOTLIB:
+            return
+
+        # Clear previous chart
+        for widget in self._chart_canvas_frame.winfo_children():
+            widget.destroy()
+
+        if not payment_methods:
+            ctk.CTkLabel(
+                self._chart_canvas_frame,
+                text="Sin datos de métodos de pago",
+                font=ctk.CTkFont(size=12),
+                text_color="#666",
+            ).pack(expand=True)
+            return
+
+        # Prepare data
+        labels = [item["payment_method"] for item in payment_methods]
+        sizes = [item["percentage"] for item in payment_methods]
+        colors = ["#4CAF50", "#2196F3", "#FF5722"]  # Green, Blue, Orange
+
+        # Create figure (compact horizontal bar chart)
+        fig = Figure(figsize=(3, 2), dpi=100, facecolor="#1a1a1a")
+        ax = fig.add_subplot(111)
+        ax.set_facecolor("#1a1a1a")
+
+        # Create horizontal bar chart
+        y_pos = range(len(labels))
+        bars = ax.barh(y_pos, sizes, color=colors, height=0.5)
+
+        # Add percentage labels on bars
+        for bar, percentage in zip(bars, sizes):
+            ax.text(
+                bar.get_width() + 1,
+                bar.get_y() + bar.get_height() / 2,
+                f"{percentage:.0f}%",
+                va="center",
+                ha="left",
+                color="white",
+                fontsize=9,
+                fontweight="bold",
+            )
+
+        # Configure axes
+        ax.set_yticks(y_pos)
+        ax.set_yticklabels(labels, color="white", fontsize=9)
+        ax.set_xlim(0, max(sizes) + 15)  # Add padding for labels
+        ax.set_xlabel("%", color="white", fontsize=8)
+        ax.tick_params(axis="x", colors="white", labelsize=8)
+        ax.tick_params(axis="y", colors="white", labelsize=9)
+
+        # Remove spines
+        for spine in ax.spines.values():
+            spine.set_visible(False)
+
+        # Tight layout
+        fig.tight_layout()
+
+        # Embed in tkinter
+        canvas = FigureCanvasTkAgg(fig, master=self._chart_canvas_frame)
+        canvas.draw()
+        canvas.get_tk_widget().pack(fill="both", expand=True)
+
     # ----------------------------------------------------------- callbacks ----
 
     def set_on_generate(
@@ -300,38 +646,52 @@ class ReportView(ctk.CTkFrame):
         """Wire the generate-report callback."""
         self._on_generate = callback
 
-    def set_on_export(self, callback: Callable[[], None]) -> None:
-        """Wire the CSV export callback."""
-        self._on_export = callback
+    def set_on_export_diario(self, callback: Callable[[], None]) -> None:
+        """Wire the daily book CSV export callback."""
+        self._on_export_diario = callback
+
+    def set_on_export_top(self, callback: Callable[[], None]) -> None:
+        """Wire the top products CSV export callback."""
+        self._on_export_top = callback
+
+    def set_on_export_faltantes(self, callback: Callable[[], None]) -> None:
+        """Wire the low stock CSV export callback."""
+        self._on_export_faltantes = callback
 
     # ------------------------------------------------------- controller wire ---
 
     def set_controller(self, controller: Any) -> None:
         """Wire a ``ReportController`` instance and set up all event handlers.
 
-        After calling this, report generation and CSV export are
+        After calling this, report generation and CSV exports are
         automatically routed to the controller.
         """
         self._controller = controller
 
         # Wire internal handlers
         self._on_generate = self._controller_generate
-        self._on_export = self._controller_export
+        self._on_export_diario = self._controller_export_diario
+        self._on_export_top = self._controller_export_top
+        self._on_export_faltantes = self._controller_export_faltantes
 
     # ---------------------------------------------------- controller handlers ---
 
     def _controller_generate(self, start: str, end: str) -> None:
         """Generate a sales report via controller and update the UI."""
-        result = self._controller.generate_sales_report(start, end)
+        # Get the top limit from the ComboBox
+        top_limit = int(self._top_limit_var.get()) if self._top_limit_var.get() else 10
+
+        result = self._controller.generate_sales_report(start, end, top_limit)
         if result["success"]:
             data = result["data"]
             self._report_data = data
             self.update_report(data)
+            self._update_payment_chart(data.get("payment_methods", []))
         else:
             messagebox.showerror("Error", result["error"])
 
-    def _controller_export(self) -> None:
-        """Export the last report to CSV via file dialog."""
+    def _controller_export_diario(self) -> None:
+        """Export the daily book to CSV via file dialog."""
         if not self._report_data:
             messagebox.showwarning(
                 "Sin datos",
@@ -340,31 +700,69 @@ class ReportView(ctk.CTkFrame):
             return
 
         filepath = filedialog.asksaveasfilename(
-            title="Exportar reporte",
+            title="Exportar Libro Diario",
             defaultextension=".csv",
             filetypes=[("CSV", "*.csv")],
         )
         if not filepath:
             return
 
-        # Build exportable data from the cached report
-        top_products = self._report_data.get("top_products", [])
-        if not top_products:
+        # TODO: Implement daily book export logic
+        messagebox.showinfo(
+            "Exportación",
+            "Función de exportación de Libro Diario en desarrollo.",
+        )
+
+    def _controller_export_top(self) -> None:
+        """Export top products to CSV via file dialog."""
+        if not self._report_data:
             messagebox.showwarning(
                 "Sin datos",
-                "No hay datos de productos para exportar.",
+                "Genere un reporte antes de exportar.",
             )
             return
 
-        result = self._controller.export_to_csv(top_products, filepath)
-        if result["success"]:
-            messagebox.showinfo("Exportación", "Reporte exportado correctamente")
-        else:
-            messagebox.showerror("Error", result["error"])
+        filepath = filedialog.asksaveasfilename(
+            title="Exportar Top Productos",
+            defaultextension=".csv",
+            filetypes=[("CSV", "*.csv")],
+        )
+        if not filepath:
+            return
+
+        # TODO: Implement top products export logic
+        messagebox.showinfo(
+            "Exportación",
+            "Función de exportación de Top Productos en desarrollo.",
+        )
+
+    def _controller_export_faltantes(self) -> None:
+        """Export low stock products to CSV via file dialog."""
+        if not self._report_data:
+            messagebox.showwarning(
+                "Sin datos",
+                "Genere un reporte antes de exportar.",
+            )
+            return
+
+        filepath = filedialog.asksaveasfilename(
+            title="Exportar Productos Bajo Stock",
+            defaultextension=".csv",
+            filetypes=[("CSV", "*.csv")],
+        )
+        if not filepath:
+            return
+
+        # TODO: Implement low stock export logic
+        messagebox.showinfo(
+            "Exportación",
+            "Función de exportación de Productos Bajo Stock en desarrollo.",
+        )
 
     # --------------------------------------------------------------- private ---
 
     def _configure_style(self) -> None:
+        """Configure Treeview style for dark theme."""
         self._style.theme_use("clam")
         bg, fg, select_bg = "#2b2b2b", "#dce4ee", "#1f538d"
         self._style.configure(
@@ -389,6 +787,7 @@ class ReportView(ctk.CTkFrame):
         )
 
     def _handle_period_changed(self, value: str) -> None:
+        """Show/hide custom date range based on period selection."""
         if value == "Personalizado":
             self._custom_frame.pack(side="left", padx=10)
         else:
@@ -427,6 +826,7 @@ class ReportView(ctk.CTkFrame):
         return None
 
     def _handle_generate(self) -> None:
+        """Handle generate report button click."""
         date_range = self._get_date_range()
         if date_range is None:
             return
@@ -434,6 +834,25 @@ class ReportView(ctk.CTkFrame):
         if self._on_generate is not None:
             self._on_generate(start, end)
 
-    def _handle_export(self) -> None:
-        if self._on_export is not None:
-            self._on_export()
+    def _handle_export_diario(self) -> None:
+        """Handle export daily book button click."""
+        if self._on_export_diario is not None:
+            self._on_export_diario()
+
+    def _handle_export_top(self) -> None:
+        """Handle export top products button click."""
+        if self._on_export_top is not None:
+            self._on_export_top()
+
+    def _handle_export_faltantes(self) -> None:
+        """Handle export low stock button click."""
+        if self._on_export_faltantes is not None:
+            self._on_export_faltantes()
+
+    def _handle_top_limit_changed(self, value: str) -> None:
+        """Regenerate report when top limit changes."""
+        # Only regenerate if we have a date range
+        date_range = self._get_date_range()
+        if date_range is not None and self._on_generate is not None:
+            start, end = date_range
+            self._on_generate(start, end)

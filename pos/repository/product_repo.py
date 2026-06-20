@@ -84,6 +84,27 @@ class ProductRepo:
         ).fetchall()
         return [self._from_row(r) for r in rows]
 
+    def low_stock_products(self) -> list[dict]:
+        """Return active products where stock is at or below the threshold.
+
+        Each dict has keys ``product_id``, ``name``, ``stock``, and
+        ``location`` (the category name, or ``"Sin categoría"`` when
+        the product has no category).  Results are ordered by stock
+        ascending.
+        """
+        rows = self._db.execute(
+            """SELECT p.id AS product_id,
+                      p.name,
+                      p.stock,
+                      COALESCE(c.name, 'Sin categoría') AS location
+               FROM products p
+               LEFT JOIN categories c ON p.category_id = c.id
+               WHERE p.is_active = 1
+                 AND p.stock <= p.low_stock_threshold
+               ORDER BY p.stock ASC"""
+        ).fetchall()
+        return [dict(r) for r in rows]
+
     # ----------------------------------------------------------------- create
 
     def create(self, product: Product) -> Product:

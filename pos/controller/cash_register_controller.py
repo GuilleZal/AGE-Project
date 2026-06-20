@@ -154,6 +154,7 @@ class CashRegisterController:
                 amount=int(sale_data["amount"]),
                 description=sale_data.get("description"),
             )
+            self._db.commit()
             return {"success": True, "data": movement, "error": None}
         except POSException as e:
             return {"success": False, "data": None, "error": str(e)}
@@ -182,6 +183,7 @@ class CashRegisterController:
                 amount=int(return_data["amount"]),
                 description=return_data.get("description"),
             )
+            self._db.commit()
             return {"success": True, "data": movement, "error": None}
         except POSException as e:
             return {"success": False, "data": None, "error": str(e)}
@@ -214,6 +216,7 @@ class CashRegisterController:
                 amount=amount,
                 description=description,
             )
+            self._db.commit()
             return {"success": True, "data": movement, "error": None}
         except POSException as e:
             return {"success": False, "data": None, "error": str(e)}

@@ -857,8 +857,26 @@ class _CloseDialog(ctk.CTkToplevel):
         ctk.CTkLabel(
             self, text="Motivo de cierre:", font=ctk.CTkFont(size=14)
         ).pack(pady=(10, 5))
+        
+        # Radio buttons for close reason
+        self._reason_var = tk.StringVar(value="Fin de turno")
+        reason_frame = ctk.CTkFrame(self, fg_color="transparent")
+        reason_frame.pack(padx=20, pady=5, fill="x")
+        
+        ctk.CTkRadioButton(
+            reason_frame, text="Fin de turno", variable=self._reason_var,
+            value="Fin de turno", command=self._on_reason_change
+        ).pack(anchor="w", pady=2)
+        
+        ctk.CTkRadioButton(
+            reason_frame, text="Otro", variable=self._reason_var,
+            value="Otro", command=self._on_reason_change
+        ).pack(anchor="w", pady=2)
+        
+        # Text entry for "Otro" (initially disabled)
         self._notes_entry = ctk.CTkEntry(
-            self, width=300, placeholder_text="Ej: Fin de turno..."
+            self, width=300, placeholder_text="Aclare el motivo...",
+            state="disabled"
         )
         self._notes_entry.pack(padx=20, pady=5)
         self._notes_entry.bind("<Return>", lambda _e: self._confirm())
@@ -879,7 +897,7 @@ class _CloseDialog(ctk.CTkToplevel):
             fg_color="#8b1a1a", command=self._confirm,
         ).pack(side="left", padx=5)
 
-        self.geometry("380x280")
+        self.geometry("380x360")
         self._center_on_master(master)
         self._amount_entry.focus_set()
 
@@ -887,9 +905,30 @@ class _CloseDialog(ctk.CTkToplevel):
     def result(self) -> dict[str, Any] | None:
         return self._result
 
+    def _on_reason_change(self) -> None:
+        """Enable notes entry only when 'Otro' is selected."""
+        if self._reason_var.get() == "Otro":
+            self._notes_entry.configure(state="normal")
+            self._notes_entry.focus_set()
+        else:
+            self._notes_entry.configure(state="disabled")
+            self._notes_entry.delete(0, "end")
+
     def _confirm(self) -> None:
         raw_amount = self._amount_entry.get().strip()
-        notes = self._notes_entry.get().strip()
+        reason_choice = self._reason_var.get()
+        
+        # Build final notes based on selection
+        if reason_choice == "Otro":
+            notes = self._notes_entry.get().strip()
+            if not notes:
+                self._error_label.configure(
+                    text="Aclare el motivo al seleccionar 'Otro'"
+                )
+                return
+        else:
+            notes = reason_choice
+        
         if not raw_amount:
             self._error_label.configure(text="Ingrese el monto contado")
             return
@@ -901,7 +940,7 @@ class _CloseDialog(ctk.CTkToplevel):
         if amount < 0:
             self._error_label.configure(text="El monto no puede ser negativo")
             return
-        # Notes are now optional
+        
         self._result = {"amount": amount, "notes": notes}
         self.destroy()
 

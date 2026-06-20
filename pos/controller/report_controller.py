@@ -20,25 +20,36 @@ class ReportController:
     # ----------------------------------------------------------- sales report --
 
     def generate_sales_report(
-        self, start_date: str, end_date: str, filters: dict | None = None
+        self, start_date: str, end_date: str, top_limit: int = 10
     ) -> dict:
-        """Generate a sales summary report for a date range.
+        """Generate a comprehensive sales report for a date range.
 
         Args:
             start_date: ISO-like datetime string (inclusive).
             end_date:   ISO-like datetime string (inclusive).
-            filters:    Optional dict with ``payment_method`` or ``category_id``
-                        for narrowing the report.
+            top_limit:  Number of top products to return (default 10).
 
         Returns:
-            ``{"success": True, "data": {sales_summary, profit_summary, top_products}, "error": None}``.
+            ``{"success": True, "data": {sales, profit, top_products, low_stock, payment_methods, expenses}, "error": None}``.
         """
         try:
             _validate_dates(start_date, end_date)
 
             sales = self._report_service.sales_summary(start_date, end_date)
             profit = self._report_service.profit_summary(start_date, end_date)
-            top = self._report_service.top_products(start_date, end_date)
+            top = self._report_service.top_products(start_date, end_date, top_limit)
+            low_stock = self._report_service.low_stock_products()
+            payment_methods = self._report_service.payment_methods_summary(start_date, end_date)
+            expenses = self._report_service.expenses_summary(start_date, end_date)
+
+            # Calculate net profit
+            net_profit = (
+                profit["profit"]
+                - expenses["purchases"]
+                - expenses["shrinkage"]
+                - expenses["operating_expenses"]
+            )
+            expenses["net_profit"] = net_profit
 
             return {
                 "success": True,
@@ -47,6 +58,9 @@ class ReportController:
                     "sales": sales,
                     "profit": profit,
                     "top_products": top,
+                    "low_stock": low_stock,
+                    "payment_methods": payment_methods,
+                    "expenses": expenses,
                 },
                 "error": None,
             }
