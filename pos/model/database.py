@@ -109,9 +109,9 @@ def _run_migrations(conn: sqlite3.Connection) -> None:
                 category_id         INTEGER REFERENCES categories(id),
                 sale_price          INTEGER NOT NULL,
                 cost_price          INTEGER NOT NULL,
-                stock               REAL NOT NULL DEFAULT 0,
+                stock               INTEGER NOT NULL DEFAULT 0,
                 description         TEXT,
-                low_stock_threshold REAL DEFAULT 5,
+                low_stock_threshold INTEGER DEFAULT 5,
                 is_active           INTEGER NOT NULL DEFAULT 1,
                 created_at          TEXT NOT NULL DEFAULT (datetime('now')),
                 updated_at          TEXT NOT NULL DEFAULT (datetime('now'))
@@ -135,11 +135,51 @@ def _run_migrations(conn: sqlite3.Connection) -> None:
         """)
         conn.execute("PRAGMA foreign_keys=ON")
 
+    # Migration 5: Convert stock and low_stock_threshold from REAL to INTEGER
+    row = conn.execute("PRAGMA table_info(products)").fetchall()
+    stock_col = [col for col in row if col["name"] == "stock"]
+    if stock_col and stock_col[0]["type"].upper() == "REAL":
+        conn.execute("PRAGMA foreign_keys=OFF")
+        conn.executescript("""
+            CREATE TABLE products_new (
+                id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+                barcode             TEXT UNIQUE,
+                name                TEXT NOT NULL,
+                category_id         INTEGER REFERENCES categories(id),
+                sale_price          INTEGER NOT NULL,
+                cost_price          INTEGER NOT NULL,
+                stock               INTEGER NOT NULL DEFAULT 0,
+                description         TEXT,
+                low_stock_threshold INTEGER DEFAULT 5,
+                is_active           INTEGER NOT NULL DEFAULT 1,
+                created_at          TEXT NOT NULL DEFAULT (datetime('now')),
+                updated_at          TEXT NOT NULL DEFAULT (datetime('now'))
+            );
+
+            INSERT INTO products_new (id, barcode, name, category_id, sale_price, cost_price,
+                                     stock, description, low_stock_threshold, is_active,
+                                     created_at, updated_at)
+            SELECT id, barcode, name, category_id, sale_price, cost_price,
+                   CAST(stock AS INTEGER), description, CAST(low_stock_threshold AS INTEGER),
+                   is_active, created_at, updated_at
+            FROM products;
+
+            DROP TABLE products;
+
+            ALTER TABLE products_new RENAME TO products;
+
+            CREATE INDEX IF NOT EXISTS idx_products_barcode ON products(barcode);
+            CREATE INDEX IF NOT EXISTS idx_products_name ON products(name);
+            CREATE INDEX IF NOT EXISTS idx_products_category ON products(category_id);
+        """)
+        conn.execute("PRAGMA foreign_keys=ON")
+
 
 # ------------------------------------------------------------------ DDL ----
 # NOTE: Currency fields (prices, amounts, totals) use INTEGER to represent
-# whole ARS pesos — there are no cents in this domain. Stock and quantity
-# fields use REAL to support weight_kg fractional values.
+# whole ARS pesos — there are no cents in this domain. Stock uses INTEGER
+# (all products operate by unit). Quantity fields in sale_items use REAL to
+# support weight_kg fractional values.
 
 DDL = """
 -- ============================================================ CATEGORIES
@@ -157,9 +197,9 @@ CREATE TABLE IF NOT EXISTS products (
     category_id         INTEGER REFERENCES categories(id),
     sale_price          INTEGER NOT NULL,
     cost_price          INTEGER NOT NULL,
-    stock               REAL NOT NULL DEFAULT 0,
+    stock               INTEGER NOT NULL DEFAULT 0,
     description         TEXT,
-    low_stock_threshold REAL DEFAULT 5,
+    low_stock_threshold INTEGER DEFAULT 5,
     is_active           INTEGER NOT NULL DEFAULT 1,
     created_at          TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at          TEXT NOT NULL DEFAULT (datetime('now'))

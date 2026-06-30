@@ -17,7 +17,7 @@ class Product:
     """A sellable item with optional barcode, category, and stock tracking.
 
     Currency fields (sale_price, cost_price) are ``int`` (whole ARS pesos).
-    Stock is ``float``. All products operate by unit.
+    Stock is ``int``. All products operate by unit.
     """
 
     name: str
@@ -26,9 +26,9 @@ class Product:
     id: int | None = None
     barcode: str | None = None
     category_id: int | None = None
-    stock: float = 0.0
+    stock: int = 0
     description: str | None = None
-    low_stock_threshold: float = 5.0
+    low_stock_threshold: int = 5
     is_active: bool = True
     created_at: str | None = None
     updated_at: str | None = None

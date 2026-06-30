@@ -9,8 +9,8 @@
   "cash_register_movements": {
     "tipo": 97,
     "monto": 64,
-    "descripcion": 106,
-    "hora": 135
+    "descripcion": 132,
+    "hora": 109
   },
   "cash_register_history": {
     "id": 26,

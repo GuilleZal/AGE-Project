@@ -115,8 +115,8 @@ class SaleController:
                 name=name.strip(),
                 sale_price=sale_price,
                 cost_price=0,
-                stock=0.0,
-                low_stock_threshold=5.0,
+                stock=0,
+                low_stock_threshold=5,
             )
             created = self._product_repo.create(product)
             self._db.commit()  # close implicit transaction so complete_sale can BEGIN

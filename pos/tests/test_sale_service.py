@@ -105,7 +105,7 @@ class TestCompleteSaleHappyPath:
         """Stock goes negative — sale NEVER blocked."""
         sale = _build_sale(total=800, payment_method="card")
         items = [SaleItem(
-            product_id=sample_products[3],  # Maní, stock=0.3
+            product_id=sample_products[3],  # Maní, stock=3
             quantity=10.0,
             unit_price=3000,
             subtotal=30000,
@@ -116,7 +116,7 @@ class TestCompleteSaleHappyPath:
 
         repo = ProductRepo(db_with_register)
         p = repo.find_by_id(sample_products[3])
-        assert p is not None and p.stock == -9.7  # 0.3 - 10.0
+        assert p is not None and p.stock == -7  # 3 - 10
 
     def test_registers_cash_movement_for_cash_payment(self, sale_svc, db_with_register, sample_products):
         sale = _build_sale(total=800, payment_method="cash")

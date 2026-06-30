@@ -332,7 +332,7 @@ class ProductRepo:
 
     # ----------------------------------------------------------- stock ----
 
-    def update_stock(self, product_id: int, new_stock: float) -> None:
+    def update_stock(self, product_id: int, new_stock: int) -> None:
         """Set the stock for a product to an absolute value.
 
         Called by ``StockService.deduct_without_transaction()`` during

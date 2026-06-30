@@ -92,6 +92,13 @@ def main() -> None:
         if returns_tab is not None and cash_tab is not None:
             return_view._on_return_completed = cash_register_view._controller_refresh
 
+        # After a quick-create product, refresh the products tab
+        sale_view._on_product_created = product_view._refresh_products
+
+        # Refresh products whenever the Productos tab becomes visible
+        # (ensures treeview is always up-to-date after cross-view changes)
+        app.on_tab_change("Productos", product_view._refresh_products)
+
         app.mainloop()
 
     finally:

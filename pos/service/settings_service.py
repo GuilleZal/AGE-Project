@@ -11,7 +11,7 @@ LOW_STOCK_THRESHOLD = "low_stock_threshold"
 PROFIT_MARGIN_PCT = "profit_margin_pct"
 
 # Defaults
-DEFAULT_LOW_STOCK_THRESHOLD = 5.0
+DEFAULT_LOW_STOCK_THRESHOLD = 5
 DEFAULT_PROFIT_MARGIN_PCT = 30.0
 
 
@@ -29,9 +29,9 @@ class SettingsService:
 
     # -------------------------------------------------------- getters
 
-    def get_low_stock_threshold(self) -> float:
+    def get_low_stock_threshold(self) -> int:
         """Return the global low-stock threshold."""
-        return self._settings_repo.get_float(
+        return self._settings_repo.get_int(
             LOW_STOCK_THRESHOLD, DEFAULT_LOW_STOCK_THRESHOLD
         )
 
@@ -41,7 +41,7 @@ class SettingsService:
             PROFIT_MARGIN_PCT, DEFAULT_PROFIT_MARGIN_PCT
         )
 
-    def get_all(self) -> dict[str, float]:
+    def get_all(self) -> dict[str, int | float]:
         """Return all settings as a dict."""
         return {
             LOW_STOCK_THRESHOLD: self.get_low_stock_threshold(),
@@ -50,7 +50,7 @@ class SettingsService:
 
     # -------------------------------------------------------- setters
 
-    def set_low_stock_threshold(self, value: float) -> None:
+    def set_low_stock_threshold(self, value: int) -> None:
         """Set the global low-stock threshold."""
         self._settings_repo.set(LOW_STOCK_THRESHOLD, str(value))
 
@@ -60,7 +60,7 @@ class SettingsService:
 
     # -------------------------------------------------------- bulk operations
 
-    def apply_low_stock_threshold(self, threshold: float, category_id: int | None = None) -> int:
+    def apply_low_stock_threshold(self, threshold: int, category_id: int | None = None) -> int:
         """Update products' low_stock_threshold to *threshold*.
 
         Args:

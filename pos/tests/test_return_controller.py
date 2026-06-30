@@ -38,13 +38,13 @@ class TestProcessReturn:
         assert row["stock"] == 26.0  # 24 + 2
 
     def test_process_return_weight_product(self, return_ctrl, db_with_register, sample_products):
-        pid = sample_products[2]  # Queso Cremoso, price=9500, stock=2.5
+        pid = sample_products[2]  # Queso Cremoso, price=9500, stock=5
         result = return_ctrl.process_return(pid, 0.5)
         assert result["success"] is True
         assert result["data"]["refund_amount"] == 4750  # 9500 * 0.5
 
         row = db_with_register.execute("SELECT stock FROM products WHERE id = ?", (pid,)).fetchone()
-        assert row["stock"] == 3.0  # 2.5 + 0.5
+        assert row["stock"] == 5  # int(5 + 0.5) = 5
 
     def test_process_return_with_reason(self, return_ctrl, db_with_register, sample_products):
         pid = sample_products[0]

@@ -259,15 +259,15 @@ class TestCompleteSale:
         assert row["stock"] == 23.0  # 24 - 1
 
     def test_complete_sale_allows_negative_stock(self, sale_ctrl, db_with_products):
-        # Maní has 0.3 stock
-        sale_ctrl.add_by_barcode("7794321000200", quantity=5.0)  # Maní, stock=0.3
+        # Maní has 3 stock
+        sale_ctrl.add_by_barcode("7794321000200", quantity=5.0)  # Maní, stock=3
         result = sale_ctrl.complete_sale(payment_method="cash", amount_received=20000)
         assert result["success"] is True
 
         # Stock should go negative
         import sqlite3
         row = db_with_products.execute("SELECT stock FROM products WHERE barcode = '7794321000200'").fetchone()
-        assert row["stock"] == -4.7  # 0.3 - 5.0
+        assert row["stock"] == -2  # 3 - 5
 
     def test_complete_sale_invalid_payment_method(self, sale_ctrl, db_with_products):
         sale_ctrl.add_by_barcode("7790895000782")

@@ -77,7 +77,7 @@ class TestDeduct:
     def test_float_quantity(self, db: sqlite3.Connection, sample_products: list[int]):
         """Weight products use float quantities."""
         svc = StockService(db)
-        pid = sample_products[2]  # Queso Cremoso, stock=2.5
+        pid = sample_products[2]  # Queso Cremoso, stock=5
 
         items = [SaleItem(product_id=pid, quantity=0.750, unit_price=9500, subtotal=7125)]
         svc.deduct(items)
@@ -85,7 +85,7 @@ class TestDeduct:
         repo = ProductRepo(db)
         product = repo.find_by_id(pid)
         assert product is not None
-        assert product.stock == pytest.approx(1.75)
+        assert product.stock == 4  # int(5 - 0.75) = 4
 
 
 class TestRestore:
@@ -104,14 +104,14 @@ class TestRestore:
 
     def test_float_quantity(self, db: sqlite3.Connection, sample_products: list[int]):
         svc = StockService(db)
-        pid = sample_products[2]  # 2.5 kg
+        pid = sample_products[2]  # 5 kg
 
         svc.restore(pid, 0.500)
 
         repo = ProductRepo(db)
         product = repo.find_by_id(pid)
         assert product is not None
-        assert product.stock == pytest.approx(3.0)
+        assert product.stock == 5  # int(5 + 0.5) = 5
 
     def test_non_existent_product(self, db: sqlite3.Connection):
         svc = StockService(db)
@@ -135,7 +135,7 @@ class TestLowStockProducts:
     def test_uses_per_product_threshold(self, db: sqlite3.Connection, sample_products: list[int]):
         """Products below their own low_stock_threshold (default 5)."""
         svc = StockService(db)
-        # Maní has stock=0.3 (< 5), Queso has stock=2.5 (< 5)
+        # Maní has stock=3 (< 5), Queso has stock=5 (<= 5)
         result = svc.low_stock_products()
         ids = [p.id for p in result]
         # Maní (id 4) and Queso (id 3) should be in results

@@ -217,7 +217,7 @@ class TestGetAndListProducts:
     def test_list_low_stock(self, product_ctrl, sample_products):
         result = product_ctrl.list_products({"low_stock": True})
         assert result["success"] is True
-        # Maní has 0.3 stock, threshold 5
+        # Maní has 3 stock, threshold 5
         names = [p.name for p in result["data"]]
         assert "Maní Salado x Kg" in names
 

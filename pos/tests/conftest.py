@@ -51,17 +51,17 @@ def sample_products(db: sqlite3.Connection, sample_category: tuple[int, int]) ->
         1. Coca-Cola 1.5L   → $800
         2. Fernet Branca    → $2500
         3. Queso Cremoso    → $9500/kg
-        4. Maní             → $3000/kg (low stock: 0.3 kg)
+        4. Maní             → $3000/kg (low stock: 3)
         5. Six-Pack Cerveza → $2000
     """
     bebidas, snacks = sample_category
 
     products = [
-        ("7790895000782", "Coca-Cola 1.5L",    bebidas, 800,  500,  24.0),
-        ("7790895000997", "Fernet Branca 750ml", bebidas, 2500, 1600, 12.0),
-        ("7791234000100", "Queso Cremoso x Kg",  snacks,  9500, 6000, 2.5),
-        ("7794321000200", "Maní Salado x Kg",    snacks,  3000, 1800, 0.3),
-        ("7795555000300", "Six-Pack Cerveza IPA", bebidas, 2000, 1200, 8.0),
+        ("7790895000782", "Coca-Cola 1.5L",    bebidas, 800,  500,  24),
+        ("7790895000997", "Fernet Branca 750ml", bebidas, 2500, 1600, 12),
+        ("7791234000100", "Queso Cremoso x Kg",  snacks,  9500, 6000, 5),
+        ("7794321000200", "Maní Salado x Kg",    snacks,  3000, 1800, 3),
+        ("7795555000300", "Six-Pack Cerveza IPA", bebidas, 2000, 1200, 8),
     ]
 
     ids: list[int] = []

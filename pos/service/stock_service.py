@@ -74,12 +74,12 @@ class StockService:
                 raise DataError(
                     f"Producto con id={item.product_id} no encontrado"
                 )
-            new_stock = product.stock - item.quantity
+            new_stock = int(product.stock - item.quantity)
             self._repo.update_stock(item.product_id, new_stock)
 
     # --------------------------------------------------------------- restore
 
-    def restore(self, product_id: int, quantity: float) -> None:
+    def restore(self, product_id: int, quantity: int) -> None:
         """Increase stock for a single product (e.g. after a return).
 
         Args:
@@ -100,14 +100,14 @@ class StockService:
 
         self._db.execute(
             """UPDATE products
-               SET stock = stock + ?, updated_at = datetime('now')
+               SET stock = CAST(stock + ? AS INTEGER), updated_at = datetime('now')
                WHERE id = ?""",
             (quantity, product_id),
         )
 
     # ------------------------------------------------------- low stock ----
 
-    def low_stock_products(self, threshold: float | None = None) -> list[Product]:
+    def low_stock_products(self, threshold: int | None = None) -> list[Product]:
         """Return all products whose current stock is at or below *threshold*.
 
         When *threshold* is ``None`` each product is compared against its

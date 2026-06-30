@@ -36,7 +36,7 @@ class PreferencesDialog(CenteredDialog):
         if result["success"]:
             settings = result["data"]
         else:
-            settings = {"low_stock_threshold": 5.0, "profit_margin_pct": 30.0}
+            settings = {"low_stock_threshold": 5, "profit_margin_pct": 30.0}
 
         # Load categories
         cat_result = controller.list_categories()

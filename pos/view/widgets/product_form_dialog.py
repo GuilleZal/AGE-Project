@@ -253,7 +253,7 @@ class ProductFormDialog(CenteredDialog):
         # Stock
         stock_raw = self._stock_entry.get().strip() or "0"
         try:
-            stock = float(stock_raw)
+            stock = int(stock_raw)
         except ValueError:
             self._error_label.configure(text="Stock inválido")
             self._stock_entry.focus_set()
@@ -266,7 +266,7 @@ class ProductFormDialog(CenteredDialog):
         # Low stock threshold
         threshold_raw = self._low_stock_entry.get().strip() or "5"
         try:
-            low_stock_threshold = float(threshold_raw)
+            low_stock_threshold = int(threshold_raw)
         except ValueError:
             self._error_label.configure(text="Umbral de stock inválido")
             self._low_stock_entry.focus_set()

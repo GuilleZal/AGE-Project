@@ -63,6 +63,7 @@ class SaleView(ctk.CTkFrame):
         self._on_discount: Callable[[float], None] | None = callbacks.get(
             "on_discount"
         )
+        self._on_product_created: Callable[[], None] | None = None
 
         self._total: int = 0
         self._discount_pct: float = 0.0
@@ -484,6 +485,11 @@ class SaleView(ctk.CTkFrame):
                 )
                 if create_result["success"]:
                     self._update_cart()
+                    if self._on_product_created:
+                        # Defer refresh to next event loop cycle so the
+                        # dialog is fully destroyed and the DB commit is
+                        # visible before the products treeview redraws.
+                        self.after_idle(self._on_product_created)
                 else:
                     messagebox.showerror("Error", create_result["error"])
         else:

@@ -117,14 +117,14 @@ class TestE2ESaleFlow:
 
     def test_sale_allows_negative_stock(self, sale_ctrl, db_open):
         """Stock goes negative when selling more than available (non-blocking policy)."""
-        sale_ctrl.add_by_barcode("7794321000200", 5.0)  # Maní, stock = 0.3
+        sale_ctrl.add_by_barcode("7794321000200", 5.0)  # Maní, stock = 3
         result = sale_ctrl.complete_sale("cash", 20000)
         assert result["success"] is True
 
         row = db_open.execute(
             "SELECT stock FROM products WHERE barcode = '7794321000200'"
         ).fetchone()
-        assert row["stock"] == -4.7  # 0.3 − 5.0
+        assert row["stock"] == -2  # 3 − 5
 
     def test_sale_empty_cart_blocked(self, sale_ctrl, db_open):
         """Cannot complete a sale when the cart is empty."""
@@ -201,13 +201,13 @@ class TestE2EWeightProductFlow:
 
     def test_weight_product_stock_deduction(self, sale_ctrl, db_open):
         """Weight product stock is reduced by the exact quantity sold."""
-        sale_ctrl.add_by_barcode("7791234000100", 0.750)  # stock = 2.5 kg
+        sale_ctrl.add_by_barcode("7791234000100", 0.750)  # stock = 5 kg
         sale_ctrl.complete_sale("cash", 10000)
 
         row = db_open.execute(
             "SELECT stock FROM products WHERE barcode = '7791234000100'"
         ).fetchone()
-        assert row["stock"] == 1.75  # 2.5 − 0.75
+        assert row["stock"] == 4  # int(5 − 0.75) = 4
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -316,7 +316,7 @@ class TestE2EReturnFlow:
 
     def test_return_weight_product(self, return_ctrl, db_open, sample_products):
         """Return a weight-based product with fractional quantity."""
-        pid = sample_products[2]  # Queso Cremoso, price = 9500/kg, stock = 2.5
+        pid = sample_products[2]  # Queso Cremoso, price = 9500/kg, stock = 5
 
         result = return_ctrl.process_return(pid, 0.5)
         assert result["success"] is True
@@ -325,7 +325,7 @@ class TestE2EReturnFlow:
         row = db_open.execute(
             "SELECT stock FROM products WHERE id = ?", (pid,)
         ).fetchone()
-        assert row["stock"] == 3.0  # 2.5 + 0.5
+        assert row["stock"] == 5  # int(5 + 0.5) = 5
 
     def test_return_records_cash_movement(self, return_ctrl, db_open, sample_products):
         """Return creates a 'return' cash movement in the active register."""

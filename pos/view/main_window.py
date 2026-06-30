@@ -39,7 +39,7 @@ class MainWindow(ctk.CTk):
         ctk.set_default_color_theme("blue")
 
         # --- tab container ---
-        self._tabview = ctk.CTkTabview(self)
+        self._tabview = ctk.CTkTabview(self, command=self._on_tab_changed)
         self._tabview.pack(fill="both", expand=True, padx=10, pady=10)
 
         self._tab_frames: dict[str, ctk.CTkFrame] = {}
@@ -53,13 +53,31 @@ class MainWindow(ctk.CTk):
         # Set "Ventas" (Sales) as the default active tab
         self._tabview.set("Ventas")
 
+        # Tab-change callback (set by main.py after wiring views)
+        self._on_tab_change_callbacks: dict[str, list] = {
+            name: [] for name in self.TABS
+        }
+
     # ---------------------------------------------------------------- public ---
 
     def get_tab_frame(self, tab_name: str) -> ctk.CTkFrame | None:
         """Return the container frame for *tab_name* so views can embed."""
         return self._tab_frames.get(tab_name)
 
+    def on_tab_change(self, tab_name: str, callback) -> None:
+        """Register *callback* to run when *tab_name* becomes active."""
+        self._on_tab_change_callbacks.setdefault(tab_name, []).append(callback)
+
     # --------------------------------------------------------------- private ---
+
+    def _on_tab_changed(self) -> None:
+        """Handle tab change — fire registered callbacks for the active tab."""
+        active = self._tabview.get()
+        for cb in self._on_tab_change_callbacks.get(active, []):
+            try:
+                cb()
+            except Exception:
+                pass  # Never let a callback crash the tab switch
 
     def _center_on_screen(self) -> None:
         """Center the main window on the screen with optimized dimensions.

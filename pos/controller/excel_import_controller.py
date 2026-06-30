@@ -191,7 +191,7 @@ class ExcelImportController:
                             category_id=category_id,
                             sale_price=int(row["sale_price"]),
                             cost_price=int(row["cost_price"]),
-                            stock=float(row["stock"]),
+                            stock=int(row["stock"]),
                         )
                         _, action = self._product_repo.upsert_from_import(product)
                         if action == "created":
@@ -337,7 +337,7 @@ def _validate_single_row(row: dict, row_num: int) -> list[dict]:
 
     # stock: must be numeric and ≥ 0
     try:
-        st = float(row.get("stock", -1))
+        st = int(row.get("stock", -1))
         if st < 0:
             errs.append({"row": row_num, "field": "stock", "value": row.get("stock"), "error": "El stock debe ser ≥ 0"})
     except (ValueError, TypeError):

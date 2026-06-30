@@ -165,6 +165,15 @@ class ProductView(ctk.CTkFrame):
 
         ctk.CTkButton(
             self._action_frame,
+            text="＋ Nuevo Producto",
+            width=150,
+            font=ctk.CTkFont(size=13, weight="bold"),
+            fg_color="#28a745",
+            command=self._controller_create,
+        ).pack(side="left", padx=3)
+
+        ctk.CTkButton(
+            self._action_frame,
             text="📋 Gestionar",
             width=140,
             font=ctk.CTkFont(size=13, weight="bold"),
@@ -222,13 +231,22 @@ class ProductView(ctk.CTkFrame):
                     p.get("category_id")
                 )
 
-            barcode = getattr(p, "barcode", "") or p.get("barcode", "") or ""
-            name = getattr(p, "name", "") or p.get("name", "")
-            cost_price = getattr(p, "cost_price", 0) or p.get("cost_price", 0)
-            price = getattr(p, "sale_price", 0) or p.get("sale_price", 0)
-            stock = getattr(p, "stock", 0) if not isinstance(p, dict) else p.get("stock", 0)
-            low_stock_threshold = getattr(p, "low_stock_threshold", 5) if not isinstance(p, dict) else p.get("low_stock_threshold", 5)
-            pid = getattr(p, "id", None) or p.get("id")
+            if isinstance(p, dict):
+                barcode = p.get("barcode", "") or ""
+                name = p.get("name", "")
+                cost_price = p.get("cost_price", 0)
+                price = p.get("sale_price", 0)
+                stock = p.get("stock", 0)
+                low_stock_threshold = p.get("low_stock_threshold", 5)
+                pid = p.get("id")
+            else:
+                barcode = getattr(p, "barcode", "") or ""
+                name = getattr(p, "name", "")
+                cost_price = getattr(p, "cost_price", 0)
+                price = getattr(p, "sale_price", 0)
+                stock = getattr(p, "stock", 0)
+                low_stock_threshold = getattr(p, "low_stock_threshold", 5)
+                pid = getattr(p, "id", None)
 
             # Calculate margin percentage
             margin_pct = 0.0
@@ -236,7 +254,7 @@ class ProductView(ctk.CTkFrame):
                 margin_pct = ((price - cost_price) / cost_price) * 100
 
             # Format stock with warning icon if low
-            stock_display = int(stock) if isinstance(stock, (int, float)) else stock
+            stock_display = stock
             is_low_stock = False
             if isinstance(stock, (int, float)) and isinstance(low_stock_threshold, (int, float)):
                 if stock <= low_stock_threshold:

@@ -44,9 +44,9 @@ class ProductController:
                 category_id=data.get("category_id"),
                 sale_price=int(data["sale_price"]),
                 cost_price=int(data["cost_price"]),
-                stock=float(data.get("stock", 0)),
+                stock=int(data.get("stock", 0)),
                 description=data.get("description"),
-                low_stock_threshold=float(data.get("low_stock_threshold", 5)),
+                low_stock_threshold=int(data.get("low_stock_threshold", 5)),
             )
             created = self._product_repo.create(product)
             self._db.commit()
@@ -81,11 +81,11 @@ class ProductController:
             if "cost_price" in data:
                 existing.cost_price = int(data["cost_price"])
             if "stock" in data:
-                existing.stock = float(data["stock"])
+                existing.stock = int(data["stock"])
             if "description" in data:
                 existing.description = data["description"]
             if "low_stock_threshold" in data:
-                existing.low_stock_threshold = float(data["low_stock_threshold"])
+                existing.low_stock_threshold = int(data["low_stock_threshold"])
 
             updated = self._product_repo.update(existing)
             self._db.commit()
@@ -298,7 +298,7 @@ class ProductController:
 
     def apply_settings(
         self,
-        low_stock_threshold: float | None = None,
+        low_stock_threshold: int | None = None,
         profit_margin_pct: float | None = None,
         apply_to_products: bool = False,
         threshold_category_id: int | None = None,
