@@ -119,7 +119,7 @@ class CartTreeview(ctk.CTkFrame):
                 iid=str(item["product_id"]),
                 values=(
                     item["name"],
-                    item["quantity"],
+                    int(item["quantity"]),
                     f"${item['unit_price']:,}",
                     f"${item['subtotal']:,}",
                 ),

@@ -65,53 +65,21 @@ class ReceiptPreview(CenteredDialog):
         )
 
         # --- items ---
-        items_frame = ctk.CTkScrollableFrame(
-            self, width=420, height=180, fg_color="transparent"
-        )
-        items_frame.pack(fill="x", padx=20, pady=5)
+        # ========================================================
+        # 1. ASEGURAR ELEMENTOS INFERIORES PRIMERO (De abajo hacia arriba)
+        # ========================================================
+        
+        # Botón Cerrar (Fondo absoluto)
+        ctk.CTkButton(
+            self,
+            text="Cerrar",
+            width=120,
+            command=self.destroy,
+        ).pack(side="bottom", pady=(5, 20))
 
-        if items:
-            for item in items:
-                row = ctk.CTkFrame(items_frame, fg_color="transparent")
-                row.pack(fill="x", pady=1)
-                row.grid_columnconfigure(0, weight=1)
-
-                ctk.CTkLabel(
-                    row,
-                    text=item.get("name", "—"),
-                    font=theme.scaled_font(13),
-                    anchor="w",
-                ).grid(row=0, column=0, sticky="w")
-
-                ctk.CTkLabel(
-                    row,
-                    text=f"x{item.get('quantity', 1)}",
-                    font=theme.scaled_font(13),
-                    width=50,
-                ).grid(row=0, column=1)
-
-                ctk.CTkLabel(
-                    row,
-                    text=f"${item.get('subtotal', 0):,}",
-                    font=theme.scaled_font(13),
-                    width=80,
-                    anchor="e",
-                ).grid(row=0, column=2)
-        else:
-            ctk.CTkLabel(
-                items_frame,
-                text="Sin productos",
-                font=theme.scaled_font(13),
-            ).pack()
-
-        # --- separator ---
-        ctk.CTkFrame(self, height=2, fg_color="#3b3b3b").pack(
-            fill="x", padx=20, pady=5
-        )
-
-        # --- totals ---
+        # Totales (Se ancla arriba del botón cerrar)
         totals_frame = ctk.CTkFrame(self)
-        totals_frame.pack(fill="x", padx=20, pady=(5, 10))
+        totals_frame.pack(side="bottom", fill="x", padx=20, pady=(5, 10))
 
         sale_total = sale.get('total', 0)
         discount = sale.get('discount', 0)
@@ -155,13 +123,55 @@ class ReceiptPreview(CenteredDialog):
                 font=theme.scaled_font(16),
             ).pack(anchor="e", padx=10, pady=(0, 5))
 
-        # --- close button ---
-        ctk.CTkButton(
-            self,
-            text="Cerrar",
-            width=120,
-            command=self.destroy,
-        ).pack(pady=(5, 20))
+        # Separador inferior (Se ancla arriba de los totales)
+        ctk.CTkFrame(self, height=2, fg_color="#3b3b3b").pack(
+            side="bottom", fill="x", padx=20, pady=5
+        )
+
+        # ========================================================
+        # 2. ESPACIO CENTRAL FLEXIBLE (Tabla de productos)
+        # ========================================================
+        
+        items_frame = ctk.CTkScrollableFrame(
+            self, width=420, height=180, fg_color="transparent"
+        )
+        # ALERTA: expand=True y fill="both" evitan que se aplaste lo de abajo
+        items_frame.pack(side="top", fill="both", expand=True, padx=20, pady=5)
+
+        if items:
+            for item in items:
+                row = ctk.CTkFrame(items_frame, fg_color="transparent")
+                row.pack(fill="x", pady=1)
+                row.grid_columnconfigure(0, weight=1)
+
+                ctk.CTkLabel(
+                    row,
+                    text=item.get("name", "—"),
+                    font=theme.scaled_font(13),
+                    anchor="w",
+                ).grid(row=0, column=0, sticky="w")
+
+                ctk.CTkLabel(
+                    row,
+                    text=f"x{int(item.get('quantity', 1))}",
+                    font=theme.scaled_font(13),
+                    width=50,
+                ).grid(row=0, column=1)
+
+                ctk.CTkLabel(
+                    row,
+                    text=f"${item.get('subtotal', 0):,}",
+                    font=theme.scaled_font(13),
+                    width=80,
+                    anchor="e",
+                ).grid(row=0, column=2)
+        else:
+            ctk.CTkLabel(
+                items_frame,
+                text="Sin productos",
+                font=theme.scaled_font(13),
+            ).pack()
+
 
     # --------------------------------------------------------------- private ---
 

@@ -535,7 +535,7 @@ class ReportView(ctk.CTkFrame):
                 values=(
                     idx,
                     item.get("name", "—"),
-                    item.get("total_quantity", 0),
+                    int(item.get("total_quantity", 0)),
                     f"${item.get('total_amount', 0):,}",
                 ),
             )
