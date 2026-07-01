@@ -122,12 +122,9 @@ class ProductSearchDialog(CenteredDialog):
             }
         )
 
-        self._tree.pack(fill="both", expand=True, padx=10, pady=(5, 5))
-
-        self._populate_tree(products)
-
+        # 1. Aseguramos los botones en la base PRIMERO
         btn_frame = ctk.CTkFrame(self)
-        btn_frame.pack(pady=(5, 10))
+        btn_frame.pack(side="bottom", pady=(5, 15))
 
         ctk.CTkButton(
             btn_frame,
@@ -143,6 +140,11 @@ class ProductSearchDialog(CenteredDialog):
             fg_color="gray",
             command=self._cancel,
         ).pack(side="left", padx=5)
+
+        # 2. Empaquetamos la tabla DESPUÉS para que respete a los botones
+        self._tree.pack(fill="both", expand=True, padx=10, pady=(5, 5))
+
+        self._populate_tree(products)
 
     def _populate_tree(self, products: list[Product]) -> None:
         """Clear and repopulate the treeview with given products."""
