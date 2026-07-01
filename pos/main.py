@@ -55,6 +55,10 @@ def main() -> None:
 
         app = MainWindow()
 
+        # Apply saved background color
+        from pos.view import theme
+        app.configure(fg_color=theme.get_bg_color())
+
         # Embed and wire each view into its tab
         sales_tab = app.get_tab_frame("Ventas")
         if sales_tab is not None:

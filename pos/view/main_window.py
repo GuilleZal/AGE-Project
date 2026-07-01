@@ -52,6 +52,26 @@ class MainWindow(ctk.CTk):
         self._font_dropdown.set(["Aa Normal", "Aa Grande", "Aa Muy grande", "Aa Máximo"][theme.get_font_scale_level()])
         self._font_dropdown.place(x=15, y=15)
 
+        # --- Background color palette button ---
+        self._color_btn = ctk.CTkButton(
+            self,
+            text="🎨",
+            width=32,
+            height=32,
+            font=ctk.CTkFont(size=16),
+            command=self._show_color_palette,
+        )
+        self._color_btn.place(x=165, y=15)
+
+        # --- Color palette popup (hidden by default) ---
+        self._color_popup = tk.Menu(self, tearoff=0, bg="#2b2b2b", fg="white")
+        for color_name, color_hex in theme.BG_COLORS.items():
+            self._color_popup.add_command(
+                label=f"  {color_name}  ",
+                command=lambda name=color_name: self._on_bg_color_changed(name),
+                font=("Segoe UI", 10),
+            )
+
         # --- tab container ---
         self._tabview = ctk.CTkTabview(self, command=self._on_tab_changed)
         self._tabview.pack(fill="both", expand=True, padx=10, pady=(50, 10))
@@ -163,6 +183,25 @@ class MainWindow(ctk.CTk):
         level = level_map.get(choice, 0)
         theme.set_font_scale_level(level)
         self.refresh_all_views()
+
+    def _show_color_palette(self) -> None:
+        """Show color palette popup menu."""
+        try:
+            self._color_popup.tk_popup(
+                self.winfo_rootx() + 165,
+                self.winfo_rooty() + 50,
+            )
+        finally:
+            self._color_popup.grab_release()
+
+    def _on_bg_color_changed(self, color_name: str) -> None:
+        """Handle background color change."""
+        theme.set_bg_color(color_name)
+        self.configure(fg_color=theme.get_bg_color())
+        self._tabview.configure(fg_color=theme.get_bg_color())
+        # Update all tab frames
+        for frame in self._tab_frames.values():
+            frame.configure(fg_color=theme.get_bg_color())
 
     def _on_tab_changed(self) -> None:
         """Handle tab change — fire registered callbacks for the active tab."""
