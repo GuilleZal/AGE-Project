@@ -11,6 +11,7 @@ from typing import Any
 import customtkinter as ctk
 
 from pos.view.widgets.centered_dialog import CenteredDialog
+from pos.view import theme
 
 
 class ReceiptPreview(CenteredDialog):
@@ -43,19 +44,19 @@ class ReceiptPreview(CenteredDialog):
         ctk.CTkLabel(
             header_frame,
             text=f"Venta #{sale.get('id', '—')}",
-            font=ctk.CTkFont(size=22, weight="bold"),
+            font=theme.scaled_font(22, weight="bold"),
         ).pack(anchor="w", padx=10, pady=(5, 0))
 
         ctk.CTkLabel(
             header_frame,
             text=f"Fecha: {sale.get('created_at', '—')}",
-            font=ctk.CTkFont(size=13),
+            font=theme.scaled_font(13),
         ).pack(anchor="w", padx=10)
 
         ctk.CTkLabel(
             header_frame,
             text=f"Método de pago: {_format_method(sale.get('payment_method', '—'))}",
-            font=ctk.CTkFont(size=13),
+            font=theme.scaled_font(13),
         ).pack(anchor="w", padx=10, pady=(0, 5))
 
         # --- separator ---
@@ -78,21 +79,21 @@ class ReceiptPreview(CenteredDialog):
                 ctk.CTkLabel(
                     row,
                     text=item.get("name", "—"),
-                    font=ctk.CTkFont(size=13),
+                    font=theme.scaled_font(13),
                     anchor="w",
                 ).grid(row=0, column=0, sticky="w")
 
                 ctk.CTkLabel(
                     row,
                     text=f"x{item.get('quantity', 1)}",
-                    font=ctk.CTkFont(size=13),
+                    font=theme.scaled_font(13),
                     width=50,
                 ).grid(row=0, column=1)
 
                 ctk.CTkLabel(
                     row,
                     text=f"${item.get('subtotal', 0):,}",
-                    font=ctk.CTkFont(size=13),
+                    font=theme.scaled_font(13),
                     width=80,
                     anchor="e",
                 ).grid(row=0, column=2)
@@ -100,7 +101,7 @@ class ReceiptPreview(CenteredDialog):
             ctk.CTkLabel(
                 items_frame,
                 text="Sin productos",
-                font=ctk.CTkFont(size=13),
+                font=theme.scaled_font(13),
             ).pack()
 
         # --- separator ---
@@ -114,35 +115,44 @@ class ReceiptPreview(CenteredDialog):
 
         sale_total = sale.get('total', 0)
         discount = sale.get('discount', 0)
-        subtotal = sale_total + discount  # Recalculate subtotal from total + discount
+        surcharge = sale.get('surcharge', 0)
+        subtotal = sale_total + discount - surcharge
 
-        # Subtotal (if there was a discount, show it)
-        if discount > 0:
+        if discount > 0 or surcharge > 0:
             ctk.CTkLabel(
                 totals_frame,
                 text=f"Subtotal:  ${subtotal:,}",
-                font=ctk.CTkFont(size=14),
+                font=theme.scaled_font(14),
                 text_color="#a0a0a0",
             ).pack(anchor="e", padx=10, pady=(5, 0))
 
-            ctk.CTkLabel(
-                totals_frame,
-                text=f"Descuento:  -${discount:,}",
-                font=ctk.CTkFont(size=14),
-                text_color="#2ecc71",
-            ).pack(anchor="e", padx=10, pady=(2, 0))
+            if discount > 0:
+                ctk.CTkLabel(
+                    totals_frame,
+                    text=f"Descuento:  -${discount:,}",
+                    font=theme.scaled_font(14),
+                    text_color="#2ecc71",
+                ).pack(anchor="e", padx=10, pady=(2, 0))
+
+            if surcharge > 0:
+                ctk.CTkLabel(
+                    totals_frame,
+                    text=f"Recargo:  +${surcharge:,}",
+                    font=theme.scaled_font(14),
+                    text_color="#e74c3c",
+                ).pack(anchor="e", padx=10, pady=(2, 0))
 
         ctk.CTkLabel(
             totals_frame,
             text=f"TOTAL:  ${sale_total:,}",
-            font=ctk.CTkFont(size=20, weight="bold"),
+            font=theme.scaled_font(20, weight="bold"),
         ).pack(anchor="e", padx=10, pady=5)
 
         if change:
             ctk.CTkLabel(
                 totals_frame,
                 text=f"Vuelto:  ${change:,}",
-                font=ctk.CTkFont(size=16),
+                font=theme.scaled_font(16),
             ).pack(anchor="e", padx=10, pady=(0, 5))
 
         # --- close button ---

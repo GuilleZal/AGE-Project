@@ -6,6 +6,7 @@ from typing import Any
 import customtkinter as ctk
 
 from pos.view.widgets.centered_dialog import CenteredDialog
+from pos.view import theme
 
 
 class QuickCreateDialog(CenteredDialog):
@@ -37,7 +38,7 @@ class QuickCreateDialog(CenteredDialog):
         ctk.CTkLabel(
             barcode_frame,
             text=f"  {barcode}  ",
-            font=ctk.CTkFont(size=18, weight="bold"),
+            font=theme.scaled_font(18, weight="bold"),
             text_color="#dce4ee",
         ).pack(pady=8, padx=12)
 
@@ -57,7 +58,7 @@ class QuickCreateDialog(CenteredDialog):
 
         # --- error label ---
         self._error_label = ctk.CTkLabel(
-            self, text="", text_color="red", font=ctk.CTkFont(size=12)
+            self, text="", text_color="red", font=theme.scaled_font(12)
         )
         self._error_label.pack()
 

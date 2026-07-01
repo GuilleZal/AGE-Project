@@ -15,7 +15,7 @@ import customtkinter as ctk
 
 from pos.view.widgets.barcode_entry import BarcodeEntry
 from pos.view.widgets.cart_treeview import CartTreeview
-
+from pos.view import theme
 
 class SaleView(ctk.CTkFrame):
     """POS terminal — two-column layout with integrated payment sidebar.
@@ -63,11 +63,14 @@ class SaleView(ctk.CTkFrame):
         self._on_discount: Callable[[float], None] | None = callbacks.get(
             "on_discount"
         )
+        self._on_surcharge: Callable[[float], None] | None = None
         self._on_product_created: Callable[[], None] | None = None
 
         self._total: int = 0
         self._discount_pct: float = 0.0
         self._discount_amount: int = 0
+        self._surcharge_pct: float = 0.0
+        self._surcharge_amount: int = 0
         self._selected_payment_method: str = "cash"
 
         # --- main two-column layout ---
@@ -81,11 +84,13 @@ class SaleView(ctk.CTkFrame):
         left_frame = ctk.CTkFrame(self, fg_color="transparent")
         left_frame.grid(row=0, column=0, sticky="nsew", padx=(10, 5), pady=10)
         left_frame.grid_columnconfigure(0, weight=1)
+        left_frame.grid_columnconfigure(1, weight=0)
+        left_frame.grid_columnconfigure(2, weight=1)
         left_frame.grid_rowconfigure(1, weight=1)  # cart row stretches
 
         # --- row 0: top bar (barcode entry + settings button) ---
         self._top_frame = ctk.CTkFrame(left_frame)
-        self._top_frame.grid(row=0, column=0, sticky="ew", pady=(0, 5))
+        self._top_frame.grid(row=0, column=0, columnspan=3, sticky="ew", pady=(0, 5))
         self._top_frame.grid_columnconfigure(0, weight=1)
 
         # --- barcode entry (always visible, always focused) ---
@@ -94,7 +99,7 @@ class SaleView(ctk.CTkFrame):
             on_scan=self._handle_scan,
             on_search=self._handle_search,
             height=45,
-            font=ctk.CTkFont(size=16),
+            font=theme.scaled_font(16),
         )
         self._barcode_entry.grid(row=0, column=0, sticky="ew", padx=(0, 5))
 
@@ -104,7 +109,7 @@ class SaleView(ctk.CTkFrame):
             text="🔍",
             width=50,
             height=45,
-            font=ctk.CTkFont(size=18),
+            font=theme.scaled_font(18),
             fg_color="#2b2b2b",
             hover_color="#3b3b3b",
             command=self._handle_search_button,
@@ -116,7 +121,7 @@ class SaleView(ctk.CTkFrame):
             left_frame,
             on_delete=self._handle_remove,
         )
-        self._cart_tree.grid(row=1, column=0, sticky="nsew")
+        self._cart_tree.grid(row=1, column=0, columnspan=3, sticky="nsew")
 
         # --- row 2: delete button (bottom left) + discount button (bottom right) ---
         self._delete_btn = ctk.CTkButton(
@@ -126,7 +131,7 @@ class SaleView(ctk.CTkFrame):
             height=40,
             fg_color="#dc2626",
             hover_color="#b91c1c",
-            font=ctk.CTkFont(size=14, weight="bold"),
+            font=theme.scaled_font(14, weight="bold"),
             command=self._handle_remove_button,
         )
         self._delete_btn.grid(row=2, column=0, sticky="w", pady=(10, 0))
@@ -138,10 +143,23 @@ class SaleView(ctk.CTkFrame):
             height=40,
             fg_color="#f59e0b",
             hover_color="#d97706",
-            font=ctk.CTkFont(size=14, weight="bold"),
+            font=theme.scaled_font(14, weight="bold"),
             command=self._handle_discount_button,
         )
-        self._discount_btn.grid(row=2, column=0, sticky="e", pady=(10, 0))
+        self._discount_btn.grid(row=2, column=2, sticky="e", pady=(10, 0))
+
+        self._surcharge_btn = ctk.CTkButton(
+            left_frame,
+            text="Recargo",
+            width=120,
+            height=40,
+            fg_color="#c0392b",
+            hover_color="#a93226",
+            font=theme.scaled_font(14, weight="bold"),
+            command=self._handle_surcharge_button,
+        )
+        self._surcharge_btn.grid(row=2, column=1, sticky="e", padx=(0, 1), pady=(10, 0))
+        self._surcharge_btn.grid_remove()
 
         # ============================================================
         # RIGHT COLUMN: Payment sidebar
@@ -149,8 +167,11 @@ class SaleView(ctk.CTkFrame):
         self._payment_sidebar = ctk.CTkFrame(self, width=280)
         self._payment_sidebar.grid(row=0, column=1, sticky="nsew", padx=(5, 10), pady=(10, 10))
         self._payment_sidebar.grid_columnconfigure(0, weight=1)
-        self._payment_sidebar.grid_rowconfigure(2, weight=1)  # payment methods stretch
-
+        self._payment_sidebar.grid_rowconfigure(0, weight=0) # Totales (fijo)
+        self._payment_sidebar.grid_rowconfigure(1, weight=0) # Métodos (fijo)
+        self._payment_sidebar.grid_rowconfigure(2, weight=0) # Monto/Vuelto (fijo)
+        self._payment_sidebar.grid_rowconfigure(3, weight=1) # ESPACIO FANTASMA (absorbe el sobrante)
+        self._payment_sidebar.grid_rowconfigure(4, weight=0) # Botones (fijo)
         # --- Totals section ---
         totals_frame = ctk.CTkFrame(self._payment_sidebar, fg_color="transparent")
         totals_frame.grid(row=0, column=0, sticky="ew", padx=12, pady=(5, 8))
@@ -161,7 +182,7 @@ class SaleView(ctk.CTkFrame):
         ctk.CTkLabel(
             totals_frame,
             text="Pago",
-            font=ctk.CTkFont(size=16, weight="bold"),
+            font=theme.scaled_font(16, weight="bold"),
             anchor="w",
         ).grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 6))
 
@@ -173,14 +194,14 @@ class SaleView(ctk.CTkFrame):
         ctk.CTkLabel(
             totals_frame,
             text="Subtotal:",
-            font=ctk.CTkFont(size=14),
+            font=theme.scaled_font(14),
             text_color="#a0a0a0",
             anchor="w",
         ).grid(row=2, column=0, sticky="w", pady=1)
         self._subtotal_label = ctk.CTkLabel(
             totals_frame,
             text="$0",
-            font=ctk.CTkFont(size=14, weight="bold"),
+            font=theme.scaled_font(14, weight="bold"),
             anchor="e",
         )
         self._subtotal_label.grid(row=2, column=1, sticky="e", pady=1, padx=(15, 0))
@@ -189,34 +210,51 @@ class SaleView(ctk.CTkFrame):
         ctk.CTkLabel(
             totals_frame,
             text="Descuento:",
-            font=ctk.CTkFont(size=14),
+            font=theme.scaled_font(14),
             text_color="#a0a0a0",
             anchor="w",
         ).grid(row=3, column=0, sticky="w", pady=1)
         self._discount_label = ctk.CTkLabel(
             totals_frame,
             text="$0",
-            font=ctk.CTkFont(size=14, weight="bold"),
+            font=theme.scaled_font(14, weight="bold"),
             anchor="e",
             text_color="#a0a0a0",
         )
         self._discount_label.grid(row=3, column=1, sticky="e", pady=1, padx=(15, 0))
 
+        # Surcharge row
+        ctk.CTkLabel(
+            totals_frame,
+            text="Recargo:",
+            font=theme.scaled_font(14),
+            text_color="#a0a0a0",
+            anchor="w",
+        ).grid(row=4, column=0, sticky="w", pady=1)
+        self._surcharge_label = ctk.CTkLabel(
+            totals_frame,
+            text="$0",
+            font=theme.scaled_font(14, weight="bold"),
+            anchor="e",
+            text_color="#a0a0a0",
+        )
+        self._surcharge_label.grid(row=4, column=1, sticky="e", pady=1, padx=(15, 0))
+
         # Total box
         total_box = ctk.CTkFrame(totals_frame, fg_color="#2b2b2b", corner_radius=8)
-        total_box.grid(row=4, column=0, columnspan=2, sticky="ew", pady=(10, 0))
+        total_box.grid(row=5, column=0, columnspan=2, sticky="ew", pady=(10, 0))
         total_box.grid_columnconfigure(0, weight=1)
 
         ctk.CTkLabel(
             total_box,
             text="TOTAL A PAGAR",
-            font=ctk.CTkFont(size=10),
+            font=theme.scaled_font(10),
             text_color="#a0a0a0",
         ).grid(row=0, column=0, pady=(8, 0))
         self._total_label = ctk.CTkLabel(
             total_box,
             text="$0",
-            font=ctk.CTkFont(size=24, weight="bold"),
+            font=theme.scaled_font(24, weight="bold"),
             text_color="#ffffff",
         )
         self._total_label.grid(row=1, column=0, pady=(0, 8))
@@ -230,7 +268,7 @@ class SaleView(ctk.CTkFrame):
         ctk.CTkLabel(
             payment_methods_frame,
             text="Método de pago",
-            font=ctk.CTkFont(size=12, weight="bold"),
+            font=theme.scaled_font(12, weight="bold"),
             text_color="#a0a0a0",
             anchor="w",
         ).grid(row=0, column=0, sticky="w", pady=(0, 6))
@@ -269,7 +307,7 @@ class SaleView(ctk.CTkFrame):
             ctk.CTkLabel(
                 method_frame,
                 text=label,
-                font=ctk.CTkFont(size=13, weight="bold" if method == "cash" else "normal"),
+                font=theme.scaled_font(13, weight="bold" if method == "cash" else "normal"),
                 anchor="w",
             ).grid(row=0, column=1, sticky="w", padx=(0, 8), pady=8)
 
@@ -281,45 +319,46 @@ class SaleView(ctk.CTkFrame):
 
         # --- Amount received ---
         self._amount_frame = ctk.CTkFrame(self._payment_sidebar, fg_color="transparent")
-        self._amount_frame.grid(row=2, column=0, sticky="ew", padx=12, pady=(4, 8))
+        self._amount_frame.grid(row=2, column=0, sticky="ew", padx=12, pady=(0, 5))
         self._amount_frame.grid_columnconfigure(0, weight=1)
 
         ctk.CTkLabel(
             self._amount_frame,
             text="Monto recibido ($):",
-            font=ctk.CTkFont(size=11),
+            font=theme.scaled_font(11),
             text_color="#a0a0a0",
-        ).grid(row=0, column=0, pady=(0, 3))
+        ).grid(row=0, column=0, pady=(0, 2))
 
         self._received_entry = ctk.CTkEntry(
             self._amount_frame,
             placeholder_text="Ej: 5000",
             height=32,
-            font=ctk.CTkFont(size=14),
+            font=theme.scaled_font(14),
         )
         self._received_entry.grid(row=1, column=0, sticky="ew")
         self._received_entry.bind("<KeyRelease>", self._on_received_changed)
 
         # Change display
         change_frame = ctk.CTkFrame(self._amount_frame, fg_color="transparent")
-        change_frame.grid(row=2, column=0, pady=(6, 0))
+        change_frame.grid(row=2, column=0, pady=(5, 5))
 
         ctk.CTkLabel(
             change_frame,
             text="Vuelto:",
-            font=ctk.CTkFont(size=14),
-            text_color="#a0a0a0",
+            font=theme.scaled_font(14),
+            text_color="#a0a0a0"
         ).pack(side="left", padx=(0, 4))
+
         self._change_label = ctk.CTkLabel(
             change_frame,
             text="$0",
-            font=ctk.CTkFont(size=16, weight="bold"),
+            font=theme.scaled_font(16, weight="bold")
         )
         self._change_label.pack(side="left")
 
         # --- Action buttons ---
         buttons_frame = ctk.CTkFrame(self._payment_sidebar, fg_color="transparent")
-        buttons_frame.grid(row=3, column=0, sticky="ew", padx=12, pady=(12, 10))
+        buttons_frame.grid(row=4, column=0, sticky="ew", padx=12, pady=(5, 10))
         buttons_frame.grid_columnconfigure(0, weight=1)
         buttons_frame.grid_columnconfigure(1, weight=1)
 
@@ -329,7 +368,7 @@ class SaleView(ctk.CTkFrame):
             height=32,
             fg_color="#52525b",
             hover_color="#71717a",
-            font=ctk.CTkFont(size=12, weight="bold"),
+            font=theme.scaled_font(12, weight="bold"),
             command=self._handle_cancel,
         )
         self._cancel_btn.grid(row=0, column=0, sticky="ew", padx=(0, 4))
@@ -340,7 +379,7 @@ class SaleView(ctk.CTkFrame):
             height=32,
             fg_color="#0078d4",
             hover_color="#106ebe",
-            font=ctk.CTkFont(size=12, weight="bold"),
+            font=theme.scaled_font(12, weight="bold"),
             command=self._handle_confirm,
         )
         self._confirm_btn.grid(row=0, column=1, sticky="ew", padx=(4, 0))
@@ -357,26 +396,36 @@ class SaleView(ctk.CTkFrame):
     def update_total(self, total: int) -> None:
         """Update the displayed cart total and related fields."""
         self._total = total
-        # Recalculate discount amount based on new subtotal
         self._discount_amount = int(total * self._discount_pct / 100)
-        final_total = total - self._discount_amount
+        self._surcharge_amount = int(total * self._surcharge_pct / 100)
+        final_total = total - self._discount_amount + self._surcharge_amount
         
         self._subtotal_label.configure(text=f"${total:,}")
         
-        # Update discount label with color and percentage
         if self._discount_amount > 0:
             self._discount_label.configure(
                 text=f"${self._discount_amount:,} ({self._discount_pct:.0f}%)",
-                text_color="#2ecc71",  # Green color for active discount
+                text_color="#2ecc71",
             )
         else:
             self._discount_label.configure(
                 text="$0",
-                text_color="#a0a0a0",  # Gray when no discount
+                text_color="#a0a0a0",
+            )
+        
+        if self._surcharge_amount > 0:
+            self._surcharge_label.configure(
+                text=f"${self._surcharge_amount:,} ({self._surcharge_pct:.0f}%)",
+                text_color="#e74c3c",
+            )
+        else:
+            self._surcharge_label.configure(
+                text="$0",
+                text_color="#a0a0a0",
             )
         
         self._total_label.configure(text=f"${final_total:,}")
-        self._on_received_changed()  # Recalculate change
+        self._on_received_changed()
 
     def focus_barcode(self) -> None:
         """Force focus onto the barcode entry widget."""
@@ -414,6 +463,10 @@ class SaleView(ctk.CTkFrame):
         """Wire the discount callback."""
         self._on_discount = callback
 
+    def set_on_surcharge(self, callback: Callable[[float], None]) -> None:
+        """Wire the surcharge callback."""
+        self._on_surcharge = callback
+
     # ------------------------------------------------------- controller wire ---
 
     def set_controller(self, controller: Any) -> None:
@@ -430,6 +483,7 @@ class SaleView(ctk.CTkFrame):
         self._on_remove_item = self._controller_remove_item
         self._on_payment = self._controller_payment
         self._on_discount = self._controller_discount
+        self._on_surcharge = self._controller_surcharge
         self._controller_search = self._controller.search_products
 
         self._update_cart()
@@ -517,10 +571,18 @@ class SaleView(ctk.CTkFrame):
         """Handle discount application via controller."""
         result = self._controller.apply_discount(discount_pct)
         if result["success"]:
-            # Update the discount percentage in the view
             self._discount_pct = discount_pct
             self._discount_amount = result["data"]["discount_amount"]
-            # Refresh the display
+            self.update_total(self._total)
+        else:
+            messagebox.showerror("Error", result["error"])
+
+    def _controller_surcharge(self, surcharge_pct: float) -> None:
+        """Handle surcharge application via controller."""
+        result = self._controller.apply_surcharge(surcharge_pct)
+        if result["success"]:
+            self._surcharge_pct = surcharge_pct
+            self._surcharge_amount = result["data"]["surcharge_amount"]
             self.update_total(self._total)
         else:
             messagebox.showerror("Error", result["error"])
@@ -557,9 +619,10 @@ class SaleView(ctk.CTkFrame):
         """Clear the cart via controller and reset UI."""
         self._controller.clear_cart()
         self.update_cart([])
-        # Reset discount state
         self._discount_pct = 0.0
         self._discount_amount = 0
+        self._surcharge_pct = 0.0
+        self._surcharge_amount = 0
         self.update_total(0)
         self._barcode_entry.focus_set()
 
@@ -589,8 +652,16 @@ class SaleView(ctk.CTkFrame):
         # Show/hide amount received field based on payment method
         if method == "cash":
             self._amount_frame.grid()
+            self._surcharge_btn.grid_remove()
+            if self._surcharge_pct > 0:
+                self._surcharge_pct = 0.0
+                self._surcharge_amount = 0
+                self.update_total(self._total)
+            if hasattr(self, '_controller') and self._controller is not None:
+                self._controller.apply_surcharge(0)
         else:
             self._amount_frame.grid_remove()
+            self._surcharge_btn.grid(row=2, column=1, sticky="e", padx=(0, 1), pady=(10, 0))
 
     def _on_received_changed(self, event: tk.Event | None = None) -> None:
         """Recalculate change as the user types the received amount."""
@@ -604,8 +675,8 @@ class SaleView(ctk.CTkFrame):
             self._change_label.configure(text="$0")
             return
 
-        # Use total after discount
-        final_total = self._total - self._discount_amount
+        # Use total after discount and surcharge
+        final_total = self._total - self._discount_amount + self._surcharge_amount
         change = received - final_total
         if change >= 0:
             self._change_label.configure(text=f"${change:,}")
@@ -716,6 +787,21 @@ class SaleView(ctk.CTkFrame):
         if result is not None and self._on_discount is not None:
             self._on_discount(result)
 
+    def _handle_surcharge_button(self) -> None:
+        """Open surcharge dialog to apply a percentage surcharge."""
+        from pos.view.widgets.surcharge_dialog import SurchargeDialog
+
+        dialog = SurchargeDialog(
+            self,
+            subtotal=self._total,
+            current_surcharge_pct=self._surcharge_pct,
+        )
+        self.wait_window(dialog)
+        result = dialog.result
+
+        if result is not None and self._on_surcharge is not None:
+            self._on_surcharge(result)
+
     def _handle_cancel(self) -> None:
         """Cancel the current sale and clear the cart."""
         if self._total > 0:
@@ -738,8 +824,8 @@ class SaleView(ctk.CTkFrame):
 
         method = self._payment_method_var.get()
         
-        # Calculate final total after discount
-        final_total = self._total - self._discount_amount
+        # Calculate final total after discount and surcharge
+        final_total = self._total - self._discount_amount + self._surcharge_amount
         
         if method == "cash":
             raw = self._received_entry.get().strip()

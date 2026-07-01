@@ -16,6 +16,7 @@ class Sale:
     payment_method: PaymentMethod | str
     id: int | None = None
     discount: int = 0
+    surcharge: int = 0
     cash_register_id: int | None = None
     created_at: str | None = None
 

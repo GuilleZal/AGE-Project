@@ -7,6 +7,7 @@ from typing import Any
 import customtkinter as ctk
 
 from pos.view.widgets.centered_dialog import CenteredDialog
+from pos.view import theme
 
 
 class PreferencesDialog(CenteredDialog):
@@ -26,7 +27,7 @@ class PreferencesDialog(CenteredDialog):
     """
 
     def __init__(self, master: tk.Widget, controller: Any, **kwargs) -> None:
-        super().__init__(master, width=500, height=550, title="Preferencias", **kwargs)
+        super().__init__(master, width=500, height=650, title="Preferencias", **kwargs)
 
         self._controller = controller
         self._applied = False
@@ -56,13 +57,13 @@ class PreferencesDialog(CenteredDialog):
         ctk.CTkLabel(
             self,
             text="Umbral de stock bajo:",
-            font=ctk.CTkFont(size=14, weight="bold"),
+            font=theme.scaled_font(14, weight="bold"),
         ).pack(pady=(20, 5))
 
         ctk.CTkLabel(
             self,
             text="Productos con stock igual o inferior a este valor se marcarán como stock bajo.",
-            font=ctk.CTkFont(size=11),
+            font=theme.scaled_font(11),
             text_color="#888",
         ).pack(padx=20)
 
@@ -74,7 +75,7 @@ class PreferencesDialog(CenteredDialog):
         ctk.CTkLabel(
             self,
             text="Aplicar a categoría:",
-            font=ctk.CTkFont(size=12),
+            font=theme.scaled_font(12),
         ).pack(pady=(5, 0))
 
         self._threshold_cat_var = tk.StringVar(value=self._category_options[0])
@@ -90,13 +91,13 @@ class PreferencesDialog(CenteredDialog):
         ctk.CTkLabel(
             self,
             text="Porcentaje de ganancia (%):",
-            font=ctk.CTkFont(size=14, weight="bold"),
+            font=theme.scaled_font(14, weight="bold"),
         ).pack(pady=(10, 5))
 
         ctk.CTkLabel(
             self,
             text="Se aplicará para recalcular el precio de venta.",
-            font=ctk.CTkFont(size=11),
+            font=theme.scaled_font(11),
             text_color="#888",
         ).pack(padx=20)
 
@@ -108,7 +109,7 @@ class PreferencesDialog(CenteredDialog):
         ctk.CTkLabel(
             self,
             text="Aplicar a categoría:",
-            font=ctk.CTkFont(size=12),
+            font=theme.scaled_font(12),
         ).pack(pady=(5, 0))
 
         self._margin_cat_var = tk.StringVar(value=self._category_options[0])
@@ -126,12 +127,12 @@ class PreferencesDialog(CenteredDialog):
             self,
             text="Aplicar cambios a productos existentes",
             variable=self._apply_var,
-            font=ctk.CTkFont(size=12),
+            font=theme.scaled_font(12),
         ).pack(pady=(5, 10))
 
         # --- error label ---
         self._error_label = ctk.CTkLabel(
-            self, text="", text_color="red", font=ctk.CTkFont(size=12)
+            self, text="", text_color="red", font=theme.scaled_font(12)
         )
         self._error_label.pack()
 
@@ -144,7 +145,7 @@ class PreferencesDialog(CenteredDialog):
             text="Cancelar",
             width=150,
             height=40,
-            font=ctk.CTkFont(size=14),
+            font=theme.scaled_font(14),
             fg_color="gray",
             command=self._cancel,
         ).pack(side="left", padx=15)
@@ -154,7 +155,7 @@ class PreferencesDialog(CenteredDialog):
             text="Guardar",
             width=150,
             height=40,
-            font=ctk.CTkFont(size=14),
+            font=theme.scaled_font(14),
             command=self._confirm,
         ).pack(side="left", padx=15)
 
@@ -244,6 +245,7 @@ class PreferencesDialog(CenteredDialog):
         if result["success"]:
             self._applied = True
             updated = result["data"]["products_updated"]
+
             if apply_to_products and updated > 0:
                 messagebox.showinfo(
                     "Éxito",

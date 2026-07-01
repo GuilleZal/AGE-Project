@@ -6,6 +6,7 @@ from typing import Any
 import customtkinter as ctk
 
 from pos.view.widgets.centered_dialog import CenteredDialog
+from pos.view import theme
 
 
 class ImportResultDialog(CenteredDialog):
@@ -48,7 +49,7 @@ class ImportResultDialog(CenteredDialog):
             success_label = ctk.CTkLabel(
                 summary_frame,
                 text=f"✅ {created + updated} productos procesados correctamente",
-                font=ctk.CTkFont(size=14, weight="bold"),
+                font=theme.scaled_font(14, weight="bold"),
                 text_color="#2ecc71",
             )
             success_label.pack(anchor="w", pady=(0, 5))
@@ -56,7 +57,7 @@ class ImportResultDialog(CenteredDialog):
             details_label = ctk.CTkLabel(
                 summary_frame,
                 text=f"   • {created} productos creados\n   • {updated} productos actualizados",
-                font=ctk.CTkFont(size=12),
+                font=theme.scaled_font(12),
                 justify="left",
             )
             details_label.pack(anchor="w")
@@ -66,7 +67,7 @@ class ImportResultDialog(CenteredDialog):
             error_header = ctk.CTkLabel(
                 summary_frame,
                 text=f"\n❌ {error_count} errores encontrados",
-                font=ctk.CTkFont(size=14, weight="bold"),
+                font=theme.scaled_font(14, weight="bold"),
                 text_color="#e74c3c",
             )
             error_header.pack(anchor="w", pady=(10, 5))
@@ -89,7 +90,7 @@ class ImportResultDialog(CenteredDialog):
                 error_label = ctk.CTkLabel(
                     error_frame,
                     text=error_text,
-                    font=ctk.CTkFont(size=11),
+                    font=theme.scaled_font(11),
                     text_color="#e74c3c",
                     justify="left",
                     anchor="w",

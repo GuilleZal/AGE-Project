@@ -11,6 +11,7 @@ from typing import Any, Callable
 import customtkinter as ctk
 
 from pos.view.widgets.barcode_entry import BarcodeEntry
+from pos.view import theme
 
 
 class ReturnView(ctk.CTkFrame):
@@ -62,7 +63,7 @@ class ReturnView(ctk.CTkFrame):
             self._top_frame,
             on_scan=self._handle_scan,
             height=45,
-            font=ctk.CTkFont(size=16),
+            font=theme.scaled_font(16),
             placeholder_text="Escanear código de barras para devolución...",
         )
         self._barcode_entry.grid(
@@ -75,7 +76,7 @@ class ReturnView(ctk.CTkFrame):
             text="🔍",
             width=50,
             height=45,
-            font=ctk.CTkFont(size=18),
+            font=theme.scaled_font(18),
             command=self._handle_search_button,
         )
         self._search_btn.grid(row=0, column=1, sticky="e")
@@ -90,7 +91,7 @@ class ReturnView(ctk.CTkFrame):
         self._product_label = ctk.CTkLabel(
             self._info_frame,
             text="Producto: —",
-            font=ctk.CTkFont(size=18, weight="bold"),
+            font=theme.scaled_font(18, weight="bold"),
             anchor="w",
         )
         self._product_label.grid(
@@ -100,7 +101,7 @@ class ReturnView(ctk.CTkFrame):
         self._barcode_label = ctk.CTkLabel(
             self._info_frame,
             text="Código: —",
-            font=ctk.CTkFont(size=13),
+            font=theme.scaled_font(13),
             anchor="w",
         )
         self._barcode_label.grid(
@@ -110,7 +111,7 @@ class ReturnView(ctk.CTkFrame):
         self._price_label = ctk.CTkLabel(
             self._info_frame,
             text="Precio: —",
-            font=ctk.CTkFont(size=16),
+            font=theme.scaled_font(16),
             anchor="w",
         )
         self._price_label.grid(
@@ -122,7 +123,7 @@ class ReturnView(ctk.CTkFrame):
         qty_frame.grid(row=2, column=0, sticky="ew", padx=10, pady=5)
 
         ctk.CTkLabel(
-            qty_frame, text="Cantidad:", font=ctk.CTkFont(size=14)
+            qty_frame, text="Cantidad:", font=theme.scaled_font(14)
         ).pack(side="left", padx=(15, 5))
 
         self._qty_var = tk.StringVar(value="1")
@@ -149,7 +150,7 @@ class ReturnView(ctk.CTkFrame):
         ctk.CTkLabel(
             reason_frame,
             text="Motivo (opcional):",
-            font=ctk.CTkFont(size=14),
+            font=theme.scaled_font(14),
         ).pack(side="left", padx=(15, 5))
 
         self._reason_entry = ctk.CTkEntry(
@@ -163,7 +164,7 @@ class ReturnView(ctk.CTkFrame):
         self._refund_label = ctk.CTkLabel(
             self,
             text="Devolución: $0",
-            font=ctk.CTkFont(size=20, weight="bold"),
+            font=theme.scaled_font(20, weight="bold"),
         )
         self._refund_label.grid(
             row=4, column=0, sticky="e", padx=20, pady=(10, 5)
@@ -171,7 +172,7 @@ class ReturnView(ctk.CTkFrame):
 
         # --- row 5: error label ---
         self._error_label = ctk.CTkLabel(
-            self, text="", text_color="red", font=ctk.CTkFont(size=12)
+            self, text="", text_color="red", font=theme.scaled_font(12)
         )
         self._error_label.grid(row=5, column=0, padx=10, pady=2)
 
@@ -181,7 +182,7 @@ class ReturnView(ctk.CTkFrame):
             text="Confirmar devolución",
             width=200,
             height=40,
-            font=ctk.CTkFont(size=15, weight="bold"),
+            font=theme.scaled_font(15, weight="bold"),
             command=self._handle_confirm,
             state="disabled",
         )

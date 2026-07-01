@@ -32,10 +32,10 @@ class SaleRepo:
         """
         pm = sale.payment_method.value if isinstance(sale.payment_method, PaymentMethod) else sale.payment_method
         cur = self._db.execute(
-            """INSERT INTO sales (total, discount, payment_method, cash_register_id)
-               VALUES (?, ?, ?, ?)
+            """INSERT INTO sales (total, discount, surcharge, payment_method, cash_register_id)
+               VALUES (?, ?, ?, ?, ?)
                RETURNING id, created_at""",
-            (sale.total, sale.discount, pm, sale.cash_register_id),
+            (sale.total, sale.discount, sale.surcharge, pm, sale.cash_register_id),
         )
         row = cur.fetchone()
         sale.id = row["id"]
@@ -137,6 +137,7 @@ class SaleRepo:
             id=row["id"],
             total=row["total"],
             discount=row["discount"],
+            surcharge=row["surcharge"],
             payment_method=row["payment_method"],
             cash_register_id=row["cash_register_id"],
             created_at=row["created_at"],

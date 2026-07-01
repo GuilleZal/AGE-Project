@@ -135,6 +135,16 @@ def _run_migrations(conn: sqlite3.Connection) -> None:
         """)
         conn.execute("PRAGMA foreign_keys=ON")
 
+    # Migration 6: Add surcharge column to sales table
+    row = conn.execute("PRAGMA table_info(sales)").fetchall()
+    columns = [col["name"] for col in row]
+    if "surcharge" not in columns:
+        try:
+            conn.execute("ALTER TABLE sales ADD COLUMN surcharge INTEGER NOT NULL DEFAULT 0")
+            conn.commit()
+        except Exception:
+            pass
+
     # Migration 5: Convert stock and low_stock_threshold from REAL to INTEGER
     row = conn.execute("PRAGMA table_info(products)").fetchall()
     stock_col = [col for col in row if col["name"] == "stock"]
@@ -213,6 +223,7 @@ CREATE TABLE IF NOT EXISTS sales (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
     total           INTEGER NOT NULL,
     discount        INTEGER NOT NULL DEFAULT 0,
+    surcharge       INTEGER NOT NULL DEFAULT 0,
     payment_method  TEXT NOT NULL CHECK(payment_method IN ('cash','card','transfer')),
     cash_register_id INTEGER REFERENCES cash_registers(id),
     created_at      TEXT NOT NULL DEFAULT (datetime('now'))

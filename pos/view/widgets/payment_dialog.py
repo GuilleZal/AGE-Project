@@ -6,6 +6,7 @@ from typing import Any
 import customtkinter as ctk
 
 from pos.view.widgets.centered_dialog import CenteredDialog
+from pos.view import theme
 
 
 class PaymentDialog(CenteredDialog):
@@ -49,7 +50,7 @@ class PaymentDialog(CenteredDialog):
         ctk.CTkLabel(
             self,
             text=f"Total a pagar: ${total:,}",
-            font=ctk.CTkFont(size=20, weight="bold"),
+            font=theme.scaled_font(20, weight="bold"),
         ).pack(pady=(20, 15))
 
         # --- payment method radio buttons ---
@@ -87,13 +88,13 @@ class PaymentDialog(CenteredDialog):
         self._change_label = ctk.CTkLabel(
             self._cash_frame,
             text="Vuelto: $0",
-            font=ctk.CTkFont(size=16),
+            font=theme.scaled_font(16),
         )
         self._change_label.pack(pady=(0, 10))
 
         # --- error label ---
         self._error_label = ctk.CTkLabel(
-            self, text="", text_color="red", font=ctk.CTkFont(size=12)
+            self, text="", text_color="red", font=theme.scaled_font(12)
         )
         self._error_label.pack()
 

@@ -8,6 +8,7 @@ import customtkinter as ctk
 
 from pos.view.widgets.centered_dialog import CenteredDialog
 from pos.view.widgets.treeview_sorting import add_sorting_to_treeview
+from pos.view import theme
 
 
 class AssignCategoryDialog(CenteredDialog):
@@ -62,7 +63,7 @@ class AssignCategoryDialog(CenteredDialog):
         ctk.CTkLabel(
             filter_frame,
             text="Buscar:",
-            font=ctk.CTkFont(size=13),
+            font=theme.scaled_font(13),
         ).grid(row=0, column=0, padx=(0, 5), pady=5)
 
         self._search_var = tk.StringVar()
@@ -77,7 +78,7 @@ class AssignCategoryDialog(CenteredDialog):
         ctk.CTkLabel(
             filter_frame,
             text="Categoría:",
-            font=ctk.CTkFont(size=13),
+            font=theme.scaled_font(13),
         ).grid(row=0, column=2, padx=(0, 5), pady=5)
 
         filter_cat_names = ["Todas"] + [c["name"] for c in categories] + ["Sin categoría"]
@@ -98,7 +99,7 @@ class AssignCategoryDialog(CenteredDialog):
         ctk.CTkLabel(
             assign_frame,
             text="Nueva categoría:",
-            font=ctk.CTkFont(size=13, weight="bold"),
+            font=theme.scaled_font(13, weight="bold"),
         ).pack(side="left", padx=(0, 10))
 
         assign_cat_names = ["Sin categoría"] + [c["name"] for c in categories]
@@ -119,7 +120,7 @@ class AssignCategoryDialog(CenteredDialog):
             height=30,
             fg_color="#505050",
             hover_color="#606060",
-            font=ctk.CTkFont(size=14, weight="bold"),
+            font=theme.scaled_font(14, weight="bold"),
             command=self._show_help,
         ).pack(side="left", padx=(10, 0))
 
@@ -151,7 +152,8 @@ class AssignCategoryDialog(CenteredDialog):
             foreground="#dce4ee",
             fieldbackground="#2b2b2b",
             borderwidth=0,
-            rowheight=28,
+            font=theme.scaled_treeview_font(),
+            rowheight=24 + theme.get_offset() * 2,
         )
         style.configure(
             "Treeview.Heading",
@@ -159,7 +161,7 @@ class AssignCategoryDialog(CenteredDialog):
             foreground="#ffffff",
             relief="raised",
             borderwidth=1,
-            font=("Segoe UI", 10, "bold"),
+            font=theme.scaled_treeview_font("bold"),
         )
 
         # Scrollbar
@@ -193,7 +195,7 @@ class AssignCategoryDialog(CenteredDialog):
             width=120,
             height=35,
             fg_color="gray",
-            font=ctk.CTkFont(size=13, weight="bold"),
+            font=theme.scaled_font(13, weight="bold"),
             command=self._cancel,
         ).pack(side="right", padx=10)
 
@@ -203,7 +205,7 @@ class AssignCategoryDialog(CenteredDialog):
             width=120,
             height=35,
             fg_color="#1f538d",
-            font=ctk.CTkFont(size=13, weight="bold"),
+            font=theme.scaled_font(13, weight="bold"),
             command=self._confirm,
         ).pack(side="right", padx=10)
 

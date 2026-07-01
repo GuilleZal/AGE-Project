@@ -20,6 +20,7 @@ from pos.view.widgets.column_persistence import (
     apply_treeview_widths,
 )
 from pos.view.widgets.treeview_sorting import add_sorting_to_treeview
+from pos.view import theme
 
 
 class CashRegisterView(ctk.CTkFrame):
@@ -80,7 +81,7 @@ class CashRegisterView(ctk.CTkFrame):
         self._status_label = ctk.CTkLabel(
             self._left_frame,
             text="CAJA CERRADA",
-            font=ctk.CTkFont(size=18, weight="bold"),
+            font=theme.scaled_font(18, weight="bold"),
             text_color="#e74c3c",
         )
         self._status_label.grid(
@@ -108,13 +109,13 @@ class CashRegisterView(ctk.CTkFrame):
             ctk.CTkLabel(
                 self._balance_frame,
                 text=label,
-                font=ctk.CTkFont(size=13),
+                font=theme.scaled_font(13),
                 anchor="w",
             ).grid(row=idx, column=0, sticky="w", padx=15, pady=3)
             lbl = ctk.CTkLabel(
                 self._balance_frame,
                 text=default,
-                font=ctk.CTkFont(size=13, weight="bold"),
+                font=theme.scaled_font(13, weight="bold"),
                 anchor="e",
             )
             lbl.grid(row=idx, column=1, sticky="e", padx=15, pady=3)
@@ -129,7 +130,7 @@ class CashRegisterView(ctk.CTkFrame):
             text="🔓 Abrir caja",
             width=140,
             height=40,
-            font=ctk.CTkFont(size=14, weight="bold"),
+            font=theme.scaled_font(14, weight="bold"),
             command=self._handle_open,
         )
         self._open_btn.pack(side="left", padx=5)
@@ -139,7 +140,7 @@ class CashRegisterView(ctk.CTkFrame):
             text="🔒 Cerrar caja",
             width=140,
             height=40,
-            font=ctk.CTkFont(size=14, weight="bold"),
+            font=theme.scaled_font(14, weight="bold"),
             fg_color="#8b1a1a",
             state="disabled",
             command=self._handle_close,
@@ -155,7 +156,7 @@ class CashRegisterView(ctk.CTkFrame):
         ctk.CTkLabel(
             self._outflow_frame,
             text="Registrar egreso manual:",
-            font=ctk.CTkFont(size=14, weight="bold"),
+            font=theme.scaled_font(14, weight="bold"),
         ).pack(anchor="w", padx=10, pady=(10, 5))
 
         self._outflow_type_var = tk.StringVar(value="expense")
@@ -170,7 +171,7 @@ class CashRegisterView(ctk.CTkFrame):
         amount_row.pack(fill="x", padx=10, pady=5)
 
         ctk.CTkLabel(
-            amount_row, text="Monto ($):", font=ctk.CTkFont(size=13)
+            amount_row, text="Monto ($):", font=theme.scaled_font(13)
         ).pack(side="left", padx=(0, 5))
         self._outflow_amount_entry = ctk.CTkEntry(
             amount_row, width=120, placeholder_text="0"
@@ -178,7 +179,7 @@ class CashRegisterView(ctk.CTkFrame):
         self._outflow_amount_entry.pack(side="left", padx=5)
 
         ctk.CTkLabel(
-            amount_row, text="Descripción:", font=ctk.CTkFont(size=13)
+            amount_row, text="Descripción:", font=theme.scaled_font(13)
         ).pack(side="left", padx=(10, 5))
         self._outflow_desc_entry = ctk.CTkEntry(amount_row, width=180)
         self._outflow_desc_entry.pack(side="left", padx=5, fill="x", expand=True)
@@ -211,7 +212,7 @@ class CashRegisterView(ctk.CTkFrame):
         self._preview_label = ctk.CTkLabel(
             self._preview_frame,
             text="Movimientos",
-            font=ctk.CTkFont(size=13, weight="bold"),
+            font=theme.scaled_font(13, weight="bold"),
         )
         self._preview_label.grid(row=0, column=0, sticky="w", padx=5, pady=(5, 2), columnspan=2)
 
@@ -280,7 +281,7 @@ class CashRegisterView(ctk.CTkFrame):
         ctk.CTkLabel(
             self._history_frame,
             text="Historial de cajas",
-            font=ctk.CTkFont(size=15, weight="bold"),
+            font=theme.scaled_font(15, weight="bold"),
         ).grid(row=0, column=0, sticky="w", padx=5, pady=(5, 2), columnspan=2)
 
         # Date filter row
@@ -290,7 +291,7 @@ class CashRegisterView(ctk.CTkFrame):
         ctk.CTkLabel(
             filter_frame,
             text="Desde:",
-            font=ctk.CTkFont(size=12),
+            font=theme.scaled_font(12),
         ).pack(side="left", padx=(5, 3))
 
         self._start_date_entry = DateEntry(
@@ -309,7 +310,7 @@ class CashRegisterView(ctk.CTkFrame):
         ctk.CTkLabel(
             filter_frame,
             text="Hasta:",
-            font=ctk.CTkFont(size=12),
+            font=theme.scaled_font(12),
         ).pack(side="left", padx=(5, 3))
 
         self._end_date_entry = DateEntry(
@@ -331,7 +332,7 @@ class CashRegisterView(ctk.CTkFrame):
             width=70,
             height=26,
             fg_color="#1f538d",
-            font=ctk.CTkFont(size=11),
+            font=theme.scaled_font(11),
             command=self._apply_date_filter,
         ).pack(side="left", padx=3)
 
@@ -341,7 +342,7 @@ class CashRegisterView(ctk.CTkFrame):
             width=70,
             height=26,
             fg_color="#505050",
-            font=ctk.CTkFont(size=11),
+            font=theme.scaled_font(11),
             command=self._clear_date_filter,
         ).pack(side="left", padx=3)
 
@@ -690,6 +691,8 @@ class CashRegisterView(ctk.CTkFrame):
             foreground=fg,
             fieldbackground=bg,
             borderwidth=0,
+            font=theme.scaled_treeview_font(),
+            rowheight=24 + theme.get_offset() * 2,
         )
         self._style.configure(
             "Treeview.Heading",
@@ -697,7 +700,7 @@ class CashRegisterView(ctk.CTkFrame):
             foreground="#ffffff",
             relief="raised",
             borderwidth=1,
-            font=("Segoe UI", 10, "bold"),
+            font=theme.scaled_treeview_font("bold"),
         )
         self._style.map(
             "Treeview",
@@ -777,7 +780,7 @@ class _AmountDialog(ctk.CTkToplevel):
         self._result: int | None = None
 
         ctk.CTkLabel(
-            self, text=prompt, font=ctk.CTkFont(size=14)
+            self, text=prompt, font=theme.scaled_font(14)
         ).pack(pady=(20, 10))
 
         self._entry = ctk.CTkEntry(self, width=200, placeholder_text="0")
@@ -786,7 +789,7 @@ class _AmountDialog(ctk.CTkToplevel):
         self._entry.focus_set()
 
         self._error_label = ctk.CTkLabel(
-            self, text="", text_color="red", font=ctk.CTkFont(size=12)
+            self, text="", text_color="red", font=theme.scaled_font(12)
         )
         self._error_label.pack()
 
@@ -849,13 +852,13 @@ class _CloseDialog(ctk.CTkToplevel):
         self._result: dict[str, Any] | None = None
 
         ctk.CTkLabel(
-            self, text="Monto contado ($):", font=ctk.CTkFont(size=14)
+            self, text="Monto contado ($):", font=theme.scaled_font(14)
         ).pack(pady=(20, 10))
         self._amount_entry = ctk.CTkEntry(self, width=200, placeholder_text="0")
         self._amount_entry.pack(padx=20, pady=5)
 
         ctk.CTkLabel(
-            self, text="Motivo de cierre:", font=ctk.CTkFont(size=14)
+            self, text="Motivo de cierre:", font=theme.scaled_font(14)
         ).pack(pady=(10, 5))
         
         # Radio buttons for close reason
@@ -882,7 +885,7 @@ class _CloseDialog(ctk.CTkToplevel):
         self._notes_entry.bind("<Return>", lambda _e: self._confirm())
 
         self._error_label = ctk.CTkLabel(
-            self, text="", text_color="red", font=ctk.CTkFont(size=12)
+            self, text="", text_color="red", font=theme.scaled_font(12)
         )
         self._error_label.pack()
 

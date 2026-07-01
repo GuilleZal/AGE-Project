@@ -20,6 +20,7 @@ from pos.view.widgets.column_persistence import (
     apply_treeview_widths,
 )
 from pos.view.widgets.treeview_sorting import add_sorting_to_treeview
+from pos.view import theme
 
 
 class ProductManagementDialog(CenteredDialog):
@@ -73,7 +74,7 @@ class ProductManagementDialog(CenteredDialog):
         search_frame.grid(row=0, column=0, sticky="ew", pady=(5, 5))
         search_frame.grid_columnconfigure(1, weight=1)
 
-        ctk.CTkLabel(search_frame, text="Buscar:", font=ctk.CTkFont(size=13)).grid(
+        ctk.CTkLabel(search_frame, text="Buscar:", font=theme.scaled_font(13)).grid(
             row=0, column=0, padx=(10, 5)
         )
         self._prod_search_var = tk.StringVar()
@@ -90,7 +91,7 @@ class ProductManagementDialog(CenteredDialog):
             text="Mostrar desactivados",
             variable=self._show_inactive_var,
             command=self._on_show_inactive_changed,
-            font=ctk.CTkFont(size=12),
+            font=theme.scaled_font(12),
         )
         self._show_inactive_check.grid(row=0, column=2, padx=(10, 5))
 
@@ -102,7 +103,7 @@ class ProductManagementDialog(CenteredDialog):
             height=30,
             fg_color="#505050",
             hover_color="#606060",
-            font=ctk.CTkFont(size=14, weight="bold"),
+            font=theme.scaled_font(14, weight="bold"),
             command=self._show_products_help,
         ).grid(row=0, column=3, padx=(5, 10))
 
@@ -203,7 +204,7 @@ class ProductManagementDialog(CenteredDialog):
         search_frame.grid(row=0, column=0, sticky="ew", pady=(5, 5))
         search_frame.grid_columnconfigure(1, weight=1)
 
-        ctk.CTkLabel(search_frame, text="Buscar:", font=ctk.CTkFont(size=13)).grid(
+        ctk.CTkLabel(search_frame, text="Buscar:", font=theme.scaled_font(13)).grid(
             row=0, column=0, padx=(10, 5)
         )
         self._cat_search_var = tk.StringVar()

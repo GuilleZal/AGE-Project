@@ -22,10 +22,10 @@
     "estado": 26
   },
   "product_view": {
-    "codigo": 185,
-    "nombre": 259,
-    "categoria": 116,
-    "costo": 123,
+    "codigo": 169,
+    "nombre": 322,
+    "categoria": 114,
+    "costo": 78,
     "precio": 117,
     "ganancia": 97,
     "stock": 56
@@ -43,9 +43,9 @@
     "monto": 246
   },
   "product_search_dialog": {
-    "codigo": 123,
-    "nombre": 211,
-    "categoria": 143,
+    "codigo": 49,
+    "nombre": 352,
+    "categoria": 76,
     "precio": 99
   },
   "management_categories": {
@@ -53,15 +53,15 @@
     "productos": 362
   },
   "report_view_low": {
-    "pos": 54,
-    "producto": 256,
-    "stock_actual": 117,
-    "ubicacion": 165
+    "pos": 39,
+    "producto": 241,
+    "stock_actual": 177,
+    "ubicacion": 96
   },
   "report_view_top": {
     "pos": 66,
     "producto": 267,
-    "cantidad": 82,
+    "cantidad": 125,
     "monto": 177
   }
 }

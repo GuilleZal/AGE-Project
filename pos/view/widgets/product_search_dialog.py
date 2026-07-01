@@ -15,6 +15,7 @@ from pos.view.widgets.column_persistence import (
     apply_treeview_widths,
 )
 from pos.view.widgets.treeview_sorting import add_sorting_to_treeview
+from pos.view import theme
 
 
 class ProductSearchDialog(CenteredDialog):
@@ -54,6 +55,8 @@ class ProductSearchDialog(CenteredDialog):
             foreground="#dce4ee",
             fieldbackground="#2b2b2b",
             borderwidth=0,
+            font=theme.scaled_treeview_font(),
+            rowheight=24 + theme.get_offset() * 2,
         )
         self._style.configure(
             "Treeview.Heading",
@@ -61,7 +64,7 @@ class ProductSearchDialog(CenteredDialog):
             foreground="#ffffff",
             relief="raised",
             borderwidth=1,
-            font=("Segoe UI", 10, "bold"),
+            font=theme.scaled_treeview_font("bold"),
         )
         self._style.map(
             "Treeview",
@@ -73,7 +76,7 @@ class ProductSearchDialog(CenteredDialog):
         search_frame = ctk.CTkFrame(self)
         search_frame.pack(fill="x", padx=10, pady=(10, 5))
         
-        ctk.CTkLabel(search_frame, text="Buscar:", font=ctk.CTkFont(size=12)).pack(
+        ctk.CTkLabel(search_frame, text="Buscar:", font=theme.scaled_font(12)).pack(
             side="left", padx=(0, 5)
         )
         

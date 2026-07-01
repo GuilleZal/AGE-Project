@@ -29,6 +29,9 @@ def main() -> None:
         conn.commit()
         print("Database initialized successfully at pos/data/pos.db")
 
+        from pos.view.theme import load_font_scale
+        load_font_scale(conn)
+
         # ------- Controllers ------------------------------------------------
         from pos.controller.sale_controller import SaleController
         from pos.controller.product_controller import ProductController
@@ -58,30 +61,40 @@ def main() -> None:
             sale_view = SaleView(sales_tab)
             sale_view.pack(fill="both", expand=True)
             sale_view.set_controller(sale_ctrl)
+            app.set_view("Ventas", sale_view)
+            app.set_controller("Ventas", sale_ctrl)
 
         products_tab = app.get_tab_frame("Productos")
         if products_tab is not None:
             product_view = ProductView(products_tab)
             product_view.pack(fill="both", expand=True)
             product_view.set_controller(product_ctrl)
+            app.set_view("Productos", product_view)
+            app.set_controller("Productos", product_ctrl)
 
         returns_tab = app.get_tab_frame("Devoluciones")
         if returns_tab is not None:
             return_view = ReturnView(returns_tab)
             return_view.pack(fill="both", expand=True)
             return_view.set_controller(return_ctrl)
+            app.set_view("Devoluciones", return_view)
+            app.set_controller("Devoluciones", return_ctrl)
 
         cash_tab = app.get_tab_frame("Caja")
         if cash_tab is not None:
             cash_register_view = CashRegisterView(cash_tab)
             cash_register_view.pack(fill="both", expand=True)
             cash_register_view.set_controller(cash_register_ctrl)
+            app.set_view("Caja", cash_register_view)
+            app.set_controller("Caja", cash_register_ctrl)
 
         reports_tab = app.get_tab_frame("Reportes")
         if reports_tab is not None:
             report_view = ReportView(reports_tab)
             report_view.pack(fill="both", expand=True)
             report_view.set_controller(report_ctrl)
+            app.set_view("Reportes", report_view)
+            app.set_controller("Reportes", report_ctrl)
 
         # --- Cross-view wiring ---
         # After a sale, refresh the cash register view to update balance

@@ -33,6 +33,8 @@ class SaleController:
         self._cart: list[dict] = []
         self._discount_pct: float = 0.0
         self._discount_amount: int = 0
+        self._surcharge_pct: float = 0.0
+        self._surcharge_amount: int = 0
 
     # ---------------------------------------------------------------- cart ---
 
@@ -228,6 +230,8 @@ class SaleController:
         self._cart.clear()
         self._discount_pct = 0.0
         self._discount_amount = 0
+        self._surcharge_pct = 0.0
+        self._surcharge_amount = 0
         return {"success": True, "data": None, "error": None}
 
     def apply_discount(self, discount_pct: float) -> dict:
@@ -269,6 +273,49 @@ class SaleController:
             "data": {
                 "discount_pct": self._discount_pct,
                 "discount_amount": self._discount_amount,
+            },
+            "error": None,
+        }
+
+    def apply_surcharge(self, surcharge_pct: float) -> dict:
+        """Apply a percentage surcharge to the current sale.
+
+        Args:
+            surcharge_pct: Surcharge percentage (0-100).
+
+        Returns:
+            ``{"success": True, "data": {"surcharge_pct": float, "surcharge_amount": int, "final_total": int}, "error": None}``
+            or ``{"success": False, "data": None, "error": message}``.
+        """
+        if surcharge_pct < 0 or surcharge_pct > 100:
+            return {
+                "success": False,
+                "data": None,
+                "error": "El porcentaje de recargo debe estar entre 0 y 100",
+            }
+
+        self._surcharge_pct = surcharge_pct
+        subtotal = self._calculate_total()
+        self._surcharge_amount = int(subtotal * surcharge_pct / 100)
+        final_total = subtotal - self._discount_amount + self._surcharge_amount
+
+        return {
+            "success": True,
+            "data": {
+                "surcharge_pct": surcharge_pct,
+                "surcharge_amount": self._surcharge_amount,
+                "final_total": final_total,
+            },
+            "error": None,
+        }
+
+    def get_surcharge_info(self) -> dict:
+        """Return current surcharge information."""
+        return {
+            "success": True,
+            "data": {
+                "surcharge_pct": self._surcharge_pct,
+                "surcharge_amount": self._surcharge_amount,
             },
             "error": None,
         }
@@ -320,7 +367,9 @@ class SaleController:
             }
 
         total = self._calculate_total()
-        final_total = total - self._discount_amount
+        self._discount_amount = int(total * self._discount_pct / 100)
+        self._surcharge_amount = int(total * self._surcharge_pct / 100)
+        final_total = total - self._discount_amount + self._surcharge_amount
 
         # Cash validation
         change = 0
@@ -337,6 +386,7 @@ class SaleController:
         sale = Sale(
             total=final_total,
             discount=self._discount_amount,
+            surcharge=self._surcharge_amount,
             payment_method=pm,
             cash_register_id=active_register.id,
         )
@@ -365,6 +415,7 @@ class SaleController:
                         "id": created_sale.id,
                         "total": created_sale.total,
                         "discount": created_sale.discount,
+                        "surcharge": created_sale.surcharge,
                         "payment_method": pm,
                         "created_at": created_sale.created_at,
                     },

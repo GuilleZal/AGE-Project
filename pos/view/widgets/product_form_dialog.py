@@ -12,6 +12,7 @@ from typing import Any
 import customtkinter as ctk
 
 from pos.view.widgets.centered_dialog import CenteredDialog
+from pos.view import theme
 
 
 class ProductFormDialog(CenteredDialog):
@@ -79,7 +80,7 @@ class ProductFormDialog(CenteredDialog):
         row = 0
 
         # Barcode
-        ctk.CTkLabel(body, text="Código de barras", font=ctk.CTkFont(size=12)).grid(
+        ctk.CTkLabel(body, text="Código de barras", font=theme.scaled_font(12)).grid(
             row=row, column=0, sticky="w", padx=15, pady=(10, 0)
         )
         row += 1
@@ -91,7 +92,7 @@ class ProductFormDialog(CenteredDialog):
         row += 1
 
         # Name
-        ctk.CTkLabel(body, text="Nombre *", font=ctk.CTkFont(size=12)).grid(
+        ctk.CTkLabel(body, text="Nombre *", font=theme.scaled_font(12)).grid(
             row=row, column=0, sticky="w", padx=15, pady=(5, 0)
         )
         row += 1
@@ -103,7 +104,7 @@ class ProductFormDialog(CenteredDialog):
         row += 1
 
         # Category
-        ctk.CTkLabel(body, text="Categoría", font=ctk.CTkFont(size=12)).grid(
+        ctk.CTkLabel(body, text="Categoría", font=theme.scaled_font(12)).grid(
             row=row, column=0, sticky="w", padx=15, pady=(5, 0)
         )
         row += 1
@@ -124,10 +125,10 @@ class ProductFormDialog(CenteredDialog):
         price_frame.grid_columnconfigure(1, weight=1)
         row += 1
 
-        ctk.CTkLabel(price_frame, text="Precio venta ($) *", font=ctk.CTkFont(size=12)).grid(
+        ctk.CTkLabel(price_frame, text="Precio venta ($) *", font=theme.scaled_font(12)).grid(
             row=0, column=0, sticky="w", padx=(0, 5)
         )
-        ctk.CTkLabel(price_frame, text="Precio costo ($) *", font=ctk.CTkFont(size=12)).grid(
+        ctk.CTkLabel(price_frame, text="Precio costo ($) *", font=theme.scaled_font(12)).grid(
             row=0, column=1, sticky="w", padx=(5, 0)
         )
 
@@ -150,10 +151,10 @@ class ProductFormDialog(CenteredDialog):
         stock_frame.grid_columnconfigure(1, weight=1)
         row += 1
 
-        ctk.CTkLabel(stock_frame, text="Stock inicial", font=ctk.CTkFont(size=12)).grid(
+        ctk.CTkLabel(stock_frame, text="Stock inicial", font=theme.scaled_font(12)).grid(
             row=0, column=0, sticky="w", padx=(0, 5)
         )
-        ctk.CTkLabel(stock_frame, text="Umbral stock bajo", font=ctk.CTkFont(size=12)).grid(
+        ctk.CTkLabel(stock_frame, text="Umbral stock bajo", font=theme.scaled_font(12)).grid(
             row=0, column=1, sticky="w", padx=(5, 0)
         )
 
@@ -170,7 +171,7 @@ class ProductFormDialog(CenteredDialog):
         self._low_stock_entry.grid(row=1, column=1, sticky="w", padx=(5, 0), pady=(2, 0))
 
         # Description
-        ctk.CTkLabel(body, text="Descripción", font=ctk.CTkFont(size=12)).grid(
+        ctk.CTkLabel(body, text="Descripción", font=theme.scaled_font(12)).grid(
             row=row, column=0, sticky="w", padx=15, pady=(5, 0)
         )
         row += 1
@@ -183,7 +184,7 @@ class ProductFormDialog(CenteredDialog):
 
         # Error label
         self._error_label = ctk.CTkLabel(
-            body, text="", text_color="red", font=ctk.CTkFont(size=12)
+            body, text="", text_color="red", font=theme.scaled_font(12)
         )
         self._error_label.grid(row=row, column=0, padx=15, pady=(5, 0), sticky="w")
         row += 1

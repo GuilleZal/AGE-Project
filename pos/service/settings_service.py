@@ -48,6 +48,13 @@ class SettingsService:
             PROFIT_MARGIN_PCT: self.get_profit_margin_pct(),
         }
 
+    def get_font_scale_level(self) -> int:
+        val = self._settings_repo.get("font_scale_level")
+        return int(val) if val else 0
+
+    def set_font_scale_level(self, level: int) -> None:
+        self._settings_repo.set("font_scale_level", str(level))
+
     # -------------------------------------------------------- setters
 
     def set_low_stock_threshold(self, value: int) -> None:

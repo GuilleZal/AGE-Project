@@ -8,6 +8,7 @@ import tkinter as tk
 from typing import Any, Callable
 
 import customtkinter as ctk
+from pos.view import theme
 
 
 class ProductSearch(ctk.CTkFrame):
@@ -45,7 +46,7 @@ class ProductSearch(ctk.CTkFrame):
         self.grid_columnconfigure(1, weight=1)  # name entry stretches
 
         # --- barcode entry ---
-        ctk.CTkLabel(self, text="Código:", font=ctk.CTkFont(size=12)).grid(
+        ctk.CTkLabel(self, text="Código:", font=theme.scaled_font(12)).grid(
             row=0, column=0, padx=(10, 2), pady=5
         )
         self._barcode_var = tk.StringVar()
@@ -59,7 +60,7 @@ class ProductSearch(ctk.CTkFrame):
         self._barcode_entry.bind("<Return>", self._handle_barcode)
 
         # --- name search ---
-        ctk.CTkLabel(self, text="Buscar:", font=ctk.CTkFont(size=12)).grid(
+        ctk.CTkLabel(self, text="Buscar:", font=theme.scaled_font(12)).grid(
             row=0, column=2, padx=(5, 2), pady=5
         )
         self._name_var = tk.StringVar()
@@ -73,7 +74,7 @@ class ProductSearch(ctk.CTkFrame):
         self._name_entry.grid(row=0, column=3, padx=(0, 5), pady=5, sticky="ew")
 
         # --- category filter ---
-        ctk.CTkLabel(self, text="Categoría:", font=ctk.CTkFont(size=12)).grid(
+        ctk.CTkLabel(self, text="Categoría:", font=theme.scaled_font(12)).grid(
             row=0, column=4, padx=(5, 2), pady=5
         )
         self._category_options: dict[str, int | None] = {"Todas": None}

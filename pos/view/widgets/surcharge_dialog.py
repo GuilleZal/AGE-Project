@@ -1,4 +1,4 @@
-"""Discount dialog — modal for applying a percentage discount to the sale."""
+"""Surcharge dialog — modal for applying a percentage surcharge to the sale."""
 
 import tkinter as tk
 
@@ -8,8 +8,8 @@ from pos.view.widgets.centered_dialog import CenteredDialog
 from pos.view import theme
 
 
-class DiscountDialog(CenteredDialog):
-    """Modal dialog to apply a percentage discount to the current sale.
+class SurchargeDialog(CenteredDialog):
+    """Modal dialog to apply a percentage surcharge to the current sale.
 
     Parameters
     ----------
@@ -17,8 +17,8 @@ class DiscountDialog(CenteredDialog):
         Parent window.
     subtotal : int
         Current cart subtotal in whole ARS pesos.
-    current_discount_pct : float
-        Currently applied discount percentage (0-100).
+    current_surcharge_pct : float
+        Currently applied surcharge percentage (0-100).
     **kwargs :
         Forwarded to ``CenteredDialog``.
     """
@@ -27,10 +27,10 @@ class DiscountDialog(CenteredDialog):
         self,
         master: tk.Widget,
         subtotal: int,
-        current_discount_pct: float = 0.0,
+        current_surcharge_pct: float = 0.0,
         **kwargs,
     ) -> None:
-        super().__init__(master, width=350, height=280, title="Aplicar descuento", **kwargs)
+        super().__init__(master, width=350, height=280, title="Aplicar recargo", **kwargs)
 
         self._subtotal = subtotal
         self._result: float | None = None
@@ -46,7 +46,7 @@ class DiscountDialog(CenteredDialog):
         # --- percentage entry ---
         ctk.CTkLabel(
             self,
-            text="Porcentaje de descuento (%):",
+            text="Porcentaje de recargo (%):",
             font=theme.scaled_font(14, weight="bold"),
         ).pack(pady=(10, 5))
 
@@ -57,7 +57,7 @@ class DiscountDialog(CenteredDialog):
             font=theme.scaled_font(18),
             placeholder_text="Ej: 10",
         )
-        self._pct_entry.insert(0, str(int(current_discount_pct)) if current_discount_pct > 0 else "")
+        self._pct_entry.insert(0, str(int(current_surcharge_pct)) if current_surcharge_pct > 0 else "")
         self._pct_entry.pack(pady=(0, 10))
         self._pct_entry.focus_set()
 
@@ -66,7 +66,7 @@ class DiscountDialog(CenteredDialog):
             self,
             text="",
             font=theme.scaled_font(13),
-            text_color="#2ecc71",
+            text_color="#e74c3c",
         )
         self._preview_label.pack(pady=(0, 10))
         self._pct_entry.bind("<KeyRelease>", self._update_preview)
@@ -110,7 +110,7 @@ class DiscountDialog(CenteredDialog):
 
     @property
     def result(self) -> float | None:
-        """Discount percentage (0-100) on confirm, ``None`` on cancel."""
+        """Surcharge percentage (0-100) on confirm, ``None`` on cancel."""
         return self._result
 
     # --------------------------------------------------------------- private ---
@@ -137,15 +137,15 @@ class DiscountDialog(CenteredDialog):
             self._preview_label.configure(text="El porcentaje no puede superar 100%", text_color="red")
             return
 
-        discount_amount = int(self._subtotal * pct / 100)
-        final_total = self._subtotal - discount_amount
+        surcharge_amount = int(self._subtotal * pct / 100)
+        final_total = self._subtotal + surcharge_amount
         self._preview_label.configure(
-            text=f"Descuento: ${discount_amount:,} → Total: ${final_total:,}",
-            text_color="#2ecc71",
+            text=f"Recargo: ${surcharge_amount:,} → Total: ${final_total:,}",
+            text_color="#e74c3c",
         )
 
     def _confirm(self) -> None:
-        """Validate and return the discount percentage."""
+        """Validate and return the surcharge percentage."""
         raw = self._pct_entry.get().strip()
 
         if not raw:

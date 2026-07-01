@@ -20,6 +20,7 @@ from pos.view.widgets.column_persistence import (
     apply_treeview_widths,
 )
 from pos.view.widgets.treeview_sorting import add_sorting_to_treeview
+from pos.view import theme
 
 
 class ProductView(ctk.CTkFrame):
@@ -83,6 +84,7 @@ class ProductView(ctk.CTkFrame):
 
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(1, weight=1)  # treeview row stretches
+        self.grid_rowconfigure(2, weight=0)  # action bar fixed
 
         # --- row 0: search bar ---
         self._search_bar = ProductSearch(
@@ -167,7 +169,7 @@ class ProductView(ctk.CTkFrame):
             self._action_frame,
             text="＋ Nuevo Producto",
             width=150,
-            font=ctk.CTkFont(size=13, weight="bold"),
+            font=theme.scaled_font(13, weight="bold"),
             fg_color="#28a745",
             command=self._controller_create,
         ).pack(side="left", padx=3)
@@ -176,7 +178,7 @@ class ProductView(ctk.CTkFrame):
             self._action_frame,
             text="📋 Gestionar",
             width=140,
-            font=ctk.CTkFont(size=13, weight="bold"),
+            font=theme.scaled_font(13, weight="bold"),
             fg_color="#1f538d",
             command=self._handle_management,
         ).pack(side="left", padx=3)
@@ -486,6 +488,8 @@ class ProductView(ctk.CTkFrame):
             foreground=fg,
             fieldbackground=bg,
             borderwidth=0,
+            font=theme.scaled_treeview_font(),
+            rowheight=24 + theme.get_offset() * 2,
         )
         self._style.configure(
             "Treeview.Heading",
@@ -493,7 +497,7 @@ class ProductView(ctk.CTkFrame):
             foreground="#ffffff",
             relief="raised",
             borderwidth=1,
-            font=("Segoe UI", 10, "bold"),
+            font=theme.scaled_treeview_font("bold"),
         )
         self._style.map(
             "Treeview",
@@ -631,7 +635,7 @@ class _CategoryCreateDialog(ctk.CTkToplevel):
         ctk.CTkLabel(
             self,
             text="Nombre de la nueva categoría:",
-            font=ctk.CTkFont(size=14),
+            font=theme.scaled_font(14),
         ).pack(pady=(20, 10))
 
         self._entry = ctk.CTkEntry(self, width=250, placeholder_text="Ej: Vinos")
@@ -640,7 +644,7 @@ class _CategoryCreateDialog(ctk.CTkToplevel):
         self._entry.focus_set()
 
         self._error_label = ctk.CTkLabel(
-            self, text="", text_color="red", font=ctk.CTkFont(size=12)
+            self, text="", text_color="red", font=theme.scaled_font(12)
         )
         self._error_label.pack()
 

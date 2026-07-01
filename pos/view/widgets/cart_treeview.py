@@ -15,6 +15,7 @@ from pos.view.widgets.column_persistence import (
     apply_treeview_widths,
 )
 from pos.view.widgets.treeview_sorting import add_sorting_to_treeview
+from pos.view import theme
 
 
 class CartTreeview(ctk.CTkFrame):
@@ -167,6 +168,8 @@ class CartTreeview(ctk.CTkFrame):
             foreground=fg,
             fieldbackground=bg,
             borderwidth=0,
+            font=theme.scaled_treeview_font(),
+            rowheight=24 + theme.get_offset() * 2,
         )
         self._style.configure(
             "Treeview.Heading",
@@ -174,7 +177,7 @@ class CartTreeview(ctk.CTkFrame):
             foreground="#ffffff",
             relief="raised",
             borderwidth=1,
-            font=("Segoe UI", 10, "bold"),
+            font=theme.scaled_treeview_font("bold"),
         )
         self._style.map(
             "Treeview",

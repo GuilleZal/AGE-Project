@@ -31,6 +31,8 @@ from pos.view.widgets.column_persistence import (
     apply_treeview_widths,
 )
 from pos.view.widgets.treeview_sorting import add_sorting_to_treeview
+from pos.view import theme
+from pos.view.theme import get_offset
 
 
 class ReportView(ctk.CTkFrame):
@@ -120,7 +122,7 @@ class ReportView(ctk.CTkFrame):
         ctk.CTkLabel(
             selector_frame,
             text="Período:",
-            font=ctk.CTkFont(size=14, weight="bold"),
+            font=theme.scaled_font(14, weight="bold"),
         ).pack(side="left", padx=(15, 5))
 
         self._period_var = tk.StringVar(value="Hoy")
@@ -138,7 +140,7 @@ class ReportView(ctk.CTkFrame):
         self._custom_frame.pack(side="left", padx=10)
 
         ctk.CTkLabel(
-            self._custom_frame, text="Desde:", font=ctk.CTkFont(size=12)
+            self._custom_frame, text="Desde:", font=theme.scaled_font(12)
         ).pack(side="left", padx=2)
         self._start_entry = DateEntry(
             self._custom_frame,
@@ -154,7 +156,7 @@ class ReportView(ctk.CTkFrame):
         self._start_entry.pack(side="left", padx=2)
 
         ctk.CTkLabel(
-            self._custom_frame, text="Hasta:", font=ctk.CTkFont(size=12)
+            self._custom_frame, text="Hasta:", font=theme.scaled_font(12)
         ).pack(side="left", padx=(5, 2))
         self._end_entry = DateEntry(
             self._custom_frame,
@@ -221,14 +223,14 @@ class ReportView(ctk.CTkFrame):
             ctk.CTkLabel(
                 card,
                 text=label,
-                font=ctk.CTkFont(size=11),
+                font=theme.scaled_font(11),
                 text_color="#888",
             ).pack(pady=(8, 2))
 
             value_lbl = ctk.CTkLabel(
                 card,
                 text=default,
-                font=ctk.CTkFont(size=20, weight="bold"),
+                font=theme.scaled_font(20, weight="bold"),
             )
             value_lbl.pack(pady=(0, 8))
             self._metric_cards[key] = value_lbl
@@ -250,7 +252,7 @@ class ReportView(ctk.CTkFrame):
         ctk.CTkLabel(
             top_header,
             text="Top Productos más vendidos",
-            font=ctk.CTkFont(size=14, weight="bold"),
+            font=theme.scaled_font(14, weight="bold"),
         ).grid(row=0, column=0, sticky="w", padx=10, pady=5)
 
         # Limit selector
@@ -267,7 +269,7 @@ class ReportView(ctk.CTkFrame):
         ctk.CTkLabel(
             top_header,
             text="Ver Top:",
-            font=ctk.CTkFont(size=12),
+            font=theme.scaled_font(12),
         ).grid(row=0, column=2, sticky="e", padx=(5, 2))
 
         self._export_top_btn = ctk.CTkButton(
@@ -336,7 +338,7 @@ class ReportView(ctk.CTkFrame):
         ctk.CTkLabel(
             low_header,
             text="⚠ Productos bajo stock",
-            font=ctk.CTkFont(size=14, weight="bold"),
+            font=theme.scaled_font(14, weight="bold"),
             text_color="#ff6b6b",
         ).grid(row=0, column=0, sticky="w", padx=10, pady=5)
 
@@ -412,7 +414,7 @@ class ReportView(ctk.CTkFrame):
         ctk.CTkLabel(
             self._chart_frame,
             text="Ventas por Método de Pago",
-            font=ctk.CTkFont(size=14, weight="bold"),
+            font=theme.scaled_font(14, weight="bold"),
         ).grid(row=0, column=0, sticky="n", pady=(10, 5))
 
         # Placeholder for matplotlib canvas
@@ -427,7 +429,7 @@ class ReportView(ctk.CTkFrame):
         ctk.CTkLabel(
             self._chart_canvas_frame,
             text="[ Gráfico circular - matplotlib ]",
-            font=ctk.CTkFont(size=12),
+            font=theme.scaled_font(12),
             text_color="#666",
         ).pack(expand=True)
 
@@ -441,7 +443,7 @@ class ReportView(ctk.CTkFrame):
         ctk.CTkLabel(
             summary_frame,
             text="Resumen de Egresos y Pérdidas",
-            font=ctk.CTkFont(size=13, weight="bold"),
+            font=theme.scaled_font(13, weight="bold"),
         ).grid(row=0, column=0, sticky="w", padx=10, pady=(10, 5))
 
         # Export button row
@@ -472,13 +474,13 @@ class ReportView(ctk.CTkFrame):
             ctk.CTkLabel(
                 summary_frame,
                 text=label,
-                font=ctk.CTkFont(size=font_size, weight=font_weight),
+                font=theme.scaled_font(font_size, weight=font_weight),
             ).grid(row=idx, column=0, sticky="w", padx=10, pady=5)
 
             value_lbl = ctk.CTkLabel(
                 summary_frame,
                 text=default,
-                font=ctk.CTkFont(size=font_size, weight=font_weight),
+                font=theme.scaled_font(font_size, weight=font_weight),
                 text_color=color,
             )
             value_lbl.grid(row=idx, column=1, sticky="e", padx=10, pady=5)
@@ -586,7 +588,7 @@ class ReportView(ctk.CTkFrame):
             ctk.CTkLabel(
                 self._chart_canvas_frame,
                 text="Sin datos de métodos de pago",
-                font=ctk.CTkFont(size=12),
+                font=theme.scaled_font(12),
                 text_color="#666",
             ).pack(expand=True)
             return
@@ -614,17 +616,17 @@ class ReportView(ctk.CTkFrame):
                 va="center",
                 ha="left",
                 color="white",
-                fontsize=9,
+                fontsize=9 + get_offset(),
                 fontweight="bold",
             )
 
         # Configure axes
         ax.set_yticks(y_pos)
-        ax.set_yticklabels(labels, color="white", fontsize=9)
+        ax.set_yticklabels(labels, color="white", fontsize=9 + get_offset())
         ax.set_xlim(0, max(sizes) + 15)  # Add padding for labels
-        ax.set_xlabel("%", color="white", fontsize=8)
-        ax.tick_params(axis="x", colors="white", labelsize=8)
-        ax.tick_params(axis="y", colors="white", labelsize=9)
+        ax.set_xlabel("%", color="white", fontsize=8 + get_offset())
+        ax.tick_params(axis="x", colors="white", labelsize=8 + get_offset())
+        ax.tick_params(axis="y", colors="white", labelsize=9 + get_offset())
 
         # Remove spines
         for spine in ax.spines.values():
@@ -771,6 +773,8 @@ class ReportView(ctk.CTkFrame):
             foreground=fg,
             fieldbackground=bg,
             borderwidth=0,
+            font=theme.scaled_treeview_font(),
+            rowheight=24 + theme.get_offset() * 2,
         )
         self._style.configure(
             "Treeview.Heading",
@@ -778,7 +782,7 @@ class ReportView(ctk.CTkFrame):
             foreground="#ffffff",
             relief="raised",
             borderwidth=1,
-            font=("Segoe UI", 10, "bold"),
+            font=theme.scaled_treeview_font("bold"),
         )
         self._style.map(
             "Treeview",
