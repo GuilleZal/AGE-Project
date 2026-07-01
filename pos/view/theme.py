@@ -1,5 +1,6 @@
 """Central font scaling module for the POS application."""
 import customtkinter as ctk
+from tkinter import ttk
 from pos.repository.settings_repo import SettingsRepo
 
 SCALE_LEVELS = [0, 2, 4, 6]
@@ -15,6 +16,45 @@ BG_COLORS = {
     "Gris": "#4a4a4a",
     "Crema": "#f5f5dc",
     "Marrón": "#8b6914",
+}
+
+# Contrast mapping: defines text and panel colors for each background
+CONTRAST_MAP = {
+    "#2b2b2b": {  # Default dark gray
+        "text": "#F5F5F5",
+        "panel": "#222222",
+        "treeview_bg": "#222222",
+        "treeview_fg": "#F5F5F5",
+        "treeview_header": "#1a1a1a",
+    },
+    "#1e3a5f": {  # Azul (dark)
+        "text": "#F5F5F5",
+        "panel": "#162d4a",  # Darker variant for depth
+        "treeview_bg": "#162d4a",
+        "treeview_fg": "#F5F5F5",
+        "treeview_header": "#0f1f33",
+    },
+    "#4a4a4a": {  # Gris (dark)
+        "text": "#F5F5F5",
+        "panel": "#3a3a3a",  # Darker variant for depth
+        "treeview_bg": "#3a3a3a",
+        "treeview_fg": "#F5F5F5",
+        "treeview_header": "#2a2a2a",
+    },
+    "#f5f5dc": {  # Crema (light)
+        "text": "#111111",
+        "panel": "#e8e8d0",  # Slightly darker variant
+        "treeview_bg": "#ffffff",  # Pure white for contrast
+        "treeview_fg": "#111111",
+        "treeview_header": "#d0d0b8",
+    },
+    "#8b6914": {  # Marrón (dark)
+        "text": "#F5F5F5",
+        "panel": "#6d5210",  # Darker variant for depth
+        "treeview_bg": "#6d5210",
+        "treeview_fg": "#F5F5F5",
+        "treeview_header": "#4f3b0c",
+    },
 }
 
 def get_offset() -> int:
@@ -37,6 +77,10 @@ def get_font_scale_level() -> int:
 
 def get_bg_color() -> str:
     return _current_bg_color
+
+def get_contrast_map() -> dict:
+    """Get the contrast mapping for the current background color."""
+    return CONTRAST_MAP.get(_current_bg_color, CONTRAST_MAP["#2b2b2b"])
 
 def set_on_change_callback(callback) -> None:
     """Set callback to invoke when font scale changes (for live refresh)."""
@@ -80,3 +124,55 @@ def load_font_scale(db) -> None:
     bg_val = repo.get(BG_COLOR_KEY)
     if bg_val is not None and bg_val in BG_COLORS:
         _current_bg_color = BG_COLORS[bg_val]
+
+def apply_theme_to_widget(widget, contrast: dict) -> None:
+    """Recursively apply theme colors to a widget and all its children.
+    
+    Args:
+        widget: The root widget to start from
+        contrast: Dictionary with keys: text, panel, treeview_bg, treeview_fg, treeview_header
+    """
+    # Apply to current widget based on type
+    widget_type = type(widget).__name__
+    
+    if widget_type == "CTkFrame":
+        # Check if frame is transparent before applying
+        try:
+            current_fg = widget.cget("fg_color")
+            if current_fg != "transparent":
+                widget.configure(fg_color=contrast["panel"])
+        except:
+            pass
+    
+    elif widget_type in ("CTkLabel", "CTkEntry", "CTkRadioButton"):
+        try:
+            widget.configure(text_color=contrast["text"])
+        except:
+            pass
+    
+    # CRITICAL: Do NOT modify CTkButton - their colors are functional
+    
+    # Update ttk.Treeview styles if this is a Treeview widget
+    if widget_type == "Treeview":
+        try:
+            style = ttk.Style(widget)
+            style.configure(
+                "Treeview",
+                background=contrast["treeview_bg"],
+                foreground=contrast["treeview_fg"],
+                fieldbackground=contrast["treeview_bg"],
+            )
+            style.configure(
+                "Treeview.Heading",
+                background=contrast["treeview_header"],
+                foreground=contrast["treeview_fg"],
+            )
+        except:
+            pass
+    
+    # Recursively process children
+    try:
+        for child in widget.winfo_children():
+            apply_theme_to_widget(child, contrast)
+    except:
+        pass  # Some widgets don't support winfo_children()

@@ -71,6 +71,9 @@ class MainWindow(ctk.CTk):
                 command=lambda name=color_name: self._on_bg_color_changed(name),
                 font=("Segoe UI", 10),
             )
+        
+        # Set callback for theme propagation
+        theme.set_on_change_callback(self._on_theme_changed)
 
         # --- tab container ---
         self._tabview = ctk.CTkTabview(self, command=self._on_tab_changed)
@@ -197,11 +200,29 @@ class MainWindow(ctk.CTk):
     def _on_bg_color_changed(self, color_name: str) -> None:
         """Handle background color change."""
         theme.set_bg_color(color_name)
-        self.configure(fg_color=theme.get_bg_color())
-        self._tabview.configure(fg_color=theme.get_bg_color())
-        # Update all tab frames
+        self._apply_current_theme()
+
+    def _on_theme_changed(self) -> None:
+        """Handle any theme change (font scale or background color)."""
+        self._apply_current_theme()
+
+    def _apply_current_theme(self) -> None:
+        """Apply the current theme settings to all widgets."""
+        bg_color = theme.get_bg_color()
+        contrast = theme.get_contrast_map()
+        
+        # Apply to root window
+        self.configure(fg_color=bg_color)
+        
+        # Apply to tabview
+        self._tabview.configure(fg_color=bg_color)
+        
+        # Apply to all tab frames
         for frame in self._tab_frames.values():
-            frame.configure(fg_color=theme.get_bg_color())
+            frame.configure(fg_color=bg_color)
+        
+        # Recursively apply theme to all widgets
+        theme.apply_theme_to_widget(self, contrast)
 
     def _on_tab_changed(self) -> None:
         """Handle tab change — fire registered callbacks for the active tab."""
