@@ -43,7 +43,8 @@ class SaleView(ctk.CTkFrame):
         callbacks: dict[str, Callable[..., Any]] | None = None,
         **kwargs,
     ) -> None:
-        super().__init__(master, **kwargs)
+        border_color = theme.get_contrast_map()["search_border"]
+        super().__init__(master, fg_color="transparent", border_width=2, border_color=border_color, **kwargs)
         callbacks = callbacks or {}
 
         # Callback slots — wired by main_window.py during integration
@@ -436,7 +437,7 @@ class SaleView(ctk.CTkFrame):
         self._barcode_entry.focus_set()
 
     def update_theme(self) -> None:
-        """Update search button colors when theme changes."""
+        """Update search button colors and border when theme changes."""
         contrast = theme.get_contrast_map()
         self._search_btn.configure(
             fg_color=contrast["search_bg"],
@@ -444,6 +445,7 @@ class SaleView(ctk.CTkFrame):
             border_color=contrast["search_border"],
             text_color=contrast["text"],
         )
+        self.configure(border_color=contrast["search_border"])
 
     def show_receipt(self, sale_data: dict[str, Any]) -> None:
         """Display an on-screen receipt preview after a successful sale.

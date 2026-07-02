@@ -181,6 +181,24 @@ def apply_theme_to_widget(widget, contrast: dict) -> None:
         except:
             pass
     
+    elif widget_type == "CTkTabview":
+        try:
+            widget.configure(
+                fg_color="transparent",
+                segmented_button_selected_color=contrast["panel"],
+                segmented_button_unselected_color=contrast["search_bg"],
+                text_color=contrast["text"],
+            )
+            # The segmented button bar is a child — style it separately
+            seg_btn = widget._segmented_button
+            seg_btn.configure(
+                fg_color=contrast["entry_bg"],
+                selected_color=contrast["panel"],
+                unselected_color=contrast["search_bg"],
+            )
+        except Exception:
+            pass
+
     # CRITICAL: Do NOT modify CTkButton - their colors are functional
     
     # Update ttk.Treeview styles if this is a Treeview widget
