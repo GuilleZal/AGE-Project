@@ -72,7 +72,8 @@ class ReportView(ctk.CTkFrame):
         callbacks: dict[str, Callable[..., Any]] | None = None,
         **kwargs,
     ) -> None:
-        super().__init__(master, **kwargs)
+        border_color = theme.get_contrast_map()["search_border"]
+        super().__init__(master, fg_color="transparent", border_width=2, border_color=border_color, **kwargs)
         callbacks = callbacks or {}
 
         self._on_generate: (
