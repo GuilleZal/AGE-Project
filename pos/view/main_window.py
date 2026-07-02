@@ -186,6 +186,7 @@ class MainWindow(ctk.CTk):
         level = level_map.get(choice, 0)
         theme.set_font_scale_level(level)
         self.refresh_all_views()
+        self._apply_current_theme()
 
     def _show_color_palette(self) -> None:
         """Show color palette popup menu."""
@@ -220,6 +221,11 @@ class MainWindow(ctk.CTk):
         # Apply to all tab frames
         for frame in self._tab_frames.values():
             frame.configure(fg_color=bg_color)
+        
+        # Update sale view search button if it exists
+        sale_view = self._views.get("Ventas")
+        if sale_view and hasattr(sale_view, 'update_theme'):
+            sale_view.update_theme()
         
         # Recursively apply theme to all widgets
         theme.apply_theme_to_widget(self, contrast)

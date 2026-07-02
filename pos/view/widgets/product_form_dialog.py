@@ -210,6 +210,7 @@ class ProductFormDialog(CenteredDialog):
 
         self._name_entry.focus_set()
         self._name_entry.bind("<Return>", lambda _e: self._confirm())
+        theme.apply_theme_to_widget(self, theme.get_contrast_map())
 
     @property
     def result(self) -> dict[str, Any] | None:

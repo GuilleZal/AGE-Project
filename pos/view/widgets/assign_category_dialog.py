@@ -144,21 +144,22 @@ class AssignCategoryDialog(CenteredDialog):
         self._tree.column("categoria", width=200, anchor="w")
 
         # Configure style for dark theme
+        contrast = theme.get_contrast_map()
         style = ttk.Style(self)
         style.theme_use("clam")
         style.configure(
             "Treeview",
-            background="#2b2b2b",
-            foreground="#dce4ee",
-            fieldbackground="#2b2b2b",
+            background=contrast["treeview_bg"],
+            foreground=contrast["treeview_fg"],
+            fieldbackground=contrast["treeview_bg"],
             borderwidth=0,
             font=theme.scaled_treeview_font(),
             rowheight=24 + theme.get_offset() * 2,
         )
         style.configure(
             "Treeview.Heading",
-            background="#505050",
-            foreground="#ffffff",
+            background=contrast["treeview_header"],
+            foreground=contrast["treeview_fg"],
             relief="raised",
             borderwidth=1,
             font=theme.scaled_treeview_font("bold"),
@@ -208,6 +209,7 @@ class AssignCategoryDialog(CenteredDialog):
             font=theme.scaled_font(13, weight="bold"),
             command=self._confirm,
         ).pack(side="right", padx=10)
+        theme.apply_theme_to_widget(self, theme.get_contrast_map())
 
     # ---------------------------------------------------------- filtering
 

@@ -684,7 +684,10 @@ class CashRegisterView(ctk.CTkFrame):
     def _configure_style(self) -> None:
         """Configure ttk styles to blend with CTk dark theme."""
         self._style.theme_use("clam")
-        bg, fg, select_bg = "#2b2b2b", "#dce4ee", "#1f538d"
+        contrast = theme.get_contrast_map()
+        bg = contrast["treeview_bg"]
+        fg = contrast["treeview_fg"]
+        select_bg = "#1f538d"
         self._style.configure(
             "Treeview",
             background=bg,
@@ -696,8 +699,8 @@ class CashRegisterView(ctk.CTkFrame):
         )
         self._style.configure(
             "Treeview.Heading",
-            background="#505050",
-            foreground="#ffffff",
+            background=contrast["treeview_header"],
+            foreground=fg,
             relief="raised",
             borderwidth=1,
             font=theme.scaled_treeview_font("bold"),
@@ -805,6 +808,7 @@ class _AmountDialog(ctk.CTkToplevel):
 
         self.geometry("320x180")
         self._center_on_master(master)
+        theme.apply_theme_to_widget(self, theme.get_contrast_map())
 
     @property
     def result(self) -> int | None:
@@ -903,6 +907,7 @@ class _CloseDialog(ctk.CTkToplevel):
         self.geometry("380x360")
         self._center_on_master(master)
         self._amount_entry.focus_set()
+        theme.apply_theme_to_widget(self, theme.get_contrast_map())
 
     @property
     def result(self) -> dict[str, Any] | None:

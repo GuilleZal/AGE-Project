@@ -478,8 +478,9 @@ class ProductView(ctk.CTkFrame):
         """Configure ttk styles to blend with CTk dark theme."""
         self._style.theme_use("clam")
 
-        bg = "#2b2b2b"
-        fg = "#dce4ee"
+        contrast = theme.get_contrast_map()
+        bg = contrast["treeview_bg"]
+        fg = contrast["treeview_fg"]
         select_bg = "#1f538d"
 
         self._style.configure(
@@ -493,8 +494,8 @@ class ProductView(ctk.CTkFrame):
         )
         self._style.configure(
             "Treeview.Heading",
-            background="#505050",
-            foreground="#ffffff",
+            background=contrast["treeview_header"],
+            foreground=fg,
             relief="raised",
             borderwidth=1,
             font=theme.scaled_treeview_font("bold"),
@@ -668,6 +669,7 @@ class _CategoryCreateDialog(ctk.CTkToplevel):
 
         self.geometry("350x200")
         self._center_on_master(master)
+        theme.apply_theme_to_widget(self, theme.get_contrast_map())
 
     @property
     def result(self) -> str | None:

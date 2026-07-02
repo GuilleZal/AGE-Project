@@ -82,6 +82,7 @@ class QuickCreateDialog(CenteredDialog):
         ).pack(side="left", padx=5)
 
         self._name_entry.focus_set()
+        theme.apply_theme_to_widget(self, theme.get_contrast_map())
 
     @property
     def result(self) -> dict[str, Any] | None:

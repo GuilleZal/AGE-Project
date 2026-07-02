@@ -766,7 +766,10 @@ class ReportView(ctk.CTkFrame):
     def _configure_style(self) -> None:
         """Configure Treeview style for dark theme."""
         self._style.theme_use("clam")
-        bg, fg, select_bg = "#2b2b2b", "#dce4ee", "#1f538d"
+        contrast = theme.get_contrast_map()
+        bg = contrast["treeview_bg"]
+        fg = contrast["treeview_fg"]
+        select_bg = "#1f538d"
         self._style.configure(
             "Treeview",
             background=bg,
@@ -778,8 +781,8 @@ class ReportView(ctk.CTkFrame):
         )
         self._style.configure(
             "Treeview.Heading",
-            background="#505050",
-            foreground="#ffffff",
+            background=contrast["treeview_header"],
+            foreground=fg,
             relief="raised",
             borderwidth=1,
             font=theme.scaled_treeview_font("bold"),

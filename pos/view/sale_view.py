@@ -104,14 +104,18 @@ class SaleView(ctk.CTkFrame):
         self._barcode_entry.grid(row=0, column=0, sticky="ew", padx=(0, 5))
 
         # --- search button (magnifying glass) ---
+        search_contrast = theme.get_contrast_map()
         self._search_btn = ctk.CTkButton(
             self._top_frame,
             text="🔍",
             width=50,
             height=45,
             font=theme.scaled_font(18),
-            fg_color="#2b2b2b",
-            hover_color="#3b3b3b",
+            fg_color=search_contrast["search_bg"],
+            hover_color=search_contrast["panel"],
+            border_width=2,
+            border_color=search_contrast["search_border"],
+            text_color=theme.get_contrast_map()["text"],
             command=self._handle_search_button,
         )
         self._search_btn.grid(row=0, column=1, sticky="e")
@@ -187,7 +191,7 @@ class SaleView(ctk.CTkFrame):
         ).grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 6))
 
         # Separator line
-        separator = ctk.CTkFrame(totals_frame, height=2, fg_color="#3e3e3e")
+        separator = ctk.CTkFrame(totals_frame, height=2, fg_color="#c0c0c0")
         separator.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(0, 8))
 
         # Subtotal row
@@ -281,7 +285,7 @@ class SaleView(ctk.CTkFrame):
                 payment_methods_frame,
                 fg_color="#2b2b2b" if method == "cash" else "transparent",
                 border_width=2,
-                border_color="#0078d4" if method == "cash" else "#3e3e3e",
+                border_color="#0078d4" if method == "cash" else "#c0c0c0",
                 corner_radius=10,
                 cursor="hand2",
             )
@@ -430,6 +434,16 @@ class SaleView(ctk.CTkFrame):
     def focus_barcode(self) -> None:
         """Force focus onto the barcode entry widget."""
         self._barcode_entry.focus_set()
+
+    def update_theme(self) -> None:
+        """Update search button colors when theme changes."""
+        contrast = theme.get_contrast_map()
+        self._search_btn.configure(
+            fg_color=contrast["search_bg"],
+            hover_color=contrast["panel"],
+            border_color=contrast["search_border"],
+            text_color=contrast["text"],
+        )
 
     def show_receipt(self, sale_data: dict[str, Any]) -> None:
         """Display an on-screen receipt preview after a successful sale.
@@ -646,7 +660,7 @@ class SaleView(ctk.CTkFrame):
             else:
                 frame.configure(
                     fg_color="transparent",
-                    border_color="#3e3e3e",
+                    border_color="#c0c0c0",
                 )
         
         # Show/hide amount received field based on payment method

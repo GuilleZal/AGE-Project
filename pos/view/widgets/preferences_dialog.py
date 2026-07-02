@@ -160,6 +160,7 @@ class PreferencesDialog(CenteredDialog):
         ).pack(side="left", padx=15)
 
         self._threshold_entry.focus_set()
+        theme.apply_theme_to_widget(self, theme.get_contrast_map())
 
     @property
     def applied(self) -> bool:

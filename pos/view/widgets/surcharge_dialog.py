@@ -107,6 +107,7 @@ class SurchargeDialog(CenteredDialog):
         ).pack(side="left", padx=5)
 
         self._pct_entry.bind("<Return>", lambda _e: self._confirm())
+        theme.apply_theme_to_widget(self, theme.get_contrast_map())
 
     @property
     def result(self) -> float | None:

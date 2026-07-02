@@ -273,6 +273,7 @@ class ProductManagementDialog(CenteredDialog):
             btn_frame, text="📋 Asignar categoría", width=150,
             fg_color="#2d5a3d", command=self._assign_category,
         ).pack(side="left", padx=5)
+        theme.apply_theme_to_widget(self, theme.get_contrast_map())
 
     # ================================================ product actions
 

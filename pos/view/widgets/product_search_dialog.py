@@ -47,21 +47,22 @@ class ProductSearchDialog(CenteredDialog):
         self._category_map = {cat['id']: cat['name'] for cat in self._categories}
 
         # Configure treeview style
+        contrast = theme.get_contrast_map()
         self._style = ttk.Style(self)
         self._style.theme_use("clam")
         self._style.configure(
             "Treeview",
-            background="#2b2b2b",
-            foreground="#dce4ee",
-            fieldbackground="#2b2b2b",
+            background=contrast["treeview_bg"],
+            foreground=contrast["treeview_fg"],
+            fieldbackground=contrast["treeview_bg"],
             borderwidth=0,
             font=theme.scaled_treeview_font(),
             rowheight=24 + theme.get_offset() * 2,
         )
         self._style.configure(
             "Treeview.Heading",
-            background="#505050",
-            foreground="#ffffff",
+            background=contrast["treeview_header"],
+            foreground=contrast["treeview_fg"],
             relief="raised",
             borderwidth=1,
             font=theme.scaled_treeview_font("bold"),
@@ -69,7 +70,7 @@ class ProductSearchDialog(CenteredDialog):
         self._style.map(
             "Treeview",
             background=[("selected", "#1f538d")],
-            foreground=[("selected", "#dce4ee")],
+            foreground=[("selected", contrast["treeview_fg"])],
         )
 
         # Search bar
@@ -145,6 +146,7 @@ class ProductSearchDialog(CenteredDialog):
         self._tree.pack(fill="both", expand=True, padx=10, pady=(5, 5))
 
         self._populate_tree(products)
+        theme.apply_theme_to_widget(self, theme.get_contrast_map())
 
     def _populate_tree(self, products: list[Product]) -> None:
         """Clear and repopulate the treeview with given products."""

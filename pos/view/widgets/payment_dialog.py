@@ -119,6 +119,7 @@ class PaymentDialog(CenteredDialog):
 
         # Initial state
         self._on_method_changed()
+        theme.apply_theme_to_widget(self, theme.get_contrast_map())
 
     @property
     def result(self) -> dict[str, Any] | None:

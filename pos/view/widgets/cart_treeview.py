@@ -158,9 +158,10 @@ class CartTreeview(ctk.CTkFrame):
         """Configure ttk styles to blend with CTk dark theme."""
         self._style.theme_use("clam")
 
-        bg = "#2b2b2b"          # matches CTk dark background
-        fg = "#dce4ee"          # light text
-        select_bg = "#1f538d"   # blue highlight
+        contrast = theme.get_contrast_map()
+        bg = contrast["treeview_bg"]
+        fg = contrast["treeview_fg"]
+        select_bg = "#1f538d"
 
         self._style.configure(
             "Treeview",
@@ -173,8 +174,8 @@ class CartTreeview(ctk.CTkFrame):
         )
         self._style.configure(
             "Treeview.Heading",
-            background="#505050",
-            foreground="#ffffff",
+            background=contrast["treeview_header"],
+            foreground=fg,
             relief="raised",
             borderwidth=1,
             font=theme.scaled_treeview_font("bold"),
