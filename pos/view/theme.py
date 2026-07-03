@@ -6,9 +6,18 @@ from pos.repository.settings_repo import SettingsRepo
 SCALE_LEVELS = [0, 2, 4, 6]
 SETTING_KEY = "font_scale_level"
 BG_COLOR_KEY = "bg_color"
+RESOLUTION_KEY = "window_resolution"
 _current_level: int = 0
 _current_bg_color: str = "#2b2b2b"  # Default dark gray
+_current_resolution: str = "1280x720"  # Default resolution
 _on_change_callback = None
+
+# Window resolution presets
+RESOLUTIONS = {
+    "Compacto": "800x600",
+    "Estándar": "1024x768",
+    "Moderno": "1280x720",
+}
 
 # Background color presets
 BG_COLORS = {
@@ -98,6 +107,18 @@ def get_font_scale_level() -> int:
 def get_bg_color() -> str:
     return _current_bg_color
 
+def get_resolution() -> str:
+    return _current_resolution
+
+def set_resolution(resolution_name: str, db=None) -> None:
+    """Set window resolution by preset name."""
+    global _current_resolution
+    if resolution_name in RESOLUTIONS:
+        _current_resolution = RESOLUTIONS[resolution_name]
+        if db is not None:
+            repo = SettingsRepo(db)
+            repo.set(RESOLUTION_KEY, resolution_name)
+
 def get_contrast_map() -> dict:
     """Get the contrast mapping for the current background color."""
     return CONTRAST_MAP.get(_current_bg_color, CONTRAST_MAP["#2b2b2b"])
@@ -130,7 +151,7 @@ def set_bg_color(color_name: str, db=None) -> None:
             _on_change_callback()
 
 def load_font_scale(db) -> None:
-    global _current_level, _current_bg_color
+    global _current_level, _current_bg_color, _current_resolution
     repo = SettingsRepo(db)
     val = repo.get(SETTING_KEY)
     if val is not None:
@@ -144,6 +165,10 @@ def load_font_scale(db) -> None:
     bg_val = repo.get(BG_COLOR_KEY)
     if bg_val is not None and bg_val in BG_COLORS:
         _current_bg_color = BG_COLORS[bg_val]
+    
+    res_val = repo.get(RESOLUTION_KEY)
+    if res_val is not None and res_val in RESOLUTIONS:
+        _current_resolution = RESOLUTIONS[res_val]
 
 def apply_theme_to_widget(widget, contrast: dict) -> None:
     """Recursively apply theme colors to a widget and all its children.

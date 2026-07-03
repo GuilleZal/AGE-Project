@@ -8,6 +8,8 @@ import tkinter as tk
 
 import customtkinter as ctk
 
+from pos.view import theme
+
 
 class CenteredDialog(ctk.CTkToplevel):
     """Base class for modal dialogs that center themselves on the parent window.
@@ -37,6 +39,11 @@ class CenteredDialog(ctk.CTkToplevel):
         resizable: tuple[bool, bool] = (False, False),
         **kwargs,
     ) -> None:
+        # Set theme-aware background color before calling super().__init__
+        contrast = theme.get_contrast_map()
+        if "fg_color" not in kwargs:
+            kwargs["fg_color"] = contrast["panel"]
+        
         super().__init__(master, **kwargs)
         self.title(title)
         self._width = width

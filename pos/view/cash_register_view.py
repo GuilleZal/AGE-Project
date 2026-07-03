@@ -72,7 +72,10 @@ class CashRegisterView(ctk.CTkFrame):
 
         # =========================================================== left side
 
-        self._left_frame = ctk.CTkFrame(self)
+        contrast = theme.get_contrast_map()
+        border_color = contrast["search_border"]
+
+        self._left_frame = ctk.CTkFrame(self, fg_color="transparent") # <-- Sin bordes
         self._left_frame.grid(
             row=0, column=0, sticky="nsew", padx=(10, 5), pady=10
         )
@@ -91,7 +94,7 @@ class CashRegisterView(ctk.CTkFrame):
 
         # -- balance panel --
         self._balance_frame = ctk.CTkFrame(
-            self._left_frame, fg_color="#2b2b2b"
+            self._left_frame, fg_color="transparent", border_width=2, border_color=border_color
         )
         self._balance_frame.grid(
             row=1, column=0, sticky="ew", padx=15, pady=5
@@ -123,33 +126,33 @@ class CashRegisterView(ctk.CTkFrame):
             self._balance_labels[key] = lbl
 
         # -- open / close buttons --
-        btn_frame = ctk.CTkFrame(self._left_frame)
+        btn_frame = ctk.CTkFrame(self._left_frame, fg_color="transparent", border_width=2, border_color=border_color)
         btn_frame.grid(row=2, column=0, pady=10, padx=15, sticky="ew")
 
         self._open_btn = ctk.CTkButton(
             btn_frame,
             text="🔓 Abrir caja",
-            width=140,
-            height=40,
+            width=150,  # <-- Ancho fijo garantizado
+            height=36,
             font=theme.scaled_font(14, weight="bold"),
             command=self._handle_open,
         )
-        self._open_btn.pack(side="left", padx=5)
+        self._open_btn.pack(side="left", expand=True, padx=(10, 5), pady=10) # <-- Quitamos fill="x"
 
         self._close_btn = ctk.CTkButton(
             btn_frame,
             text="🔒 Cerrar caja",
-            width=140,
-            height=40,
+            width=150,  # <-- Ancho fijo garantizado
+            height=36,
             font=theme.scaled_font(14, weight="bold"),
             fg_color="#8b1a1a",
             state="disabled",
             command=self._handle_close,
         )
-        self._close_btn.pack(side="left", padx=5)
-
+        self._close_btn.pack(side="left", expand=True, padx=(5, 10), pady=10) # <-- Quitamos fill="x"
+        
         # -- outflow form --
-        self._outflow_frame = ctk.CTkFrame(self._left_frame)
+        self._outflow_frame = ctk.CTkFrame(self._left_frame, fg_color="transparent", border_width=2, border_color=border_color)
         self._outflow_frame.grid(
             row=3, column=0, sticky="ew", padx=15, pady=10
         )
@@ -194,7 +197,7 @@ class CashRegisterView(ctk.CTkFrame):
 
         # ========================================================== right side
 
-        self._right_frame = ctk.CTkFrame(self)
+        self._right_frame = ctk.CTkFrame(self, fg_color="transparent") # <-- Sin bordes
         self._right_frame.grid(
             row=0, column=1, sticky="nsew", padx=(5, 10), pady=10
         )
@@ -203,7 +206,7 @@ class CashRegisterView(ctk.CTkFrame):
         self._right_frame.grid_columnconfigure(0, weight=1)
 
         # -- movement preview panel (above history) --
-        self._preview_frame = ctk.CTkFrame(self._right_frame)
+        self._preview_frame = ctk.CTkFrame(self._right_frame, fg_color="transparent", border_width=2, border_color=border_color)
         self._preview_frame.grid(
             row=0, column=0, sticky="nsew", padx=15, pady=(0, 5)
         )
@@ -266,12 +269,12 @@ class CashRegisterView(ctk.CTkFrame):
             yscrollcommand=self._preview_vscroll.set,
             xscrollcommand=self._preview_hscroll.set,
         )
-        self._preview_tree.grid(row=1, column=0, sticky="nsew", padx=5, pady=(0, 0))
-        self._preview_vscroll.grid(row=1, column=1, sticky="ns", pady=(0, 0))
-        self._preview_hscroll.grid(row=2, column=0, sticky="ew", padx=5, pady=(0, 5))
-
+        self._preview_tree.grid(row=1, column=0, sticky="nsew", padx=(10, 0), pady=(0, 0))
+        self._preview_vscroll.grid(row=1, column=1, sticky="ns", padx=(0, 10), pady=(0, 0))
+        self._preview_hscroll.grid(row=2, column=0, sticky="ew", padx=(10, 0), pady=(0, 10))
+        
         # -- history treeview (below preview) --
-        self._history_frame = ctk.CTkFrame(self._right_frame)
+        self._history_frame = ctk.CTkFrame(self._right_frame, fg_color="transparent", border_width=2, border_color=border_color)
         self._history_frame.grid(
             row=1, column=0, sticky="nsew", padx=15, pady=(0, 10)
         )
@@ -417,9 +420,9 @@ class CashRegisterView(ctk.CTkFrame):
             xscrollcommand=self._history_hscroll.set,
         )
 
-        self._history_tree.grid(row=2, column=0, sticky="nsew")
-        self._history_scroll.grid(row=2, column=1, sticky="ns")
-        self._history_hscroll.grid(row=3, column=0, sticky="ew")
+        self._history_tree.grid(row=2, column=0, sticky="nsew", padx=(10, 0), pady=(0, 0))
+        self._history_scroll.grid(row=2, column=1, sticky="ns", padx=(0, 10), pady=(0, 0))
+        self._history_hscroll.grid(row=3, column=0, sticky="ew", padx=(10, 0), pady=(0, 10))
 
         # Bind selection event to show movements preview
         self._history_tree.bind("<<TreeviewSelect>>", self._handle_history_select)

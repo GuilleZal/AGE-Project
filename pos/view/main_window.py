@@ -33,8 +33,19 @@ class MainWindow(ctk.CTk):
         super().__init__()
 
         self.title("Sistema POS")
-
-        # Center window on screen with optimized resolution
+        
+        # Apply saved resolution or default
+        saved_resolution = theme.get_resolution()
+        
+        # Extraemos el ancho y alto para actualizar las variables dinámicamente
+        width_str, height_str = saved_resolution.split('x')
+        self.WINDOW_WIDTH = int(width_str)
+        self.WINDOW_HEIGHT = int(height_str)
+        
+        # Lock window resizing and set absolute minimum
+        self.minsize(800, 600)
+        self.resizable(False, False)
+        
         self._center_on_screen()
 
         ctk.set_appearance_mode("dark")
@@ -69,6 +80,26 @@ class MainWindow(ctk.CTk):
             self._color_popup.add_command(
                 label=f"  {color_name}  ",
                 command=lambda name=color_name: self._on_bg_color_changed(name),
+                font=("Segoe UI", 10),
+            )
+        
+        # --- Window resolution button ---
+        self._resolution_btn = ctk.CTkButton(
+            self,
+            text="🖥️",
+            width=40,
+            height=32,
+            font=ctk.CTkFont(size=18),
+            command=self._show_resolution_menu,
+        )
+        self._resolution_btn.place(x=207, y=15)
+
+        # --- Resolution popup menu ---
+        self._resolution_popup = tk.Menu(self, tearoff=0, bg="#2b2b2b", fg="white")
+        for res_name, res_value in theme.RESOLUTIONS.items():
+            self._resolution_popup.add_command(
+                label=f"  {res_value}  ",
+                command=lambda value=res_value: self._on_resolution_changed(value),
                 font=("Segoe UI", 10),
             )
         
@@ -203,6 +234,43 @@ class MainWindow(ctk.CTk):
         theme.set_bg_color(color_name)
         self._apply_current_theme()
 
+    def _show_resolution_menu(self) -> None:
+        """Show resolution popup menu."""
+        try:
+            self._resolution_popup.tk_popup(
+                self.winfo_rootx() + 207,
+                self.winfo_rooty() + 50,
+            )
+        finally:
+            self._resolution_popup.grab_release()
+
+    def _on_resolution_changed(self, resolution_value: str) -> None:
+        """Handle window resolution change."""
+        # Actualizamos las variables de la ventana con la nueva resolución elegida
+        width_str, height_str = resolution_value.split('x')
+        self.WINDOW_WIDTH = int(width_str)
+        self.WINDOW_HEIGHT = int(height_str)
+        
+        # Centrar aplicará automáticamente las dimensiones actualizadas
+        self._center_on_screen()
+        
+        # Find the name for persistence
+        resolution_name = None
+        for name, value in theme.RESOLUTIONS.items():
+            if value == resolution_value:
+                resolution_name = name
+                break
+        
+        # Persist to database
+        if resolution_name:
+            from pos.model.database import get_connection
+            conn = get_connection()
+            try:
+                theme.set_resolution(resolution_name, db=conn)
+                conn.commit()
+            finally:
+                conn.close()
+
     def _on_theme_changed(self) -> None:
         """Handle any theme change (font scale or background color)."""
         self._apply_current_theme()
@@ -240,20 +308,27 @@ class MainWindow(ctk.CTk):
                 pass  # Never let a callback crash the tab switch
 
     def _center_on_screen(self) -> None:
-        """Center the main window on the screen with optimized dimensions.
-
-        Uses 1280x720 as the base resolution, which works well on modern displays.
-        If the screen is smaller, adjusts to 90% of screen size.
-        """
+        """Center the main window on the screen with exact requested dimensions."""
+        
         screen_width = self.winfo_screenwidth()
         screen_height = self.winfo_screenheight()
 
-        # Use optimal size or 90% of screen if screen is smaller
-        width = min(self.WINDOW_WIDTH, int(screen_width * 0.9))
-        height = min(self.WINDOW_HEIGHT, int(screen_height * 0.9))
+        # Quitamos la restricción del 90%. Forzamos los píxeles exactos solicitados.
+        width = self.WINDOW_WIDTH
+        height = self.WINDOW_HEIGHT
 
-        # Calculate center position
+        # Calculamos la posición para centrar
         x = (screen_width - width) // 2
         y = (screen_height - height) // 2
 
+        # Desbloqueamos para redimensionar
+        self.resizable(True, True)
+        
+        # Aplicamos la geometría exacta
         self.geometry(f"{width}x{height}+{x}+{y}")
+        
+        # IMPORTANTE: Forzamos a Windows a procesar el cambio visual antes de volver a bloquear
+        self.update()
+        
+        # Bloqueamos nuevamente
+        self.resizable(False, False)

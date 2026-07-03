@@ -280,13 +280,20 @@ class SaleView(ctk.CTkFrame):
 
         self._payment_method_var = tk.StringVar(value="cash")
         self._method_frames: dict[str, ctk.CTkFrame] = {}
+        
+        # Get theme colors for payment method buttons
+        contrast = theme.get_contrast_map()
+        selected_bg = contrast["treeview_header"]  # Darker background for better visibility
+        selected_border = "#0078d4"  # Blue border for selected state
+        unselected_border = contrast["search_border"]
 
         for idx, (label, method) in enumerate(self.PAYMENT_METHODS):
+            is_selected = method == "cash"
             method_frame = ctk.CTkFrame(
                 payment_methods_frame,
-                fg_color="#2b2b2b" if method == "cash" else "transparent",
+                fg_color=selected_bg if is_selected else "transparent",
                 border_width=2,
-                border_color="#0078d4" if method == "cash" else "#c0c0c0",
+                border_color=selected_border if is_selected else unselected_border,
                 corner_radius=10,
                 cursor="hand2",
             )
@@ -437,7 +444,7 @@ class SaleView(ctk.CTkFrame):
         self._barcode_entry.focus_set()
 
     def update_theme(self) -> None:
-        """Update search button colors and border when theme changes."""
+        """Update search button colors, border, and payment method buttons when theme changes."""
         contrast = theme.get_contrast_map()
         self._search_btn.configure(
             fg_color=contrast["search_bg"],
@@ -446,6 +453,23 @@ class SaleView(ctk.CTkFrame):
             text_color=contrast["text"],
         )
         self.configure(border_color=contrast["search_border"])
+        
+        # Update payment method buttons with new theme colors
+        selected_bg = contrast["treeview_header"]  # Darker background for better visibility
+        selected_border = "#0078d4"  # Blue border for selected state
+        unselected_border = contrast["search_border"]
+        
+        for m, frame in self._method_frames.items():
+            if m == self._selected_payment_method:
+                frame.configure(
+                    fg_color=selected_bg,
+                    border_color=selected_border,
+                )
+            else:
+                frame.configure(
+                    fg_color="transparent",
+                    border_color=unselected_border,
+                )
 
     def show_receipt(self, sale_data: dict[str, Any]) -> None:
         """Display an on-screen receipt preview after a successful sale.
@@ -652,17 +676,23 @@ class SaleView(ctk.CTkFrame):
     def _on_payment_method_changed(self, method: str) -> None:
         """Update visual state when payment method changes."""
         self._selected_payment_method = method
+        # Get theme colors for consistent styling
+        contrast = theme.get_contrast_map()
+        selected_bg = contrast["treeview_header"]  # Darker background for better visibility
+        selected_border = "#0078d4"  # Blue border for selected state
+        unselected_border = contrast["search_border"]
+        
         # Update border colors and backgrounds to show selection
         for m, frame in self._method_frames.items():
             if m == method:
                 frame.configure(
-                    fg_color="#2b2b2b",
-                    border_color="#0078d4",
+                    fg_color=selected_bg,
+                    border_color=selected_border,
                 )
             else:
                 frame.configure(
                     fg_color="transparent",
-                    border_color="#c0c0c0",
+                    border_color=unselected_border,
                 )
         
         # Show/hide amount received field based on payment method

@@ -92,6 +92,9 @@ class ReportView(ctk.CTkFrame):
         # Cache the last report data for CSV exports
         self._report_data: dict[str, Any] = {}
 
+        # Theme-aware border color for module separation
+        self._border_color = theme.get_contrast_map()["search_border"]
+
         # Configure main grid: 3 rows, 2 columns
         self.grid_columnconfigure(0, weight=1)
         self.grid_columnconfigure(1, weight=1)
@@ -112,12 +115,12 @@ class ReportView(ctk.CTkFrame):
 
     def _build_top_bar(self) -> None:
         """Build the top bar with period selector and export button."""
-        top_bar = ctk.CTkFrame(self)
+        top_bar = ctk.CTkFrame(self, fg_color="transparent", border_width=2, border_color=self._border_color)
         top_bar.grid(row=0, column=0, columnspan=2, sticky="ew", padx=10, pady=(10, 5))
         top_bar.grid_columnconfigure(1, weight=1)  # spacer
 
         # Left side: period selector
-        selector_frame = ctk.CTkFrame(top_bar)
+        selector_frame = ctk.CTkFrame(top_bar, fg_color="transparent", border_width=2, border_color=self._border_color)
         selector_frame.grid(row=0, column=0, sticky="w")
 
         ctk.CTkLabel(
@@ -137,7 +140,7 @@ class ReportView(ctk.CTkFrame):
         self._period_menu.pack(side="left", padx=5)
 
         # Custom date range
-        self._custom_frame = ctk.CTkFrame(selector_frame)
+        self._custom_frame = ctk.CTkFrame(selector_frame, fg_color="transparent", border_width=2, border_color=self._border_color)
         self._custom_frame.pack(side="left", padx=10)
 
         ctk.CTkLabel(
@@ -196,7 +199,7 @@ class ReportView(ctk.CTkFrame):
 
     def _build_kpi_panel(self) -> None:
         """Build the KPI cards row with 5 metric cards."""
-        kpi_frame = ctk.CTkFrame(self)
+        kpi_frame = ctk.CTkFrame(self, fg_color="transparent", border_width=2, border_color=self._border_color)
         kpi_frame.grid(row=1, column=0, columnspan=2, sticky="ew", padx=10, pady=5)
 
         # Configure 5 equal columns
@@ -239,14 +242,14 @@ class ReportView(ctk.CTkFrame):
     def _build_data_panel(self) -> None:
         """Build the data panel with 2 columns: left (trees) and right (chart + summary)."""
         # Left column: Top products + Low stock
-        left_frame = ctk.CTkFrame(self)
+        left_frame = ctk.CTkFrame(self, fg_color="transparent", border_width=2, border_color=self._border_color)
         left_frame.grid(row=2, column=0, sticky="nsew", padx=(10, 5), pady=5)
         left_frame.grid_columnconfigure(0, weight=1)
         left_frame.grid_rowconfigure(1, weight=1)  # top products tree
         left_frame.grid_rowconfigure(3, weight=1)  # low stock tree
 
         # Top products section
-        top_header = ctk.CTkFrame(left_frame)
+        top_header = ctk.CTkFrame(left_frame, fg_color="transparent", border_width=2, border_color=self._border_color)
         top_header.grid(row=0, column=0, sticky="ew", pady=(0, 5))
         top_header.grid_columnconfigure(1, weight=1)
 
@@ -332,7 +335,7 @@ class ReportView(ctk.CTkFrame):
         self._top_scroll.grid(row=1, column=1, sticky="ns", pady=(0, 10))
 
         # Low stock section
-        low_header = ctk.CTkFrame(left_frame)
+        low_header = ctk.CTkFrame(left_frame, fg_color="transparent", border_width=2, border_color=self._border_color)
         low_header.grid(row=2, column=0, sticky="ew", pady=(5, 5))
         low_header.grid_columnconfigure(0, weight=1)
 
@@ -399,14 +402,14 @@ class ReportView(ctk.CTkFrame):
         self._low_scroll.grid(row=3, column=1, sticky="ns")
 
         # Right column: Payment chart + Expense summary
-        right_frame = ctk.CTkFrame(self)
+        right_frame = ctk.CTkFrame(self, fg_color="transparent", border_width=2, border_color=self._border_color)
         right_frame.grid(row=2, column=1, sticky="nsew", padx=(5, 10), pady=5)
         right_frame.grid_columnconfigure(0, weight=1)
         right_frame.grid_rowconfigure(0, weight=0)  # chart (compact)
         right_frame.grid_rowconfigure(1, weight=1)  # summary (expands)
 
         # Payment methods chart (reserved for matplotlib)
-        self._chart_frame = ctk.CTkFrame(right_frame)
+        self._chart_frame = ctk.CTkFrame(right_frame, fg_color="transparent", border_width=2, border_color=self._border_color)
         self._chart_frame.grid(row=0, column=0, sticky="nsew", pady=(0, 3))
         self._chart_frame.grid_columnconfigure(0, weight=1)
         self._chart_frame.grid_rowconfigure(0, weight=0)  # title
@@ -435,7 +438,7 @@ class ReportView(ctk.CTkFrame):
         ).pack(expand=True)
 
         # Expense summary (ticket style)
-        summary_frame = ctk.CTkFrame(right_frame)
+        summary_frame = ctk.CTkFrame(right_frame, fg_color="transparent", border_width=2, border_color=self._border_color)
         summary_frame.grid(row=1, column=0, sticky="nsew")
         summary_frame.grid_columnconfigure(0, weight=1)
         summary_frame.grid_columnconfigure(1, weight=0)

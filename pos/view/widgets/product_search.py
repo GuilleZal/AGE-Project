@@ -39,7 +39,14 @@ class ProductSearch(ctk.CTkFrame):
         on_barcode: Callable[[str], None] | None = None,
         **kwargs,
     ) -> None:
-        super().__init__(master, **kwargs)
+        contrast = theme.get_contrast_map()
+        super().__init__(
+            master,
+            fg_color="transparent",
+            border_width=2,
+            border_color=contrast["search_border"],
+            **kwargs,
+        )
         self._on_search: Callable[[str, int | None], None] | None = on_search
         self._on_barcode: Callable[[str], None] | None = on_barcode
 
