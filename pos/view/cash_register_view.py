@@ -66,8 +66,8 @@ class CashRegisterView(ctk.CTkFrame):
             "on_refresh"
         )
 
-        self.grid_columnconfigure(0, weight=3)  # left panel
-        self.grid_columnconfigure(1, weight=2)  # right panel
+        self.grid_columnconfigure(0, weight=4, uniform="col")  # Panel izquierdo blindado (45%)
+        self.grid_columnconfigure(1, weight=5, uniform="col")  # Panel derecho blindado (55%)
         self.grid_rowconfigure(0, weight=1)
 
         # =========================================================== left side
@@ -75,9 +75,10 @@ class CashRegisterView(ctk.CTkFrame):
         contrast = theme.get_contrast_map()
         border_color = contrast["search_border"]
 
-        self._left_frame = ctk.CTkFrame(self, fg_color="transparent") # <-- Sin bordes
+        self._left_frame = ctk.CTkFrame(self, fg_color="transparent")
+        # Colchón inferior asegurado para no chocar con el borde maestro
         self._left_frame.grid(
-            row=0, column=0, sticky="nsew", padx=(10, 5), pady=10
+            row=0, column=0, sticky="nsew", padx=(10, 5), pady=(10, 5)
         )
         self._left_frame.grid_columnconfigure(0, weight=1)
 
@@ -89,7 +90,7 @@ class CashRegisterView(ctk.CTkFrame):
             text_color="#e74c3c",
         )
         self._status_label.grid(
-            row=0, column=0, sticky="ew", padx=15, pady=(10, 5)
+            row=0, column=0, sticky="ew", padx=15, pady=(5, 2)
         )
 
         # -- balance panel --
@@ -97,7 +98,7 @@ class CashRegisterView(ctk.CTkFrame):
             self._left_frame, fg_color="transparent", border_width=2, border_color=border_color
         )
         self._balance_frame.grid(
-            row=1, column=0, sticky="ew", padx=15, pady=5
+            row=1, column=0, sticky="ew", padx=10, pady=(0, 8)
         )
         self._balance_frame.grid_columnconfigure(0, weight=1)
 
@@ -110,105 +111,122 @@ class CashRegisterView(ctk.CTkFrame):
             ("Diferencia:", "difference", "—"),
         ]
         for idx, (label, key, default) in enumerate(metrics):
+            # Magia de márgenes: más espacio arriba para el primero, más abajo para el último
+            if idx == 0:
+                current_pady = (10, 2)
+            elif idx == len(metrics) - 1:
+                current_pady = (2, 10)
+            else:
+                current_pady = (3, 3)
+
             ctk.CTkLabel(
                 self._balance_frame,
                 text=label,
                 font=theme.scaled_font(13),
                 anchor="w",
-            ).grid(row=idx, column=0, sticky="w", padx=15, pady=3)
+            ).grid(row=idx, column=0, sticky="w", padx=15, pady=current_pady)
+            
             lbl = ctk.CTkLabel(
                 self._balance_frame,
                 text=default,
                 font=theme.scaled_font(13, weight="bold"),
                 anchor="e",
             )
-            lbl.grid(row=idx, column=1, sticky="e", padx=15, pady=3)
+            lbl.grid(row=idx, column=1, sticky="e", padx=15, pady=current_pady)
             self._balance_labels[key] = lbl
 
         # -- open / close buttons --
         btn_frame = ctk.CTkFrame(self._left_frame, fg_color="transparent", border_width=2, border_color=border_color)
-        btn_frame.grid(row=2, column=0, pady=10, padx=15, sticky="ew")
+        btn_frame.grid(row=2, column=0, padx=10, pady=(0, 5), sticky="ew")
 
+        # Eliminados los width fijos. Ahora usan expand=True y fill="x" para adaptarse a cualquier fuente
         self._open_btn = ctk.CTkButton(
             btn_frame,
             text="🔓 Abrir caja",
-            width=150,  # <-- Ancho fijo garantizado
             height=36,
             font=theme.scaled_font(14, weight="bold"),
             command=self._handle_open,
         )
-        self._open_btn.pack(side="left", expand=True, padx=(10, 5), pady=10) # <-- Quitamos fill="x"
+        self._open_btn.pack(side="left", expand=True, fill="x", padx=(8, 4), pady=8)
 
         self._close_btn = ctk.CTkButton(
             btn_frame,
             text="🔒 Cerrar caja",
-            width=150,  # <-- Ancho fijo garantizado
             height=36,
             font=theme.scaled_font(14, weight="bold"),
             fg_color="#8b1a1a",
             state="disabled",
             command=self._handle_close,
         )
-        self._close_btn.pack(side="left", expand=True, padx=(5, 10), pady=10) # <-- Quitamos fill="x"
+        self._close_btn.pack(side="left", expand=True, fill="x", padx=(4, 8), pady=8)
         
         # -- outflow form --
         self._outflow_frame = ctk.CTkFrame(self._left_frame, fg_color="transparent", border_width=2, border_color=border_color)
         self._outflow_frame.grid(
-            row=3, column=0, sticky="ew", padx=15, pady=10
+            row=3, column=0, sticky="ew", padx=10, pady=(0, 5)
         )
 
         ctk.CTkLabel(
             self._outflow_frame,
             text="Registrar egreso manual:",
             font=theme.scaled_font(14, weight="bold"),
-        ).pack(anchor="w", padx=10, pady=(10, 5))
+        ).pack(anchor="w", padx=10, pady=(6, 2))
 
-        self._outflow_type_var = tk.StringVar(value="expense")
+        # Reemplazamos "expense" por "Gasto" para que coincida con la lista
+        self._outflow_type_var = tk.StringVar(value="Gasto")
         ctk.CTkOptionMenu(
             self._outflow_frame,
             values=["Gasto", "Pago a proveedor"],
             variable=self._outflow_type_var,
-            width=180,
-        ).pack(padx=10, pady=2)
+        ).pack(fill="x", padx=10, pady=2)
 
-        amount_row = ctk.CTkFrame(self._outflow_frame)
-        amount_row.pack(fill="x", padx=10, pady=5)
 
+        amount_row = ctk.CTkFrame(self._outflow_frame, fg_color="transparent")
+        amount_row.pack(fill="x", padx=10, pady=(2, 4))
+        amount_row.grid_columnconfigure(0, weight=1)
+        amount_row.grid_columnconfigure(1, weight=2)
+
+        # Fila superior: Etiquetas
         ctk.CTkLabel(
             amount_row, text="Monto ($):", font=theme.scaled_font(13)
-        ).pack(side="left", padx=(0, 5))
-        self._outflow_amount_entry = ctk.CTkEntry(
-            amount_row, width=120, placeholder_text="0"
-        )
-        self._outflow_amount_entry.pack(side="left", padx=5)
-
+        ).grid(row=0, column=0, sticky="w", padx=(0, 5), pady=(0, 1))
+        
         ctk.CTkLabel(
             amount_row, text="Descripción:", font=theme.scaled_font(13)
-        ).pack(side="left", padx=(10, 5))
-        self._outflow_desc_entry = ctk.CTkEntry(amount_row, width=180)
-        self._outflow_desc_entry.pack(side="left", padx=5, fill="x", expand=True)
+        ).grid(row=0, column=1, sticky="w", padx=(5, 0), pady=(0, 1))
+        
+        # Fila inferior: Cajas de texto (Altura compactada a 28)
+        self._outflow_amount_entry = ctk.CTkEntry(
+            amount_row, placeholder_text="0", height=28
+        )
+        self._outflow_amount_entry.grid(row=1, column=0, sticky="ew", padx=(0, 5), pady=(0, 4))
+
+        self._outflow_desc_entry = ctk.CTkEntry(amount_row, height=28)
+        self._outflow_desc_entry.grid(row=1, column=1, sticky="ew", padx=(5, 0), pady=(0, 4))
 
         ctk.CTkButton(
             self._outflow_frame,
             text="Registrar",
-            width=120,
+            height=32,
             command=self._handle_outflow,
-        ).pack(pady=(5, 10))
-
+        ).pack(fill="x", padx=10, pady=(0, 10)) # Ocupa todo el ancho para proteger el texto
+        
         # ========================================================== right side
 
-        self._right_frame = ctk.CTkFrame(self, fg_color="transparent") # <-- Sin bordes
+        self._right_frame = ctk.CTkFrame(self, fg_color="transparent")
         self._right_frame.grid(
-            row=0, column=1, sticky="nsew", padx=(5, 10), pady=10
+            row=0, column=1, sticky="nsew", padx=(5, 10), pady=(10, 5) 
         )
+        # Invertimos los pesos: Ahora el historial (fila 1) empuja mucho más fuerte
         self._right_frame.grid_rowconfigure(0, weight=1)  # movement preview
-        self._right_frame.grid_rowconfigure(1, weight=1)  # history
+        self._right_frame.grid_rowconfigure(1, weight=4)  # history (máxima prioridad)
         self._right_frame.grid_columnconfigure(0, weight=1)
+
 
         # -- movement preview panel (above history) --
         self._preview_frame = ctk.CTkFrame(self._right_frame, fg_color="transparent", border_width=2, border_color=border_color)
         self._preview_frame.grid(
-            row=0, column=0, sticky="nsew", padx=15, pady=(0, 5)
+            row=0, column=0, sticky="nsew", padx=10, pady=(0, 5)
         )
         self._preview_frame.grid_rowconfigure(1, weight=1)
         self._preview_frame.grid_columnconfigure(0, weight=1)
@@ -226,24 +244,20 @@ class CashRegisterView(ctk.CTkFrame):
             columns=self._preview_columns,
             show="headings",
             selectmode="browse",
-            height=5,
+            height=5, # <--- Reducido para cederle espacio a la tabla de abajo
         )
+        
         self._preview_tree.heading("tipo", text="Tipo")
         self._preview_tree.heading("monto", text="Monto")
         self._preview_tree.heading("descripcion", text="Descripción")
         self._preview_tree.heading("hora", text="Hora")
 
-        self._preview_tree.column("tipo", width=120, anchor="w")
-        self._preview_tree.column("monto", width=100, anchor="e")
-        self._preview_tree.column("descripcion", width=250, anchor="w")
-        self._preview_tree.column("hora", width=120, anchor="center")
-
-        # Load saved column widths for movements
-        saved_widths = load_column_widths("cash_register_movements")
-        self._preview_tree._view_name = "cash_register_movements"
-        apply_treeview_widths(self._preview_tree, saved_widths)
-
-        # Add column sorting for movements
+        self._preview_tree.column("tipo", width=140, minwidth=140, anchor="w")
+        self._preview_tree.column("monto", width=110, minwidth=110, anchor="e")
+        self._preview_tree.column("descripcion", width=300, minwidth=300, anchor="w")
+        self._preview_tree.column("hora", width=100, minwidth=100, anchor="center")
+        
+        # Cargamos solo la funcionalidad de ordenamiento (Eliminamos la carga de anchos guardados)
         add_sorting_to_treeview(
             self._preview_tree,
             list(self._preview_columns),
@@ -254,6 +268,10 @@ class CashRegisterView(ctk.CTkFrame):
                 "hora": "str",
             }
         )
+
+        # Bloqueamos el redimensionamiento manual
+        self._preview_tree.bind("<Button-1>", self._prevent_resize)
+        self._preview_tree.bind("<B1-Motion>", self._prevent_resize)
 
         self._preview_vscroll = ttk.Scrollbar(
             self._preview_frame,
@@ -276,7 +294,7 @@ class CashRegisterView(ctk.CTkFrame):
         # -- history treeview (below preview) --
         self._history_frame = ctk.CTkFrame(self._right_frame, fg_color="transparent", border_width=2, border_color=border_color)
         self._history_frame.grid(
-            row=1, column=0, sticky="nsew", padx=15, pady=(0, 10)
+            row=1, column=0, sticky="nsew", padx=10, pady=(0, 5)
         )
         self._history_frame.grid_rowconfigure(2, weight=1)
         self._history_frame.grid_columnconfigure(0, weight=1)
@@ -289,18 +307,22 @@ class CashRegisterView(ctk.CTkFrame):
         ).grid(row=0, column=0, sticky="w", padx=5, pady=(5, 2), columnspan=2)
 
         # Date filter row
-        filter_frame = ctk.CTkFrame(self._history_frame)
+        filter_frame = ctk.CTkFrame(self._history_frame, fg_color="transparent")
         filter_frame.grid(row=1, column=0, sticky="ew", padx=5, pady=(0, 5), columnspan=2)
+        
+        # Le damos peso a la columna central para separar los botones a la derecha
+        filter_frame.grid_columnconfigure(1, weight=1)
 
+        # --- Fila 0: Desde + Calendario + Botón Filtrar ---
         ctk.CTkLabel(
             filter_frame,
             text="Desde:",
             font=theme.scaled_font(12),
-        ).pack(side="left", padx=(5, 3))
+        ).grid(row=0, column=0, sticky="w", padx=(5, 3), pady=(0, 2))
 
         self._start_date_entry = DateEntry(
             filter_frame,
-            width=11,
+            width=10, # Ancho en caracteres ajustado
             background="#2d5a3d",
             foreground="white",
             borderwidth=1,
@@ -309,47 +331,50 @@ class CashRegisterView(ctk.CTkFrame):
             date_pattern="yyyy-mm-dd",
             locale="es_AR",
         )
-        self._start_date_entry.pack(side="left", padx=(0, 10))
-
-        ctk.CTkLabel(
-            filter_frame,
-            text="Hasta:",
-            font=theme.scaled_font(12),
-        ).pack(side="left", padx=(5, 3))
-
-        self._end_date_entry = DateEntry(
-            filter_frame,
-            width=11,
-            background="#2d5a3d",
-            foreground="white",
-            borderwidth=1,
-            bordercolor="#505050",
-            arrowcolor="#2d5a3d",
-            date_pattern="yyyy-mm-dd",
-            locale="es_AR",
-        )
-        self._end_date_entry.pack(side="left", padx=(0, 10))
+        self._start_date_entry.grid(row=0, column=1, sticky="w", padx=(0, 10), pady=(0, 2)) # sticky="w" evita que se estire
 
         ctk.CTkButton(
             filter_frame,
             text="Filtrar",
-            width=70,
+            width=80,
             height=26,
             fg_color="#1f538d",
-            font=theme.scaled_font(11),
+            font=theme.scaled_font(11, weight="bold"),
             command=self._apply_date_filter,
-        ).pack(side="left", padx=3)
+        ).grid(row=0, column=2, sticky="e", padx=(0, 3), pady=(0, 2)) # sticky="e" ancla a la derecha
+
+        # --- Fila 1: Hasta + Calendario + Botón Limpiar ---
+        ctk.CTkLabel(
+            filter_frame,
+            text="Hasta:",
+            font=theme.scaled_font(12),
+        ).grid(row=1, column=0, sticky="w", padx=(5, 3), pady=(2, 0))
+
+        self._end_date_entry = DateEntry(
+            filter_frame,
+            width=10, # Ancho en caracteres ajustado
+            background="#2d5a3d",
+            foreground="white",
+            borderwidth=1,
+            bordercolor="#505050",
+            arrowcolor="#2d5a3d",
+            date_pattern="yyyy-mm-dd",
+            locale="es_AR",
+        )
+        self._end_date_entry.grid(row=1, column=1, sticky="w", padx=(0, 10), pady=(2, 0)) # sticky="w" evita que se estire
 
         ctk.CTkButton(
             filter_frame,
             text="Limpiar",
-            width=70,
+            width=80,
             height=26,
             fg_color="#505050",
-            font=theme.scaled_font(11),
+            font=theme.scaled_font(11, weight="bold"),
             command=self._clear_date_filter,
-        ).pack(side="left", padx=3)
+        ).grid(row=1, column=2, sticky="e", padx=(0, 3), pady=(2, 0)) # sticky="e" ancla a la derecha
 
+
+        # COLUMNAS ACTUALIZADAS: Se eliminó "estado"
         self._history_columns = (
             "id",
             "apertura",
@@ -357,7 +382,6 @@ class CashRegisterView(ctk.CTkFrame):
             "inicial",
             "final",
             "diferencia",
-            "estado",
         )
         self._style = ttk.Style(self._history_frame)
         self._configure_style()
@@ -367,30 +391,24 @@ class CashRegisterView(ctk.CTkFrame):
             columns=self._history_columns,
             show="headings",
             selectmode="browse",
-            height=8,
+            height=10, # <--- Aumentado de 8 a 10 para ganar más filas
         )
+        
         self._history_tree.heading("id", text="ID")
         self._history_tree.heading("apertura", text="Apertura")
         self._history_tree.heading("cierre", text="Cierre")
         self._history_tree.heading("inicial", text="Inicial")
         self._history_tree.heading("final", text="Final")
         self._history_tree.heading("diferencia", text="Dif.")
-        self._history_tree.heading("estado", text="Estado")
 
-        self._history_tree.column("id", width=40, anchor="center")
-        self._history_tree.column("apertura", width=120)
-        self._history_tree.column("cierre", width=120)
-        self._history_tree.column("inicial", width=80, anchor="e")
-        self._history_tree.column("final", width=80, anchor="e")
-        self._history_tree.column("diferencia", width=70, anchor="e")
-        self._history_tree.column("estado", width=60, anchor="center")
-
-        # Load saved column widths for history
-        saved_widths = load_column_widths("cash_register_history")
-        self._history_tree._view_name = "cash_register_history"
-        apply_treeview_widths(self._history_tree, saved_widths)
-
-        # Add column sorting for history
+        self._history_tree.column("id", width=60, minwidth=60, anchor="center")
+        self._history_tree.column("apertura", width=130, minwidth=130) 
+        self._history_tree.column("cierre", width=130, minwidth=130)   
+        self._history_tree.column("inicial", width=110, minwidth=110, anchor="e")
+        self._history_tree.column("final", width=110, minwidth=110, anchor="e")
+        self._history_tree.column("diferencia", width=100, minwidth=100, anchor="e")
+        
+        # Cargamos solo el ordenamiento (Eliminamos el filtro y la carga de anchos guardados)
         add_sorting_to_treeview(
             self._history_tree,
             list(self._history_columns),
@@ -401,9 +419,12 @@ class CashRegisterView(ctk.CTkFrame):
                 "inicial": "int",
                 "final": "int",
                 "diferencia": "int",
-                "estado": "str",
             }
         )
+
+        # Bloqueamos el redimensionamiento manual
+        self._history_tree.bind("<Button-1>", self._prevent_resize)
+        self._history_tree.bind("<B1-Motion>", self._prevent_resize)
 
         self._history_scroll = ttk.Scrollbar(
             self._history_frame,
@@ -477,25 +498,19 @@ class CashRegisterView(ctk.CTkFrame):
             )
 
     def update_history(self, registers: list[dict[str, Any]]) -> None:
-        """Refresh the history treeview with *registers*.
-
-        Each dict expects keys: ``id``, ``opening_amount``,
-        ``opening_time``, ``closing_amount``, ``closing_time``,
-        ``difference``, ``status``.
-        """
+        """Refresh the history treeview with *registers*."""
         for child in self._history_tree.get_children():
             self._history_tree.delete(child)
 
         for r in registers:
-            status_icon = "●" if r.get("status") == "open" else "○"
             self._history_tree.insert(
                 "",
                 "end",
                 iid=str(r["id"]),
                 values=(
                     r["id"],
-                    _truncate_time(r.get("opening_time", "—")),
-                    _truncate_time(r.get("closing_time", "—")),
+                    _extract_date(r.get("opening_time", "—")),
+                    _extract_date(r.get("closing_time", "—")),
                     f"${r.get('opening_amount', 0):,}",
                     f"${r.get('closing_amount', '—'):,}"
                     if r.get("closing_amount") is not None
@@ -503,12 +518,13 @@ class CashRegisterView(ctk.CTkFrame):
                     f"${r.get('difference', 0):,}"
                     if r.get("difference") is not None
                     else "—",
-                    status_icon,
                 ),
             )
 
+
     def clear_outflow_form(self) -> None:
         """Reset the outflow form fields."""
+        self._outflow_type_var.set("Gasto")  # Reinicia el selector por defecto
         self._outflow_amount_entry.delete(0, "end")
         self._outflow_desc_entry.delete(0, "end")
 
@@ -671,7 +687,7 @@ class CashRegisterView(ctk.CTkFrame):
         }
         for m in result["data"]:
             type_text = type_labels.get(m["type"], m["type"])
-            time_text = _truncate_time(m.get("created_at", ""))
+            time_text = _extract_time(m.get("created_at", ""))
             self._preview_tree.insert(
                 "",
                 "end",
@@ -683,8 +699,14 @@ class CashRegisterView(ctk.CTkFrame):
                 ),
             )
 
-    # --------------------------------------------------------------- private ---
 
+    # --------------------------------------------------------------- private ---
+    def _prevent_resize(self, event: Any) -> str | None:
+        """Evita que el usuario cambie el tamaño de las columnas arrastrando el separador."""
+        if event.widget.identify_region(event.x, event.y) == "separator":
+            return "break"
+        return None
+        
     def _configure_style(self) -> None:
         """Configure ttk styles to blend with CTk dark theme."""
         self._style.theme_use("clam")
@@ -973,8 +995,16 @@ class _CloseDialog(ctk.CTkToplevel):
 # --------------------------------------------------------------- helpers ---
 
 
-def _truncate_time(ts: str) -> str:
-    """Truncate an ISO timestamp to a short display format."""
-    if ts and len(ts) >= 16:
-        return ts[:16].replace("T", " ")
+def _extract_date(ts: str) -> str:
+    """Extract only the YYYY-MM-DD part from an ISO timestamp."""
+    if ts and len(ts) >= 10:
+        return ts[:10]
     return ts or "—"
+
+def _extract_time(ts: str) -> str:
+    """Extract only the HH:MM part from an ISO timestamp."""
+    if ts and len(ts) >= 16:
+        # Format is usually YYYY-MM-DDTHH:MM:SS or YYYY-MM-DD HH:MM:SS
+        return ts[11:16]
+    return ts or "—"
+

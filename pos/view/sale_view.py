@@ -177,9 +177,10 @@ class SaleView(ctk.CTkFrame):
         self._payment_sidebar.grid_rowconfigure(2, weight=0) # Monto/Vuelto (fijo)
         self._payment_sidebar.grid_rowconfigure(3, weight=1) # ESPACIO FANTASMA (absorbe el sobrante)
         self._payment_sidebar.grid_rowconfigure(4, weight=0) # Botones (fijo)
+
         # --- Totals section ---
         totals_frame = ctk.CTkFrame(self._payment_sidebar, fg_color="transparent")
-        totals_frame.grid(row=0, column=0, sticky="ew", padx=12, pady=(5, 8))
+        totals_frame.grid(row=0, column=0, sticky="ew", padx=12, pady=(2, 2))  # Margen compactado
         totals_frame.grid_columnconfigure(0, weight=1)
         totals_frame.grid_columnconfigure(1, weight=0)
 
@@ -189,11 +190,11 @@ class SaleView(ctk.CTkFrame):
             text="Pago",
             font=theme.scaled_font(16, weight="bold"),
             anchor="w",
-        ).grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 6))
+        ).grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 2))  # Margen compactado
 
         # Separator line
         separator = ctk.CTkFrame(totals_frame, height=2, fg_color="#c0c0c0")
-        separator.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(0, 8))
+        separator.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(0, 4))  # Margen compactado
 
         # Subtotal row
         ctk.CTkLabel(
@@ -247,7 +248,7 @@ class SaleView(ctk.CTkFrame):
 
         # Total box
         total_box = ctk.CTkFrame(totals_frame, fg_color="#2b2b2b", corner_radius=8)
-        total_box.grid(row=5, column=0, columnspan=2, sticky="ew", pady=(10, 0))
+        total_box.grid(row=5, column=0, columnspan=2, sticky="ew", pady=(4, 0))  # Margen compactado
         total_box.grid_columnconfigure(0, weight=1)
 
         ctk.CTkLabel(
@@ -255,18 +256,18 @@ class SaleView(ctk.CTkFrame):
             text="TOTAL A PAGAR",
             font=theme.scaled_font(10),
             text_color="#a0a0a0",
-        ).grid(row=0, column=0, pady=(8, 0))
+        ).grid(row=0, column=0, pady=(2, 0))  # Margen compactado
         self._total_label = ctk.CTkLabel(
             total_box,
             text="$0",
             font=theme.scaled_font(24, weight="bold"),
             text_color="#ffffff",
         )
-        self._total_label.grid(row=1, column=0, pady=(0, 8))
+        self._total_label.grid(row=1, column=0, pady=(0, 2))  # Margen compactado
 
         # --- Payment method selection ---
         payment_methods_frame = ctk.CTkFrame(self._payment_sidebar, fg_color="transparent")
-        payment_methods_frame.grid(row=1, column=0, sticky="ew", padx=12, pady=(8, 8))
+        payment_methods_frame.grid(row=1, column=0, sticky="ew", padx=12, pady=(2, 2))  # Margen compactado
         payment_methods_frame.grid_columnconfigure(0, weight=1)
 
         # Title for payment methods
@@ -276,15 +277,14 @@ class SaleView(ctk.CTkFrame):
             font=theme.scaled_font(12, weight="bold"),
             text_color="#a0a0a0",
             anchor="w",
-        ).grid(row=0, column=0, sticky="w", pady=(0, 6))
+        ).grid(row=0, column=0, sticky="w", pady=(0, 2))  # Margen compactado
 
         self._payment_method_var = tk.StringVar(value="cash")
         self._method_frames: dict[str, ctk.CTkFrame] = {}
         
-        # Get theme colors for payment method buttons
         contrast = theme.get_contrast_map()
-        selected_bg = contrast["treeview_header"]  # Darker background for better visibility
-        selected_border = "#0078d4"  # Blue border for selected state
+        selected_bg = contrast["treeview_header"]
+        selected_border = "#0078d4"
         unselected_border = contrast["search_border"]
 
         for idx, (label, method) in enumerate(self.PAYMENT_METHODS):
@@ -297,11 +297,10 @@ class SaleView(ctk.CTkFrame):
                 corner_radius=10,
                 cursor="hand2",
             )
-            method_frame.grid(row=idx + 1, column=0, sticky="ew", pady=2)
+            method_frame.grid(row=idx + 1, column=0, sticky="ew", pady=1)  # Margen compactado
             method_frame.grid_columnconfigure(1, weight=1)
             self._method_frames[method] = method_frame
 
-            # Radio button indicator
             radio_frame = ctk.CTkFrame(method_frame, fg_color="transparent", width=26)
             radio_frame.grid(row=0, column=0, padx=(8, 4))
 
@@ -315,23 +314,20 @@ class SaleView(ctk.CTkFrame):
                 height=18,
             ).pack(pady=3)
 
-            # Label
             ctk.CTkLabel(
                 method_frame,
                 text=label,
                 font=theme.scaled_font(13, weight="bold" if method == "cash" else "normal"),
                 anchor="w",
-            ).grid(row=0, column=1, sticky="w", padx=(0, 8), pady=8)
+            ).grid(row=0, column=1, sticky="w", padx=(0, 8), pady=2)  # Margen compactado
 
-            # Bind click on entire frame to select this method
             method_frame.bind("<Button-1>", lambda e, m=method: self._select_payment_method(m))
-            # Also bind on child widgets so clicks propagate
             for child in method_frame.winfo_children():
                 child.bind("<Button-1>", lambda e, m=method: self._select_payment_method(m))
 
         # --- Amount received ---
         self._amount_frame = ctk.CTkFrame(self._payment_sidebar, fg_color="transparent")
-        self._amount_frame.grid(row=2, column=0, sticky="ew", padx=12, pady=(0, 5))
+        self._amount_frame.grid(row=2, column=0, sticky="ew", padx=12, pady=(0, 2))  # Margen compactado
         self._amount_frame.grid_columnconfigure(0, weight=1)
 
         ctk.CTkLabel(
@@ -339,7 +335,7 @@ class SaleView(ctk.CTkFrame):
             text="Monto recibido ($):",
             font=theme.scaled_font(11),
             text_color="#a0a0a0",
-        ).grid(row=0, column=0, pady=(0, 2))
+        ).grid(row=0, column=0, pady=(0, 1))  # Margen compactado
 
         self._received_entry = ctk.CTkEntry(
             self._amount_frame,
@@ -350,9 +346,8 @@ class SaleView(ctk.CTkFrame):
         self._received_entry.grid(row=1, column=0, sticky="ew")
         self._received_entry.bind("<KeyRelease>", self._on_received_changed)
 
-        # Change display
         change_frame = ctk.CTkFrame(self._amount_frame, fg_color="transparent")
-        change_frame.grid(row=2, column=0, pady=(5, 5))
+        change_frame.grid(row=2, column=0, pady=(2, 2))  # Margen compactado
 
         ctk.CTkLabel(
             change_frame,
@@ -370,7 +365,7 @@ class SaleView(ctk.CTkFrame):
 
         # --- Action buttons ---
         buttons_frame = ctk.CTkFrame(self._payment_sidebar, fg_color="transparent")
-        buttons_frame.grid(row=4, column=0, sticky="ew", padx=12, pady=(5, 10))
+        buttons_frame.grid(row=4, column=0, sticky="ew", padx=12, pady=(2, 5))  # Margen compactado
         buttons_frame.grid_columnconfigure(0, weight=1)
         buttons_frame.grid_columnconfigure(1, weight=1)
 
@@ -398,7 +393,7 @@ class SaleView(ctk.CTkFrame):
 
         # --- auto-focus barcode entry whenever the frame is mapped ---
         self.bind("<Map>", lambda _e: self._barcode_entry.focus_set())
-
+        
     # ---------------------------------------------------------------- public ---
 
     def update_cart(self, items: list[dict[str, Any]]) -> None:
