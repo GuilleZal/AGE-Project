@@ -244,13 +244,20 @@ class ReportView(ctk.CTkFrame):
         # Left column: Top products + Low stock
         left_frame = ctk.CTkFrame(self, fg_color="transparent", border_width=2, border_color=self._border_color)
         left_frame.grid(row=2, column=0, sticky="nsew", padx=(10, 5), pady=5)
+        
+        # Blindaje de grilla: Columna 0 (Tablas) se expande, Columna 1 (Scroll Vertical) reserva su espacio fijo
         left_frame.grid_columnconfigure(0, weight=1)
+        left_frame.grid_columnconfigure(1, weight=0)
+        
         left_frame.grid_rowconfigure(1, weight=1)  # top products tree
-        left_frame.grid_rowconfigure(3, weight=1)  # low stock tree
+        left_frame.grid_rowconfigure(2, weight=0)  # top scroll H
+        left_frame.grid_rowconfigure(3, weight=0)  # low header
+        left_frame.grid_rowconfigure(4, weight=2)  # low stock tree (¡Doble peso para que crezca más!)
+        left_frame.grid_rowconfigure(5, weight=0)  # low scroll H
 
         # Top products section
         top_header = ctk.CTkFrame(left_frame, fg_color="transparent", border_width=2, border_color=self._border_color)
-        top_header.grid(row=0, column=0, sticky="ew", pady=(0, 5))
+        top_header.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 5))
         top_header.grid_columnconfigure(1, weight=1)
 
         ctk.CTkLabel(
@@ -303,40 +310,31 @@ class ReportView(ctk.CTkFrame):
         self._top_tree.heading("cantidad", text="Cantidad")
         self._top_tree.heading("monto", text="Monto total")
 
-        self._top_tree.column("pos", width=40, anchor="center")
-        self._top_tree.column("producto", width=240, stretch=True)
-        self._top_tree.column("cantidad", width=80, anchor="center")
-        self._top_tree.column("monto", width=130, anchor="e")
+        # Anchos mínimos obligatorios y blindaje
+        self._top_tree.column("pos", width=50, minwidth=50, anchor="center")
+        self._top_tree.column("producto", width=250, minwidth=250, stretch=True)
+        self._top_tree.column("cantidad", width=100, minwidth=100, anchor="center")
+        self._top_tree.column("monto", width=140, minwidth=140, anchor="e")
 
-        # Load saved column widths
-        saved_widths = load_column_widths("report_view_top")
-        self._top_tree._view_name = "report_view_top"
-        apply_treeview_widths(self._top_tree, saved_widths)
-
-        # Add column sorting
         add_sorting_to_treeview(
             self._top_tree,
             list(self._top_columns),
-            column_types={
-                "pos": "int",
-                "producto": "str",
-                "cantidad": "int",
-                "monto": "int",
-            }
+            column_types={"pos": "int", "producto": "str", "cantidad": "int", "monto": "int"}
         )
+        self._top_tree.bind("<Button-1>", self._prevent_resize)
+        self._top_tree.bind("<B1-Motion>", self._prevent_resize)
 
-        self._top_scroll = ttk.Scrollbar(
-            left_frame,
-            orient="vertical",
-            command=self._top_tree.yview,
-        )
-        self._top_tree.configure(yscrollcommand=self._top_scroll.set)
-        self._top_tree.grid(row=1, column=0, sticky="nsew", pady=(0, 10))
-        self._top_scroll.grid(row=1, column=1, sticky="ns", pady=(0, 10))
+        self._top_scroll = ttk.Scrollbar(left_frame, orient="vertical", command=self._top_tree.yview)
+        self._top_hscroll = ttk.Scrollbar(left_frame, orient="horizontal", command=self._top_tree.xview)
+        self._top_tree.configure(yscrollcommand=self._top_scroll.set, xscrollcommand=self._top_hscroll.set)
+
+        self._top_tree.grid(row=1, column=0, sticky="nsew", pady=(0, 0))
+        self._top_scroll.grid(row=1, column=1, sticky="ns", pady=(0, 0))
+        self._top_hscroll.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(0, 5))
 
         # Low stock section
         low_header = ctk.CTkFrame(left_frame, fg_color="transparent", border_width=2, border_color=self._border_color)
-        low_header.grid(row=2, column=0, sticky="ew", pady=(5, 5))
+        low_header.grid(row=3, column=0, columnspan=2, sticky="ew", pady=(5, 5))
         low_header.grid_columnconfigure(0, weight=1)
 
         ctk.CTkLabel(
@@ -363,54 +361,46 @@ class ReportView(ctk.CTkFrame):
             columns=self._low_columns,
             show="headings",
             selectmode="none",
-            height=8,
+            height=12, # <--- Aumentado de 8 a 12 para ganar altura base
         )
         self._low_tree.heading("pos", text="#")
         self._low_tree.heading("producto", text="Producto")
         self._low_tree.heading("stock_actual", text="Stock Actual")
         self._low_tree.heading("ubicacion", text="Ubicación")
 
-        self._low_tree.column("pos", width=40, anchor="center")
-        self._low_tree.column("producto", width=240, stretch=True)
-        self._low_tree.column("stock_actual", width=100, anchor="center")
-        self._low_tree.column("ubicacion", width=150, anchor="w")
+        # Anchos mínimos obligatorios y blindaje
+        self._low_tree.column("pos", width=50, minwidth=50, anchor="center")
+        self._low_tree.column("producto", width=250, minwidth=250, stretch=True)
+        self._low_tree.column("stock_actual", width=110, minwidth=110, anchor="center")
+        self._low_tree.column("ubicacion", width=160, minwidth=160, anchor="w")
 
-        # Load saved column widths
-        saved_widths = load_column_widths("report_view_low")
-        self._low_tree._view_name = "report_view_low"
-        apply_treeview_widths(self._low_tree, saved_widths)
-
-        # Add column sorting
         add_sorting_to_treeview(
             self._low_tree,
             list(self._low_columns),
-            column_types={
-                "pos": "int",
-                "producto": "str",
-                "stock_actual": "int",
-                "ubicacion": "str",
-            }
+            column_types={"pos": "int", "producto": "str", "stock_actual": "int", "ubicacion": "str"}
         )
+        self._low_tree.bind("<Button-1>", self._prevent_resize)
+        self._low_tree.bind("<B1-Motion>", self._prevent_resize)
 
-        self._low_scroll = ttk.Scrollbar(
-            left_frame,
-            orient="vertical",
-            command=self._low_tree.yview,
-        )
-        self._low_tree.configure(yscrollcommand=self._low_scroll.set)
-        self._low_tree.grid(row=3, column=0, sticky="nsew")
-        self._low_scroll.grid(row=3, column=1, sticky="ns")
+        self._low_scroll = ttk.Scrollbar(left_frame, orient="vertical", command=self._low_tree.yview)
+        self._low_hscroll = ttk.Scrollbar(left_frame, orient="horizontal", command=self._low_tree.xview)
+        self._low_tree.configure(yscrollcommand=self._low_scroll.set, xscrollcommand=self._low_hscroll.set)
+
+        self._low_tree.grid(row=4, column=0, sticky="nsew")
+        self._low_scroll.grid(row=4, column=1, sticky="ns")
+        self._low_hscroll.grid(row=5, column=0, columnspan=2, sticky="ew")
 
         # Right column: Payment chart + Expense summary
         right_frame = ctk.CTkFrame(self, fg_color="transparent", border_width=2, border_color=self._border_color)
         right_frame.grid(row=2, column=1, sticky="nsew", padx=(5, 10), pady=5)
         right_frame.grid_columnconfigure(0, weight=1)
-        right_frame.grid_rowconfigure(0, weight=0)  # chart (compact)
-        right_frame.grid_rowconfigure(1, weight=1)  # summary (expands)
+        
+        right_frame.grid_rowconfigure(0, weight=1)  # chart (expands)
+        right_frame.grid_rowconfigure(1, weight=0)  # summary (compact)
 
-        # Payment methods chart (reserved for matplotlib)
+        # Payment methods chart
         self._chart_frame = ctk.CTkFrame(right_frame, fg_color="transparent", border_width=2, border_color=self._border_color)
-        self._chart_frame.grid(row=0, column=0, sticky="nsew", pady=(0, 3))
+        self._chart_frame.grid(row=0, column=0, sticky="nsew", pady=(0, 5))
         self._chart_frame.grid_columnconfigure(0, weight=1)
         self._chart_frame.grid_rowconfigure(0, weight=0)  # title
         self._chart_frame.grid_rowconfigure(1, weight=1)  # canvas
@@ -421,15 +411,13 @@ class ReportView(ctk.CTkFrame):
             font=theme.scaled_font(14, weight="bold"),
         ).grid(row=0, column=0, sticky="n", pady=(10, 5))
 
-        # Placeholder for matplotlib canvas
         self._chart_canvas_frame = ctk.CTkFrame(
             self._chart_frame,
             fg_color="#1a1a1a",
             corner_radius=8,
         )
-        self._chart_canvas_frame.grid(row=1, column=0, sticky="nsew", padx=3, pady=3)
+        self._chart_canvas_frame.grid(row=1, column=0, sticky="nsew", padx=5, pady=(0, 5))
 
-        # Placeholder label
         ctk.CTkLabel(
             self._chart_canvas_frame,
             text="[ Gráfico circular - matplotlib ]",
@@ -437,40 +425,31 @@ class ReportView(ctk.CTkFrame):
             text_color="#666",
         ).pack(expand=True)
 
-        # Expense summary (ticket style)
+        # Expense summary (DISEÑO APILADO RESPONSIVO)
         summary_frame = ctk.CTkFrame(right_frame, fg_color="transparent", border_width=2, border_color=self._border_color)
-        summary_frame.grid(row=1, column=0, sticky="nsew")
-        summary_frame.grid_columnconfigure(0, weight=1)
-        summary_frame.grid_columnconfigure(1, weight=0)
+        summary_frame.grid(row=1, column=0, sticky="ew", pady=(10, 0)) # Margen superior para despegar del gráfico
+        
+        # Dos columnas exactas al 50% para que los montos tengan máximo espacio
+        summary_frame.grid_columnconfigure(0, weight=1, uniform="sum")
+        summary_frame.grid_columnconfigure(1, weight=1, uniform="sum")
 
-        # Title row
+        # Título en fila propia, ocupando todo el ancho
         ctk.CTkLabel(
             summary_frame,
             text="Resumen de Egresos y Pérdidas",
             font=theme.scaled_font(13, weight="bold"),
-        ).grid(row=0, column=0, sticky="w", padx=10, pady=(10, 5))
+            wraplength=250, # Evita estallar con fuentes gigantes
+        ).grid(row=0, column=0, columnspan=2, sticky="w", padx=10, pady=(10, 5))
 
-        # Export button row
-        self._export_resumen_btn = ctk.CTkButton(
-            summary_frame,
-            text="Exportar CSV",
-            width=100,
-            height=28,
-            fg_color="#3b3b3b",
-            command=self._handle_export_diario,  # Reuses diario export for now
-        )
-        self._export_resumen_btn.grid(row=0, column=1, sticky="e", padx=10, pady=(10, 5))
-
-        # Summary labels
         self._summary_labels: dict[str, ctk.CTkLabel] = {}
-
         summary_items = [
-            ("Compras a Proveedores:", "compras", "$0", "#888"),
+            ("Proveedores:", "compras", "$0", "#888"),
             ("Pérdidas:", "mermas", "$0", "#888"),
-            ("Gastos Operativos:", "gastos", "$0", "#888"),
-            ("Ganancia Neta:", "ganancia_neta", "$0", "#4CAF50"),
+            ("Gastos:", "gastos", "$0", "#888"),
+            ("Ganancias:", "ganancia_neta", "$0", "#4CAF50"),
         ]
 
+        # Textos alineados a la izq y derecha con su propio espacio de 50/50
         for idx, (label, key, default, color) in enumerate(summary_items, start=1):
             font_size = 18 if key == "ganancia_neta" else 13
             font_weight = "bold" if key == "ganancia_neta" else "normal"
@@ -479,7 +458,7 @@ class ReportView(ctk.CTkFrame):
                 summary_frame,
                 text=label,
                 font=theme.scaled_font(font_size, weight=font_weight),
-            ).grid(row=idx, column=0, sticky="w", padx=10, pady=5)
+            ).grid(row=idx, column=0, sticky="w", padx=10, pady=2)
 
             value_lbl = ctk.CTkLabel(
                 summary_frame,
@@ -487,8 +466,18 @@ class ReportView(ctk.CTkFrame):
                 font=theme.scaled_font(font_size, weight=font_weight),
                 text_color=color,
             )
-            value_lbl.grid(row=idx, column=1, sticky="e", padx=10, pady=5)
+            value_lbl.grid(row=idx, column=1, sticky="e", padx=10, pady=2)
             self._summary_labels[key] = value_lbl
+
+        # Botón de exportar en fila propia al fondo, estirado ocupando todo el ancho
+        self._export_resumen_btn = ctk.CTkButton(
+            summary_frame,
+            text="Exportar CSV",
+            height=32,
+            fg_color="#3b3b3b",
+            command=self._handle_export_diario,
+        )
+        self._export_resumen_btn.grid(row=5, column=0, columnspan=2, sticky="ew", padx=10, pady=(10, 10))
 
     # ---------------------------------------------------------------- public ---
 
@@ -576,11 +565,7 @@ class ReportView(ctk.CTkFrame):
         )
 
     def _update_payment_chart(self, payment_methods: list[dict]) -> None:
-        """Update the payment methods bar chart.
-        
-        Args:
-            payment_methods: List of dicts with keys ``payment_method``, ``total_amount``, ``percentage``.
-        """
+        """Update the payment methods pie chart."""
         if not HAS_MATPLOTLIB:
             return
 
@@ -588,61 +573,48 @@ class ReportView(ctk.CTkFrame):
         for widget in self._chart_canvas_frame.winfo_children():
             widget.destroy()
 
-        if not payment_methods:
+        # Extraemos los tamaños para validarlos
+        sizes = [item.get("percentage", 0) for item in payment_methods]
+        
+        # PREVENCIÓN DE CRASH: Si la suma de ventas es 0, matplotlib explota. Lo evitamos.
+        if not payment_methods or sum(sizes) == 0:
             ctk.CTkLabel(
                 self._chart_canvas_frame,
-                text="Sin datos de métodos de pago",
-                font=theme.scaled_font(12),
+                text="Sin datos suficientes\npara generar el gráfico",
+                font=theme.scaled_font(13),
                 text_color="#666",
             ).pack(expand=True)
             return
 
         # Prepare data
         labels = [item["payment_method"] for item in payment_methods]
-        sizes = [item["percentage"] for item in payment_methods]
-        colors = ["#4CAF50", "#2196F3", "#FF5722"]  # Green, Blue, Orange
+        colors = ["#4CAF50", "#2196F3", "#FFC107", "#E91E63", "#9C27B0"]
 
-        # Create figure (compact horizontal bar chart)
-        fig = Figure(figsize=(3, 2), dpi=100, facecolor="#1a1a1a")
+        # Creamos figura - Usamos márgenes fijos (subplots_adjust) en vez de tight_layout para no crashear con fuentes grandes
+        fig = Figure(figsize=(3, 3), dpi=100, facecolor="#1a1a1a")
+        fig.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05)
         ax = fig.add_subplot(111)
         ax.set_facecolor("#1a1a1a")
 
-        # Create horizontal bar chart
-        y_pos = range(len(labels))
-        bars = ax.barh(y_pos, sizes, color=colors, height=0.5)
-
-        # Add percentage labels on bars
-        for bar, percentage in zip(bars, sizes):
-            ax.text(
-                bar.get_width() + 1,
-                bar.get_y() + bar.get_height() / 2,
-                f"{percentage:.0f}%",
-                va="center",
-                ha="left",
-                color="white",
-                fontsize=9 + get_offset(),
-                fontweight="bold",
-            )
-
-        # Configure axes
-        ax.set_yticks(y_pos)
-        ax.set_yticklabels(labels, color="white", fontsize=9 + get_offset())
-        ax.set_xlim(0, max(sizes) + 15)  # Add padding for labels
-        ax.set_xlabel("%", color="white", fontsize=8 + get_offset())
-        ax.tick_params(axis="x", colors="white", labelsize=8 + get_offset())
-        ax.tick_params(axis="y", colors="white", labelsize=9 + get_offset())
-
-        # Remove spines
-        for spine in ax.spines.values():
-            spine.set_visible(False)
-
-        # Tight layout
-        fig.tight_layout()
+        # Create pie chart
+        wedges, texts, autotexts = ax.pie(
+            sizes,
+            labels=labels,
+            autopct='%1.1f%%',
+            startangle=90,
+            colors=colors,
+            textprops={'color': "white", 'fontsize': max(8, 9 + get_offset()), 'fontweight': 'bold'}
+        )
+        
+        # Ensure external labels are white too
+        for text in texts:
+            text.set_color("white")
 
         # Embed in tkinter
         canvas = FigureCanvasTkAgg(fig, master=self._chart_canvas_frame)
         canvas.draw()
         canvas.get_tk_widget().pack(fill="both", expand=True)
+        
 
     # ----------------------------------------------------------- callbacks ----
 
@@ -766,7 +738,12 @@ class ReportView(ctk.CTkFrame):
         )
 
     # --------------------------------------------------------------- private ---
-
+    def _prevent_resize(self, event: Any) -> str | None:
+        """Evita que el usuario cambie el tamaño de las columnas arrastrando el separador."""
+        if event.widget.identify_region(event.x, event.y) == "separator":
+            return "break"
+        return None
+        
     def _configure_style(self) -> None:
         """Configure Treeview style for dark theme."""
         self._style.theme_use("clam")

@@ -119,20 +119,15 @@ class ProductView(ctk.CTkFrame):
         for col in self.COLUMNS:
             self._tree.heading(col, text=self.COLUMN_LABELS[col])
 
-        self._tree.column("codigo", width=100, anchor="center")
-        self._tree.column("nombre", width=200, stretch=True)
-        self._tree.column("categoria", width=100)
-        self._tree.column("costo", width=80, anchor="e")
-        self._tree.column("precio", width=80, anchor="e")
-        self._tree.column("ganancia", width=80, anchor="center")
-        self._tree.column("stock", width=60, anchor="center")
+        self._tree.column("codigo", width=150, minwidth=150, anchor="center")
+        self._tree.column("nombre", width=350, minwidth=350) # Espacio gigante para los nombres
+        self._tree.column("categoria", width=160, minwidth=160)
+        self._tree.column("costo", width=120, minwidth=120, anchor="e")
+        self._tree.column("precio", width=120, minwidth=120, anchor="e")
+        self._tree.column("ganancia", width=120, minwidth=120, anchor="center")
+        self._tree.column("stock", width=100, minwidth=100, anchor="center")
 
-        # Load saved column widths
-        saved_widths = load_column_widths("product_view")
-        self._tree._view_name = "product_view"
-        apply_treeview_widths(self._tree, saved_widths)
-
-        # Add column sorting
+        # Cargamos solo la funcionalidad de ordenamiento (Eliminamos la carga de anchos guardados)
         add_sorting_to_treeview(
             self._tree,
             list(self.COLUMNS),
@@ -147,15 +142,35 @@ class ProductView(ctk.CTkFrame):
             }
         )
 
-        self._scrollbar = ttk.Scrollbar(
+        # Bloqueamos el redimensionamiento manual
+        self._tree.bind("<Button-1>", self._prevent_resize)
+        self._tree.bind("<B1-Motion>", self._prevent_resize)
+
+        # Scrollbars (Vertical y Horizontal)
+        self._vscrollbar = ttk.Scrollbar(
             self._tree_frame,
             orient="vertical",
             command=self._tree.yview,
         )
-        self._tree.configure(yscrollcommand=self._scrollbar.set)
+        self._hscrollbar = ttk.Scrollbar(
+            self._tree_frame,
+            orient="horizontal",
+            command=self._tree.xview,
+        )
+        self._tree.configure(
+            yscrollcommand=self._vscrollbar.set,
+            xscrollcommand=self._hscrollbar.set
+        )
+
+        # Ajustamos el grid interno para acomodar la nueva barra horizontal
+        self._tree_frame.grid_rowconfigure(0, weight=1)
+        self._tree_frame.grid_rowconfigure(1, weight=0)
+        self._tree_frame.grid_columnconfigure(0, weight=1)
+        self._tree_frame.grid_columnconfigure(1, weight=0)
 
         self._tree.grid(row=0, column=0, sticky="nsew")
-        self._scrollbar.grid(row=0, column=1, sticky="ns")
+        self._vscrollbar.grid(row=0, column=1, sticky="ns")
+        self._hscrollbar.grid(row=1, column=0, sticky="ew")
 
         self._tree.bind("<Double-1>", self._handle_double_click)
         self._tree.bind("<Delete>", self._handle_delete_key)
@@ -474,7 +489,12 @@ class ProductView(ctk.CTkFrame):
             self.set_categories(result["data"])
 
     # --------------------------------------------------------------- private ---
-
+    def _prevent_resize(self, event: Any) -> str | None:
+        """Evita que el usuario cambie el tamaño de las columnas arrastrando el separador."""
+        if event.widget.identify_region(event.x, event.y) == "separator":
+            return "break"
+        return None
+        
     def _configure_style(self) -> None:
         """Configure ttk styles to blend with CTk dark theme."""
         self._style.theme_use("clam")

@@ -84,15 +84,21 @@ class MainWindow(ctk.CTk):
             )
         
         # --- Window resolution button ---
+        # 1. Creamos un contenedor estricto de 32x32
+        self._res_container = ctk.CTkFrame(self, width=32, height=32, fg_color="transparent")
+        self._res_container.place(x=207, y=15)
+        self._res_container.pack_propagate(False) # ¡Esta línea impide que el emoji estire la caja!
+
+        # 2. Metemos el botón dentro del contenedor para que se adapte a ese tamaño exacto
         self._resolution_btn = ctk.CTkButton(
-            self,
-            text="🖥️",
-            width=40,
+            self._res_container,
+            text="💻",
+            width=32,
             height=32,
-            font=ctk.CTkFont(size=18),
+            font=ctk.CTkFont(size=16),
             command=self._show_resolution_menu,
         )
-        self._resolution_btn.place(x=207, y=15)
+        self._resolution_btn.pack(fill="both", expand=True)
 
         # --- Resolution popup menu ---
         self._resolution_popup = tk.Menu(self, tearoff=0, bg="#2b2b2b", fg="white")
