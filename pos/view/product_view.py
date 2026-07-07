@@ -52,11 +52,13 @@ class ProductView(ctk.CTkFrame):
         self,
         master: tk.Widget,
         callbacks: dict[str, Callable[..., Any]] | None = None,
+        role: str | None = None,
         **kwargs,
     ) -> None:
         border_color = theme.get_contrast_map()["search_border"]
         super().__init__(master, fg_color="transparent", border_width=2, border_color=border_color, **kwargs)
         callbacks = callbacks or {}
+        self._role = role
 
         # --- callback slots ---
         self._on_create: Callable[[], None] | None = callbacks.get(

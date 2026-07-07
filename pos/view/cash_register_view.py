@@ -47,11 +47,13 @@ class CashRegisterView(ctk.CTkFrame):
         self,
         master: tk.Widget,
         callbacks: dict[str, Callable[..., Any]] | None = None,
+        cash_register_mode: str = "full",
         **kwargs,
     ) -> None:
         border_color = theme.get_contrast_map()["search_border"]
         super().__init__(master, fg_color="transparent", border_width=2, border_color=border_color, **kwargs)
         callbacks = callbacks or {}
+        self._cash_register_mode = cash_register_mode
 
         self._on_open: Callable[[int], None] | None = callbacks.get(
             "on_open"
@@ -448,6 +450,9 @@ class CashRegisterView(ctk.CTkFrame):
         # Bind selection event to show movements preview
         self._history_tree.bind("<<TreeviewSelect>>", self._handle_history_select)
 
+        # Apply permission-based visibility
+        self._apply_permission_mode(self._cash_register_mode)
+
     # ---------------------------------------------------------------- public ---
 
     def update_register_status(self, status: dict[str, Any]) -> None:
@@ -701,6 +706,28 @@ class CashRegisterView(ctk.CTkFrame):
 
 
     # --------------------------------------------------------------- private ---
+    def _apply_permission_mode(self, mode: str) -> None:
+        """Apply role-based visibility to cash register widgets."""
+        if mode == "history_only":
+            # Gerente: hide open/close buttons and outflow form, but keep history and preview
+            self._open_btn.pack_forget()
+            self._close_btn.pack_forget()
+            self._outflow_frame.grid_remove()
+            # Keep _preview_frame visible so gerente can see movements of selected register
+        elif mode == "restricted":
+            # Cajero: hide history, diferencia, esperado
+            self._history_frame.grid_remove()
+            for key in ("expected", "difference"):
+                self._balance_labels[key].grid_remove()
+                # Also hide the corresponding label (column 0 in same row)
+                for widget in self._balance_frame.winfo_children():
+                    if isinstance(widget, ctk.CTkLabel):
+                        info = widget.grid_info()
+                        label_info = self._balance_labels[key].grid_info()
+                        if info.get("row") == label_info.get("row") and info.get("column") == 0:
+                            widget.grid_remove()
+        # mode == "full": no changes (admin)
+
     def _prevent_resize(self, event: Any) -> str | None:
         """Evita que el usuario cambie el tamaño de las columnas arrastrando el separador."""
         if event.widget.identify_region(event.x, event.y) == "separator":

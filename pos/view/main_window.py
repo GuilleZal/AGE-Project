@@ -8,10 +8,12 @@ Defaults to dark theme at 1280x720, centered on screen, with the Sales tab activ
 """
 
 import tkinter as tk
+from typing import Callable
 
 import customtkinter as ctk
 
 from pos.view import theme
+from pos.model.user import PermissionContext
 
 
 class MainWindow(ctk.CTk):
@@ -29,10 +31,11 @@ class MainWindow(ctk.CTk):
     WINDOW_WIDTH = 1280
     WINDOW_HEIGHT = 720
 
-    def __init__(self) -> None:
+    def __init__(self, permissions: PermissionContext | None = None) -> None:
         super().__init__()
 
         self.title("Sistema POS")
+        self._permissions = permissions
         
         # Apply saved resolution or default
         saved_resolution = theme.get_resolution()
@@ -109,6 +112,38 @@ class MainWindow(ctk.CTk):
                 font=("Segoe UI", 10),
             )
         
+        # --- User display + logout (top-right area) ---
+        self._on_logout_callback: Callable | None = None
+        self._on_close_callback: Callable | None = None
+        
+        if permissions is not None:
+            role_display = {
+                "admin": "Administrador",
+                "gerente": "Gerente",
+                "cajero": "Cajero",
+                "inventario": "Inventario",
+            }
+            role_val = permissions.user.role.value if hasattr(permissions.user.role, 'value') else permissions.user.role
+            role_text = role_display.get(role_val, role_val)
+            
+            self._user_label = ctk.CTkLabel(
+                self,
+                text=f"{permissions.user.username} - {role_text}",
+                font=theme.scaled_font(13, weight="bold"),
+            )
+            self._user_label.place(relx=1.0, x=-180, y=15, anchor="ne")
+
+            self._logout_btn = ctk.CTkButton(
+                self,
+                text="Cerrar sesion",
+                width=120,
+                height=32,
+                font=theme.scaled_font(12, weight="bold"),
+                fg_color="#8b1a1a",
+                command=self._on_logout,
+            )
+            self._logout_btn.place(relx=1.0, x=-40, y=15, anchor="ne")
+        
         # Set callback for theme propagation
         theme.set_on_change_callback(self._on_theme_changed)
 
@@ -118,18 +153,37 @@ class MainWindow(ctk.CTk):
 
         self._tab_frames: dict[str, ctk.CTkFrame] = {}
 
-        for name in self.TABS:
+        # Determine which tabs to create based on permissions
+        if permissions is not None:
+            tabs_to_create = [t for t in permissions.allowed_tabs if t != "Usuarios"]
+        else:
+            tabs_to_create = list(self.TABS)
+
+        for name in tabs_to_create:
             self._tabview.add(name)
             frame = ctk.CTkFrame(self._tabview.tab(name))
             frame.pack(fill="both", expand=True)
             self._tab_frames[name] = frame
 
-        # Set "Ventas" (Sales) as the default active tab
-        self._tabview.set("Ventas")
+        # Add "Usuarios" tab if admin
+        if permissions is not None and "Usuarios" in permissions.allowed_tabs:
+            self._tabview.add("Usuarios")
+            frame = ctk.CTkFrame(self._tabview.tab("Usuarios"))
+            frame.pack(fill="both", expand=True)
+            self._tab_frames["Usuarios"] = frame
+
+        # Set default active tab
+        if tabs_to_create:
+            first_tab = tabs_to_create[0]
+            if self._tabview.get() != first_tab:
+                try:
+                    self._tabview.set(first_tab)
+                except Exception:
+                    pass
 
         # Tab-change callback (set by main.py after wiring views)
         self._on_tab_change_callbacks: dict[str, list] = {
-            name: [] for name in self.TABS
+            name: [] for name in self._tab_frames
         }
 
         # View instances and controllers (for refresh)
@@ -154,6 +208,26 @@ class MainWindow(ctk.CTk):
         """Store controller reference for refresh."""
         self._controllers[tab_name] = controller
 
+    def set_logout_callback(self, callback: Callable) -> None:
+        """Set callback for logout button."""
+        self._on_logout_callback = callback
+
+    def set_close_callback(self, callback: Callable) -> None:
+        """Set callback for window close (WM_DELETE_WINDOW)."""
+        self._on_close_callback = callback
+        self.protocol("WM_DELETE_WINDOW", self._on_window_close)
+
+    def _on_logout(self) -> None:
+        """Handle logout button click."""
+        if self._on_logout_callback:
+            self._on_logout_callback()
+
+    def _on_window_close(self) -> None:
+        """Handle window manager close button."""
+        if self._on_close_callback:
+            self._on_close_callback()
+        self.destroy()
+
     def refresh_all_views(self) -> None:
         """Rebuild all views with new font scale."""
         active_tab = self._tabview.get()
@@ -169,6 +243,7 @@ class MainWindow(ctk.CTk):
         from pos.view.return_view import ReturnView
         from pos.view.cash_register_view import CashRegisterView
         from pos.view.report_view import ReportView
+        from pos.view.user_management_view import UserManagementView
 
         view_classes = {
             "Ventas": SaleView,
@@ -176,16 +251,27 @@ class MainWindow(ctk.CTk):
             "Devoluciones": ReturnView,
             "Caja": CashRegisterView,
             "Reportes": ReportView,
+            "Usuarios": UserManagementView,
         }
 
         self._views.clear()
 
-        for tab_name in self.TABS:
+        for tab_name in self._tab_frames:
             frame = self._tab_frames[tab_name]
-            view_class = view_classes[tab_name]
+            view_class = view_classes.get(tab_name)
+            if view_class is None:
+                continue
             controller = self._controllers.get(tab_name)
 
-            view = view_class(frame)
+            # Pass special kwargs for certain views
+            kwargs = {}
+            if tab_name == "Caja" and self._permissions:
+                kwargs["cash_register_mode"] = self._permissions.cash_register_mode
+            if tab_name == "Productos" and self._permissions:
+                role_val = self._permissions.user.role
+                kwargs["role"] = role_val.value if hasattr(role_val, 'value') else role_val
+
+            view = view_class(frame, **kwargs)
             view.pack(fill="both", expand=True)
             if controller is not None:
                 view.set_controller(controller)
@@ -195,7 +281,10 @@ class MainWindow(ctk.CTk):
         self._setup_cross_view_wiring()
 
         # Restore active tab
-        self._tabview.set(active_tab)
+        try:
+            self._tabview.set(active_tab)
+        except Exception:
+            pass
 
     def _setup_cross_view_wiring(self) -> None:
         """Re-establish cross-view callbacks after refresh."""

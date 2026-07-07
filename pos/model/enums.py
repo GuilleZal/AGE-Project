@@ -32,3 +32,12 @@ class MovementType(str, Enum):
     RETURN = "return"
     SUPPLIER_PAYMENT = "supplier_payment"
     EXPENSE = "expense"
+
+
+class UserRole(str, Enum):
+    """User role for RBAC — maps to CHECK constraint in users table."""
+
+    ADMIN = "admin"
+    GERENTE = "gerente"
+    CAJERO = "cajero"
+    INVENTARIO = "inventario"

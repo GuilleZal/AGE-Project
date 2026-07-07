@@ -184,6 +184,33 @@ def _run_migrations(conn: sqlite3.Connection) -> None:
         """)
         conn.execute("PRAGMA foreign_keys=ON")
 
+    # Migration 7: Add users and sessions tables for login system
+    row = conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='users'"
+    ).fetchone()
+    if row is None:
+        conn.executescript("""
+            CREATE TABLE users (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                username    TEXT NOT NULL UNIQUE,
+                password    TEXT NOT NULL,
+                role        TEXT NOT NULL CHECK(role IN ('admin', 'gerente', 'cajero', 'inventario')),
+                is_active   INTEGER NOT NULL DEFAULT 1,
+                created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+            );
+            CREATE INDEX idx_users_username ON users(username);
+            CREATE INDEX idx_users_role ON users(role);
+
+            CREATE TABLE sessions (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id         INTEGER NOT NULL REFERENCES users(id),
+                login_time      TEXT NOT NULL DEFAULT (datetime('now')),
+                logout_time     TEXT
+            );
+            CREATE INDEX idx_sessions_user ON sessions(user_id);
+            CREATE INDEX idx_sessions_active ON sessions(logout_time);
+        """)
+
 
 # ------------------------------------------------------------------ DDL ----
 # NOTE: Currency fields (prices, amounts, totals) use INTEGER to represent
@@ -325,4 +352,26 @@ CREATE TABLE IF NOT EXISTS settings (
     value       TEXT NOT NULL,
     updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+-- ============================================================ USERS
+CREATE TABLE IF NOT EXISTS users (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    username    TEXT NOT NULL UNIQUE,
+    password    TEXT NOT NULL,
+    role        TEXT NOT NULL CHECK(role IN ('admin', 'gerente', 'cajero', 'inventario')),
+    is_active   INTEGER NOT NULL DEFAULT 1,
+    created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
+CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
+
+-- ========================================================== SESSIONS
+CREATE TABLE IF NOT EXISTS sessions (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id         INTEGER NOT NULL REFERENCES users(id),
+    login_time      TEXT NOT NULL DEFAULT (datetime('now')),
+    logout_time     TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_active ON sessions(logout_time);
 """
