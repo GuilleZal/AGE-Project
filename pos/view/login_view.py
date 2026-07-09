@@ -5,7 +5,7 @@ import customtkinter as ctk
 from pos.view import theme
 
 
-class LoginView(ctk.CTk):
+class LoginView(ctk.CTkToplevel):
     """Standalone login window displayed before MainWindow.
 
     Layout (centered, 400x300):
@@ -14,10 +14,10 @@ class LoginView(ctk.CTk):
         │                              │
         │  Usuario: [___________]      │
         │  Contrasena: [___________]   │
+        │  (error label, hidden)       │
         │                              │
         │  [  Iniciar sesion  ]        │
         │                              │
-        │  (error label, hidden)       │
         └─────────────────────────────┘
 
     Events:
@@ -27,10 +27,10 @@ class LoginView(ctk.CTk):
     """
 
     WINDOW_WIDTH = 400
-    WINDOW_HEIGHT = 300
+    WINDOW_HEIGHT = 380
 
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, master=None) -> None:
+        super().__init__(master)
         self.title("Sistema POS - Login")
         self.resizable(False, False)
         self.minsize(self.WINDOW_WIDTH, self.WINDOW_HEIGHT)
@@ -61,12 +61,11 @@ class LoginView(ctk.CTk):
 
         self._username_entry = ctk.CTkEntry(
             self,
-            width=250,
             height=36,
             placeholder_text="Ingrese su usuario",
             font=theme.scaled_font(13),
         )
-        self._username_entry.pack(pady=(0, 15))
+        self._username_entry.pack(fill="x", padx=40, pady=(0, 15))
         self._username_entry.bind("<Return>", lambda _e: self._on_submit())
         self._username_entry.focus_set()
 
@@ -80,34 +79,32 @@ class LoginView(ctk.CTk):
 
         self._password_entry = ctk.CTkEntry(
             self,
-            width=250,
             height=36,
             placeholder_text="Ingrese su contrasena",
             show="*",
             font=theme.scaled_font(13),
         )
-        self._password_entry.pack(pady=(0, 20))
+        self._password_entry.pack(fill="x", padx=40, pady=(0, 10))
         self._password_entry.bind("<Return>", lambda _e: self._on_submit())
-
-        # --- Submit button ---
-        self._submit_btn = ctk.CTkButton(
-            self,
-            text="Iniciar sesion",
-            width=200,
-            height=40,
-            font=theme.scaled_font(14, weight="bold"),
-            command=self._on_submit,
-        )
-        self._submit_btn.pack(pady=(0, 15))
 
         # --- Error label (hidden by default) ---
         self._error_label = ctk.CTkLabel(
             self,
             text="",
             text_color="#e74c3c",
-            font=theme.scaled_font(12),
+            font=theme.scaled_font(12, weight="bold"),
         )
-        self._error_label.pack()
+        self._error_label.pack(pady=(0, 10))
+
+        # --- Submit button ---
+        self._submit_btn = ctk.CTkButton(
+            self,
+            text="Iniciar sesion",
+            height=40,
+            font=theme.scaled_font(14, weight="bold"),
+            command=self._on_submit,
+        )
+        self._submit_btn.pack(fill="x", padx=40, pady=(0, 15))
 
         # Apply theme
         contrast = theme.get_contrast_map()
@@ -128,6 +125,8 @@ class LoginView(ctk.CTk):
     def show_error(self, message: str) -> None:
         """Display error label with message, focus username field."""
         self._error_label.configure(text=message)
+        # Force update to ensure the error is visible
+        self.update_idletasks()
         self._username_entry.focus_set()
 
     def get_username(self) -> str:
@@ -154,14 +153,18 @@ class LoginView(ctk.CTk):
         if result["success"]:
             self._error_label.configure(text="")
             if self._success_callback:
-                self._success_callback()
-            self.quit()
+                # Pass user and permissions to callback
+                self._success_callback(result["data"]["user"], result["data"]["permissions"])
+            # Destroy the window to signal completion
+            self.grab_release()
+            self.destroy()
         else:
             self.show_error(result["error"])
 
     def _on_close(self) -> None:
-        """Handle window close button - just quit the mainloop."""
-        self.quit()
+        """Handle window close button - destroy the window."""
+        self.grab_release()
+        self.destroy()
 
     def _center_on_screen(self) -> None:
         """Center the login window on the screen."""

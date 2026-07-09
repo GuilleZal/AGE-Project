@@ -220,13 +220,18 @@ class MainWindow(ctk.CTk):
     def _on_logout(self) -> None:
         """Handle logout button click."""
         if self._on_logout_callback:
-            self._on_logout_callback()
+            # Añadimos un retraso de 200ms para que la animación del botón termine
+            self.after(200, self._on_logout_callback)
 
     def _on_window_close(self) -> None:
         """Handle window manager close button."""
-        if self._on_close_callback:
-            self._on_close_callback()
-        self.destroy()
+        def execute_close():
+            if self._on_close_callback:
+                self._on_close_callback()
+            self.destroy()
+            
+        # Añadimos el retraso también al cierre total de la ventana
+        self.after(200, execute_close)
 
     def refresh_all_views(self) -> None:
         """Rebuild all views with new font scale."""

@@ -42,7 +42,7 @@ def main() -> None:
         test_mode = os.environ.get("POS_TEST_MODE") == "1"
 
         if test_mode:
-            _launch_with_user(conn, login_ctrl, synthetic_admin=True)
+            _launch_test_mode(conn, login_ctrl)
         else:
             _run_login_loop(conn, login_ctrl)
     finally:
@@ -51,106 +51,106 @@ def main() -> None:
 
 def _run_login_loop(conn, login_ctrl) -> None:
     """Show LoginView. On success, launch MainWindow. On logout, loop back."""
+    import customtkinter as ctk
     from pos.view.login_view import LoginView
+    
+    # Create a persistent root window that never gets destroyed
+    # This prevents "no default root window" errors when recreating windows
+    _root = ctk.CTk()
+    _root.withdraw()  # Hide it - it's just a Tkinter root anchor
 
     while True:
-        login_view = LoginView()
+        # Create LoginView as a Toplevel of the persistent root
+        login_view = LoginView(_root)
         login_view.set_controller(login_ctrl)
         
         # Track if login was successful
         login_success = False
+        user_data = None
         
-        def on_login_success():
-            nonlocal login_success
+        def on_login_success(user, permissions):
+            nonlocal login_success, user_data
             login_success = True
+            user_data = {"user": user, "permissions": permissions}
         
         login_view.set_success_callback(on_login_success)
 
-        # Block until login succeeds or window is closed
-        login_view.mainloop()
+        # Wait for login window to close (uses wait_window instead of mainloop)
+        login_view.grab_set()
+        _root.wait_window(login_view)
 
         # If user closed window without logging in, exit
         if not login_success:
             break
 
-        # Get validated user data from controller
-        username = login_view.get_username()
-        password = login_view.get_password()
-        result = login_ctrl.validate(username, password)
-
-        # Safely destroy login window
+        user = user_data["user"]
+        permissions = user_data["permissions"]
+        
+        # Create MainWindow BEFORE destroying LoginView
+        app = _create_main_window(conn, login_ctrl, user, permissions)
+        
+        # NOW destroy login window
         try:
-            if login_view.winfo_exists():
-                login_view.destroy()
+            login_view.destroy()
         except Exception:
             pass
+        
+        # Run MainWindow
+        app.mainloop()
+        
+        # After logout/close, destroy MainWindow
+        try:
+            app.destroy()
+        except Exception:
+            pass
+    
+    # Clean up the persistent root
+    _root.destroy()
 
-        if not result["success"]:
-            break
 
-        user = result["data"]["user"]
-        permissions = result["data"]["permissions"]
-        should_continue = _launch_with_user(
-            conn, login_ctrl, user=user, permissions=permissions
-        )
-
-        if not should_continue:
-            break
-
-
-def _launch_with_user(
-    conn,
-    login_ctrl,
-    *,
-    user=None,
-    permissions=None,
-    synthetic_admin=False,
-) -> bool:
-    """Launch MainWindow with authenticated user. Returns True if should loop back."""
-    from pos.service.permission_service import PermissionService
-    from pos.model.user import User
-    from pos.model.enums import UserRole
-
-    if synthetic_admin:
-        user = User(id=0, username="admin", password="", role=UserRole.ADMIN)
-
-    perm_service = PermissionService()
-    permissions = perm_service.get_permissions(user)
-
-    # --- Build MainWindow ---
+def _create_main_window(conn, login_ctrl, user, permissions):
+    """Create and configure MainWindow with all controllers wired."""
     from pos.view.main_window import MainWindow
+    
+    # MainWindow is a CTk root window (independent from the manager root)
     app = MainWindow(permissions=permissions)
-
-    # Apply saved theme (background color and contrast)
     app._apply_current_theme()
-
-    # --- Wire controllers and views (filtered by permissions) ---
     _wire_views(conn, app, permissions)
-
-    # --- Set logout callback ---
+    
+    # Set callbacks - only quit mainloop, don't destroy
     def on_logout():
         if user.id and user.id > 0:
             login_ctrl.logout(user.id)
-        try:
-            if app.winfo_exists():
-                app.destroy()
-        except Exception:
-            pass
-
+        app.quit()
+    
     def on_window_close():
         if user.id and user.id > 0:
             login_ctrl.logout(user.id)
-        try:
-            if app.winfo_exists():
-                app.destroy()
-        except Exception:
-            pass
-
+        app.quit()
+    
     app.set_logout_callback(on_logout)
     app.set_close_callback(on_window_close)
+    
+    return app
 
+
+def _launch_test_mode(conn, login_ctrl):
+    """Launch MainWindow directly for testing (bypasses login)."""
+    from pos.service.permission_service import PermissionService
+    from pos.model.user import User
+    from pos.model.enums import UserRole
+    
+    user = User(id=0, username="admin", password="", role=UserRole.ADMIN)
+    perm_service = PermissionService()
+    permissions = perm_service.get_permissions(user)
+    
+    app = _create_main_window(conn, login_ctrl, user, permissions)
     app.mainloop()
-    return True
+    
+    try:
+        app.destroy()
+    except Exception:
+        pass
 
 
 def _wire_views(conn, app, permissions) -> None:
