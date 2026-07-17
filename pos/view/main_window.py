@@ -275,6 +275,9 @@ class MainWindow(ctk.CTk):
             if tab_name == "Productos" and self._permissions:
                 role_val = self._permissions.user.role
                 kwargs["role"] = role_val.value if hasattr(role_val, 'value') else role_val
+            if tab_name == "Ventas" and self._permissions:
+                role_val = self._permissions.user.role
+                kwargs["role"] = role_val.value if hasattr(role_val, 'value') else role_val
 
             view = view_class(frame, **kwargs)
             view.pack(fill="both", expand=True)
@@ -307,7 +310,8 @@ class MainWindow(ctk.CTk):
         if sale_view is not None and product_view is not None:
             sale_view._on_product_created = product_view._refresh_products
 
-        self.on_tab_change("Productos", product_view._refresh_products)
+        if product_view is not None:
+            self.on_tab_change("Productos", product_view._refresh_products)
 
     # --------------------------------------------------------------- private ---
 

@@ -51,7 +51,7 @@ class ProductRepo:
         q = f"%{query}%"
         rows = self._db.execute(
             """SELECT DISTINCT p.id, p.barcode, p.name, p.cost_price,
-                      p.sale_price, p.stock, p.description,
+                      p.sale_price, p.stock, p.unit_type, p.description,
                       p.low_stock_threshold, p.category_id, p.is_active,
                       p.created_at, p.updated_at
                FROM products p
@@ -117,8 +117,8 @@ class ProductRepo:
             cur = self._db.execute(
                 """INSERT INTO products
                    (barcode, name, category_id, sale_price, cost_price,
-                    stock, description, low_stock_threshold)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    stock, unit_type, description, low_stock_threshold)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                    RETURNING id, created_at, updated_at""",
                 (
                     product.barcode,
@@ -127,6 +127,7 @@ class ProductRepo:
                     product.sale_price,
                     product.cost_price,
                     product.stock,
+                    product.unit_type,
                     product.description,
                     product.low_stock_threshold,
                 ),
@@ -155,7 +156,7 @@ class ProductRepo:
             cur = self._db.execute(
                 """UPDATE products
                    SET barcode = ?, name = ?, category_id = ?, sale_price = ?,
-                       cost_price = ?, stock = ?,
+                       cost_price = ?, stock = ?, unit_type = ?,
                        description = ?, low_stock_threshold = ?,
                        updated_at = datetime('now')
                    WHERE id = ?
@@ -167,6 +168,7 @@ class ProductRepo:
                     product.sale_price,
                     product.cost_price,
                     product.stock,
+                    product.unit_type,
                     product.description,
                     product.low_stock_threshold,
                     product.id,
@@ -369,11 +371,11 @@ class ProductRepo:
         if existing:
             self._db.execute(
                 """UPDATE products
-                   SET sale_price = ?, cost_price = ?, stock = ?,
+                   SET sale_price = ?, cost_price = ?, stock = ?, unit_type = ?,
                        name = ?, category_id = ?,
                        is_active = 1, updated_at = datetime('now')
                    WHERE barcode = ?""",
-                (product.sale_price, product.cost_price, product.stock,
+                (product.sale_price, product.cost_price, product.stock, product.unit_type,
                  product.name, product.category_id, product.barcode),
             )
             product.id = existing["id"]
@@ -393,7 +395,8 @@ class ProductRepo:
             category_id=row["category_id"],
             sale_price=row["sale_price"],
             cost_price=row["cost_price"],
-            stock=row["stock"],
+            stock=float(row["stock"]),
+            unit_type=row["unit_type"] if "unit_type" in row.keys() else "Unidad",
             description=row["description"],
             low_stock_threshold=row["low_stock_threshold"],
             is_active=bool(row["is_active"]),

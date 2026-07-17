@@ -144,31 +144,48 @@ class ProductFormDialog(CenteredDialog):
         self._cost_price_entry.insert(0, prev_cost)
         self._cost_price_entry.grid(row=1, column=1, sticky="w", padx=(5, 0), pady=(2, 0))
 
-        # Stock + Low stock threshold (side by side)
+        # Stock + Low stock threshold + Unit type (side by side)
         stock_frame = ctk.CTkFrame(body, fg_color="transparent")
         stock_frame.grid(row=row, column=0, sticky="ew", padx=15, pady=5)
         stock_frame.grid_columnconfigure(0, weight=1)
         stock_frame.grid_columnconfigure(1, weight=1)
+        stock_frame.grid_columnconfigure(2, weight=1)
         row += 1
 
-        ctk.CTkLabel(stock_frame, text="Stock inicial", font=theme.scaled_font(12)).grid(
+        ctk.CTkLabel(stock_frame, text="Cantidad", font=theme.scaled_font(12)).grid(
             row=0, column=0, sticky="w", padx=(0, 5)
         )
-        ctk.CTkLabel(stock_frame, text="Umbral stock bajo", font=theme.scaled_font(12)).grid(
-            row=0, column=1, sticky="w", padx=(5, 0)
+        ctk.CTkLabel(stock_frame, text="Tipo de Unidad", font=theme.scaled_font(12)).grid(
+            row=0, column=1, sticky="w", padx=(5, 5)
+        )
+        ctk.CTkLabel(stock_frame, text="Alerta stock bajo", font=theme.scaled_font(12)).grid(
+            row=0, column=2, sticky="w", padx=(5, 0)
         )
 
         self._stock_entry = ctk.CTkEntry(
-            stock_frame, width=180, placeholder_text="0"
+            stock_frame, width=120, placeholder_text="0"
         )
-        self._stock_entry.insert(0, prev_stock)
+        # Format stock as int if it's whole, otherwise float
+        if prev_stock:
+            try:
+                f_stock = float(prev_stock)
+                self._stock_entry.insert(0, str(int(f_stock)) if f_stock.is_integer() else str(f_stock))
+            except ValueError:
+                self._stock_entry.insert(0, prev_stock)
         self._stock_entry.grid(row=1, column=0, sticky="w", padx=(0, 5), pady=(2, 0))
 
-        self._low_stock_entry = ctk.CTkEntry(
-            stock_frame, width=180, placeholder_text="5"
+        prev_unit_type = prev.get("unit_type", "Unidad")
+        self._unit_type_var = tk.StringVar(value=prev_unit_type)
+        self._unit_type_menu = ctk.CTkOptionMenu(
+            stock_frame, values=["Unidad", "Kg"], variable=self._unit_type_var, width=120
         )
-        self._low_stock_entry.insert(0, prev_threshold)
-        self._low_stock_entry.grid(row=1, column=1, sticky="w", padx=(5, 0), pady=(2, 0))
+        self._unit_type_menu.grid(row=1, column=1, sticky="w", padx=(5, 5), pady=(2, 0))
+
+        self._threshold_entry = ctk.CTkEntry(
+            stock_frame, width=120, placeholder_text="5"
+        )
+        self._threshold_entry.insert(0, prev_threshold)
+        self._threshold_entry.grid(row=1, column=2, sticky="w", padx=(5, 0), pady=(2, 0))
 
         # Description
         ctk.CTkLabel(body, text="Descripción", font=theme.scaled_font(12)).grid(
@@ -252,26 +269,33 @@ class ProductFormDialog(CenteredDialog):
             self._cost_price_entry.focus_set()
             return
 
+        # Unit type
+        unit_type = self._unit_type_var.get()
+
         # Stock
         stock_raw = self._stock_entry.get().strip() or "0"
         try:
-            stock = int(stock_raw)
+            if unit_type == "Unidad":
+                # Only accept integers
+                stock = float(int(stock_raw))
+            else:
+                stock = float(stock_raw)
         except ValueError:
-            self._error_label.configure(text="Stock inválido")
+            self._error_label.configure(text=f"Cantidad inválida (debe ser {'entero' if unit_type == 'Unidad' else 'número'})")
             self._stock_entry.focus_set()
             return
         if stock < 0:
-            self._error_label.configure(text="El stock no puede ser negativo")
+            self._error_label.configure(text="La cantidad no puede ser negativa")
             self._stock_entry.focus_set()
             return
 
         # Low stock threshold
-        threshold_raw = self._low_stock_entry.get().strip() or "5"
+        threshold_raw = self._threshold_entry.get().strip() or "5"
         try:
             low_stock_threshold = int(threshold_raw)
         except ValueError:
             self._error_label.configure(text="Umbral de stock inválido")
-            self._low_stock_entry.focus_set()
+            self._threshold_entry.focus_set()
             return
 
         # Barcode
@@ -281,10 +305,7 @@ class ProductFormDialog(CenteredDialog):
         cat_name = self._category_var.get()
         category_id = self._cat_map.get(cat_name, None)
 
-        # Description
-        description = self._desc_entry.get().strip() or None
 
-        self._error_label.configure(text="")
         self._result = {
             "barcode": barcode,
             "name": name,
@@ -292,7 +313,8 @@ class ProductFormDialog(CenteredDialog):
             "sale_price": sale_price,
             "cost_price": cost_price,
             "stock": stock,
-            "description": description,
+            "unit_type": unit_type,
+            "description": self._desc_entry.get().strip() or None,
             "low_stock_threshold": low_stock_threshold,
         }
         self.destroy()

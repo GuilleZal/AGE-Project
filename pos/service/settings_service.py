@@ -9,10 +9,16 @@ from pos.repository.product_repo import ProductRepo
 # Setting keys
 LOW_STOCK_THRESHOLD = "low_stock_threshold"
 PROFIT_MARGIN_PCT = "profit_margin_pct"
+TRANSFER_SURCHARGE_PCT = "transfer_surcharge_pct"
+DEBIT_SURCHARGE_PCT = "debit_surcharge_pct"
+CREDIT_SURCHARGE_PCT = "credit_surcharge_pct"
 
 # Defaults
 DEFAULT_LOW_STOCK_THRESHOLD = 5
 DEFAULT_PROFIT_MARGIN_PCT = 30.0
+DEFAULT_TRANSFER_SURCHARGE_PCT = 0.0
+DEFAULT_DEBIT_SURCHARGE_PCT = 0.0
+DEFAULT_CREDIT_SURCHARGE_PCT = 0.0
 
 
 class SettingsService:
@@ -41,11 +47,32 @@ class SettingsService:
             PROFIT_MARGIN_PCT, DEFAULT_PROFIT_MARGIN_PCT
         )
 
+    def get_transfer_surcharge_pct(self) -> float:
+        """Return the global transfer surcharge percentage."""
+        return self._settings_repo.get_float(
+            TRANSFER_SURCHARGE_PCT, DEFAULT_TRANSFER_SURCHARGE_PCT
+        )
+
+    def get_debit_surcharge_pct(self) -> float:
+        """Return the global debit card surcharge percentage."""
+        return self._settings_repo.get_float(
+            DEBIT_SURCHARGE_PCT, DEFAULT_DEBIT_SURCHARGE_PCT
+        )
+
+    def get_credit_surcharge_pct(self) -> float:
+        """Return the global credit card surcharge percentage."""
+        return self._settings_repo.get_float(
+            CREDIT_SURCHARGE_PCT, DEFAULT_CREDIT_SURCHARGE_PCT
+        )
+
     def get_all(self) -> dict[str, int | float]:
         """Return all settings as a dict."""
         return {
             LOW_STOCK_THRESHOLD: self.get_low_stock_threshold(),
             PROFIT_MARGIN_PCT: self.get_profit_margin_pct(),
+            TRANSFER_SURCHARGE_PCT: self.get_transfer_surcharge_pct(),
+            DEBIT_SURCHARGE_PCT: self.get_debit_surcharge_pct(),
+            CREDIT_SURCHARGE_PCT: self.get_credit_surcharge_pct(),
         }
 
     def get_font_scale_level(self) -> int:
@@ -64,6 +91,18 @@ class SettingsService:
     def set_profit_margin_pct(self, value: float) -> None:
         """Set the global profit margin percentage."""
         self._settings_repo.set(PROFIT_MARGIN_PCT, str(value))
+
+    def set_transfer_surcharge_pct(self, value: float) -> None:
+        """Set the global transfer surcharge percentage."""
+        self._settings_repo.set(TRANSFER_SURCHARGE_PCT, str(value))
+
+    def set_debit_surcharge_pct(self, value: float) -> None:
+        """Set the global debit card surcharge percentage."""
+        self._settings_repo.set(DEBIT_SURCHARGE_PCT, str(value))
+
+    def set_credit_surcharge_pct(self, value: float) -> None:
+        """Set the global credit card surcharge percentage."""
+        self._settings_repo.set(CREDIT_SURCHARGE_PCT, str(value))
 
     # -------------------------------------------------------- bulk operations
 

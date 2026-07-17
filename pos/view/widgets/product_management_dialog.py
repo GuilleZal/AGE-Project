@@ -316,6 +316,7 @@ class ProductManagementDialog(CenteredDialog):
             "sale_price": product.sale_price,
             "cost_price": product.cost_price,
             "stock": product.stock,
+            "unit_type": getattr(product, "unit_type", "Unidad"),
             "description": getattr(product, "description", None),
             "low_stock_threshold": getattr(product, "low_stock_threshold", 5),
         }
@@ -846,10 +847,19 @@ class ProductManagementDialog(CenteredDialog):
             if not is_active:
                 tags.append("inactive")
                 name = f"[DESACTIVADO] {name}"
+            unit_type = getattr(p, "unit_type", "Unidad")
+            
+            try:
+                f_stock = float(stock)
+                formatted_stock = f"{f_stock:.2f}".rstrip('0').rstrip('.') if not f_stock.is_integer() else str(int(f_stock))
+            except ValueError:
+                formatted_stock = str(stock)
+                
+            stock_display = f"{formatted_stock} Kg" if unit_type == "Kg" else f"{formatted_stock} u."
 
             self._prod_tree.insert(
                 "", "end", iid=str(pid),
-                values=(name, category_name, barcode, f"${price:,}", int(stock)),
+                values=(name, category_name, barcode, f"${price:,}", stock_display),
                 tags=tuple(tags),
             )
 

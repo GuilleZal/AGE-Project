@@ -31,20 +31,27 @@ class SaleView(ctk.CTkFrame):
         Forwarded to ``ctk.CTkFrame``.
     """
 
-    PAYMENT_METHODS: list[tuple[str, str]] = [
-        ("Efectivo", "cash"),
-        ("Tarjeta", "card"),
-        ("Transferencia", "transfer"),
+    # Single-row methods (icon, label, value)
+    SINGLE_METHODS: list[tuple[str, str, str]] = [
+        ("💵", "Efectivo", "cash"),
+        ("🔄", "Transferencia", "transfer"),
+    ]
+    # Card sub-types shown as a grouped pair
+    CARD_METHODS: list[tuple[str, str, str]] = [
+        ("🏦", "Débito", "debit_card"),
+        ("💳", "Crédito", "credit_card"),
     ]
 
     def __init__(
         self,
         master: tk.Widget,
         callbacks: dict[str, Callable[..., Any]] | None = None,
+        role: str = "",
         **kwargs,
     ) -> None:
         border_color = theme.get_contrast_map()["search_border"]
         super().__init__(master, fg_color="transparent", border_width=2, border_color=border_color, **kwargs)
+        self._role = role
         callbacks = callbacks or {}
 
         # Callback slots — wired by main_window.py during integration
@@ -121,6 +128,23 @@ class SaleView(ctk.CTkFrame):
         )
         self._search_btn.grid(row=0, column=1, sticky="e")
 
+        # --- settings button (gear) ---
+        self._settings_btn = ctk.CTkButton(
+            self._top_frame,
+            text="⚙️",
+            width=50,
+            height=45,
+            font=theme.scaled_font(18),
+            fg_color=search_contrast["search_bg"],
+            hover_color=search_contrast["panel"],
+            border_width=2,
+            border_color=search_contrast["search_border"],
+            text_color=theme.get_contrast_map()["text"],
+            command=self._handle_settings_button,
+        )
+        if self._role != "cajero":
+            self._settings_btn.grid(row=0, column=2, sticky="e", padx=(5, 0))
+
         # --- row 1: cart treeview ---
         self._cart_tree = CartTreeview(
             left_frame,
@@ -153,23 +177,12 @@ class SaleView(ctk.CTkFrame):
         )
         self._discount_btn.grid(row=2, column=2, sticky="e", pady=(10, 0))
 
-        self._surcharge_btn = ctk.CTkButton(
-            left_frame,
-            text="Recargo",
-            width=120,
-            height=40,
-            fg_color="#c0392b",
-            hover_color="#a93226",
-            font=theme.scaled_font(14, weight="bold"),
-            command=self._handle_surcharge_button,
-        )
-        self._surcharge_btn.grid(row=2, column=1, sticky="e", padx=(0, 1), pady=(10, 0))
-        self._surcharge_btn.grid_remove()
+        self._discount_btn.grid(row=2, column=2, sticky="e", pady=(10, 0))
 
         # ============================================================
         # RIGHT COLUMN: Payment sidebar
         # ============================================================
-        self._payment_sidebar = ctk.CTkFrame(self, width=280)
+        self._payment_sidebar = ctk.CTkScrollableFrame(self, width=280)
         self._payment_sidebar.grid(row=0, column=1, sticky="nsew", padx=(5, 10), pady=(10, 10))
         self._payment_sidebar.grid_columnconfigure(0, weight=1)
         self._payment_sidebar.grid_rowconfigure(0, weight=0) # Totales (fijo)
@@ -267,7 +280,7 @@ class SaleView(ctk.CTkFrame):
 
         # --- Payment method selection ---
         payment_methods_frame = ctk.CTkFrame(self._payment_sidebar, fg_color="transparent")
-        payment_methods_frame.grid(row=1, column=0, sticky="ew", padx=12, pady=(2, 2))  # Margen compactado
+        payment_methods_frame.grid(row=1, column=0, sticky="ew", padx=12, pady=(2, 2))
         payment_methods_frame.grid_columnconfigure(0, weight=1)
 
         # Title for payment methods
@@ -277,17 +290,20 @@ class SaleView(ctk.CTkFrame):
             font=theme.scaled_font(12, weight="bold"),
             text_color="#a0a0a0",
             anchor="w",
-        ).grid(row=0, column=0, sticky="w", pady=(0, 2))  # Margen compactado
+        ).grid(row=0, column=0, sticky="w", pady=(0, 2))
 
         self._payment_method_var = tk.StringVar(value="cash")
         self._method_frames: dict[str, ctk.CTkFrame] = {}
-        
+
         contrast = theme.get_contrast_map()
         selected_bg = contrast["treeview_header"]
         selected_border = "#0078d4"
         unselected_border = contrast["search_border"]
 
-        for idx, (label, method) in enumerate(self.PAYMENT_METHODS):
+        grid_row = 1
+
+        # --- Single-row methods (cash, transfer) ---
+        for icon, label, method in self.SINGLE_METHODS:
             is_selected = method == "cash"
             method_frame = ctk.CTkFrame(
                 payment_methods_frame,
@@ -297,13 +313,12 @@ class SaleView(ctk.CTkFrame):
                 corner_radius=10,
                 cursor="hand2",
             )
-            method_frame.grid(row=idx + 1, column=0, sticky="ew", pady=1)  # Margen compactado
-            method_frame.grid_columnconfigure(1, weight=1)
+            method_frame.grid(row=grid_row, column=0, sticky="ew", pady=1)
+            method_frame.grid_columnconfigure(2, weight=1)
             self._method_frames[method] = method_frame
 
             radio_frame = ctk.CTkFrame(method_frame, fg_color="transparent", width=26)
-            radio_frame.grid(row=0, column=0, padx=(8, 4))
-
+            radio_frame.grid(row=0, column=0, padx=(8, 2))
             ctk.CTkRadioButton(
                 radio_frame,
                 text="",
@@ -316,14 +331,77 @@ class SaleView(ctk.CTkFrame):
 
             ctk.CTkLabel(
                 method_frame,
-                text=label,
-                font=theme.scaled_font(13, weight="bold" if method == "cash" else "normal"),
+                text=icon,
+                font=theme.scaled_font(14),
                 anchor="w",
-            ).grid(row=0, column=1, sticky="w", padx=(0, 8), pady=2)  # Margen compactado
+            ).grid(row=0, column=1, sticky="w", padx=(2, 4), pady=2)
+
+            ctk.CTkLabel(
+                method_frame,
+                text=label,
+                font=theme.scaled_font(13, weight="bold" if is_selected else "normal"),
+                anchor="w",
+            ).grid(row=0, column=2, sticky="w", padx=(0, 8), pady=2)
 
             method_frame.bind("<Button-1>", lambda e, m=method: self._select_payment_method(m))
             for child in method_frame.winfo_children():
                 child.bind("<Button-1>", lambda e, m=method: self._select_payment_method(m))
+
+            grid_row += 1
+
+            # Insert the card group after "cash" row
+            if method == "cash":
+                # --- Card group header ---
+                card_header = ctk.CTkLabel(
+                    payment_methods_frame,
+                    text="💳  Tarjeta",
+                    font=theme.scaled_font(11, weight="bold"),
+                    text_color="#a0a0a0",
+                    anchor="w",
+                )
+                card_header.grid(row=grid_row, column=0, sticky="w", padx=4, pady=(4, 1))
+                grid_row += 1
+
+                # --- Two card sub-type buttons side by side ---
+                card_pair_frame = ctk.CTkFrame(payment_methods_frame, fg_color="transparent")
+                card_pair_frame.grid(row=grid_row, column=0, sticky="ew", pady=(0, 2))
+                card_pair_frame.grid_columnconfigure(0, weight=1)
+                card_pair_frame.grid_columnconfigure(1, weight=1)
+                grid_row += 1
+
+                for col_idx, (card_icon, card_label, card_method) in enumerate(self.CARD_METHODS):
+                    card_frame = ctk.CTkFrame(
+                        card_pair_frame,
+                        fg_color="transparent",
+                        border_width=2,
+                        border_color=unselected_border,
+                        corner_radius=10,
+                        cursor="hand2",
+                    )
+                    padx_val = (0, 3) if col_idx == 0 else (3, 0)
+                    card_frame.grid(row=0, column=col_idx, sticky="ew", padx=padx_val)
+                    card_frame.grid_columnconfigure(0, weight=1)
+                    self._method_frames[card_method] = card_frame
+
+                    inner = ctk.CTkFrame(card_frame, fg_color="transparent")
+                    inner.grid(row=0, column=0, pady=(6, 6))
+
+                    ctk.CTkLabel(
+                        inner,
+                        text=card_icon,
+                        font=theme.scaled_font(18),
+                    ).pack()
+                    ctk.CTkLabel(
+                        inner,
+                        text=card_label,
+                        font=theme.scaled_font(12, weight="bold"),
+                    ).pack()
+
+                    card_frame.bind("<Button-1>", lambda e, m=card_method: self._select_payment_method(m))
+                    for child in card_frame.winfo_children():
+                        child.bind("<Button-1>", lambda e, m=card_method: self._select_payment_method(m))
+                        for grandchild in child.winfo_children():
+                            grandchild.bind("<Button-1>", lambda e, m=card_method: self._select_payment_method(m))
 
         # --- Amount received ---
         self._amount_frame = ctk.CTkFrame(self._payment_sidebar, fg_color="transparent")
@@ -442,6 +520,12 @@ class SaleView(ctk.CTkFrame):
         """Update search button colors, border, and payment method buttons when theme changes."""
         contrast = theme.get_contrast_map()
         self._search_btn.configure(
+            fg_color=contrast["search_bg"],
+            hover_color=contrast["panel"],
+            border_color=contrast["search_border"],
+            text_color=contrast["text"],
+        )
+        self._settings_btn.configure(
             fg_color=contrast["search_bg"],
             hover_color=contrast["panel"],
             border_color=contrast["search_border"],
@@ -693,7 +777,6 @@ class SaleView(ctk.CTkFrame):
         # Show/hide amount received field based on payment method
         if method == "cash":
             self._amount_frame.grid()
-            self._surcharge_btn.grid_remove()
             if self._surcharge_pct > 0:
                 self._surcharge_pct = 0.0
                 self._surcharge_amount = 0
@@ -702,7 +785,13 @@ class SaleView(ctk.CTkFrame):
                 self._controller.apply_surcharge(0)
         else:
             self._amount_frame.grid_remove()
-            self._surcharge_btn.grid(row=2, column=1, sticky="e", padx=(0, 1), pady=(10, 0))
+            
+            # Auto-apply fixed surcharge
+            if hasattr(self, '_controller') and self._controller is not None:
+                if hasattr(self._controller, 'get_payment_surcharge_pct'):
+                    res = self._controller.get_payment_surcharge_pct(method)
+                    if res["success"]:
+                        self._controller_surcharge(res["data"])
 
     def _on_received_changed(self, event: tk.Event | None = None) -> None:
         """Recalculate change as the user types the received amount."""
@@ -828,21 +917,6 @@ class SaleView(ctk.CTkFrame):
         if result is not None and self._on_discount is not None:
             self._on_discount(result)
 
-    def _handle_surcharge_button(self) -> None:
-        """Open surcharge dialog to apply a percentage surcharge."""
-        from pos.view.widgets.surcharge_dialog import SurchargeDialog
-
-        dialog = SurchargeDialog(
-            self,
-            subtotal=self._total,
-            current_surcharge_pct=self._surcharge_pct,
-        )
-        self.wait_window(dialog)
-        result = dialog.result
-
-        if result is not None and self._on_surcharge is not None:
-            self._on_surcharge(result)
-
     def _handle_cancel(self) -> None:
         """Cancel the current sale and clear the cart."""
         if self._total > 0:
@@ -886,3 +960,15 @@ class SaleView(ctk.CTkFrame):
 
         if self._on_payment is not None:
             self._on_payment(method, received)
+
+    def _handle_settings_button(self) -> None:
+        """Open sale settings dialog."""
+        if not hasattr(self, "_controller") or self._controller is None:
+            return
+        from pos.view.widgets.sale_settings_dialog import SaleSettingsDialog
+        dialog = SaleSettingsDialog(self, self._controller)
+        self.wait_window(dialog)
+        
+        # If settings were applied, immediately update the total based on current method
+        if dialog.applied:
+            self._on_payment_method_changed(self._selected_payment_method)

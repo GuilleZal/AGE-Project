@@ -44,7 +44,8 @@ class ProductController:
                 category_id=data.get("category_id"),
                 sale_price=int(data["sale_price"]),
                 cost_price=int(data["cost_price"]),
-                stock=int(data.get("stock", 0)),
+                stock=float(data.get("stock", 0)),
+                unit_type=data.get("unit_type", "Unidad"),
                 description=data.get("description"),
                 low_stock_threshold=int(data.get("low_stock_threshold", 5)),
             )
@@ -81,7 +82,9 @@ class ProductController:
             if "cost_price" in data:
                 existing.cost_price = int(data["cost_price"])
             if "stock" in data:
-                existing.stock = int(data["stock"])
+                existing.stock = float(data["stock"])
+            if "unit_type" in data:
+                existing.unit_type = data["unit_type"]
             if "description" in data:
                 existing.description = data["description"]
             if "low_stock_threshold" in data:

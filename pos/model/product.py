@@ -26,7 +26,8 @@ class Product:
     id: int | None = None
     barcode: str | None = None
     category_id: int | None = None
-    stock: int = 0
+    stock: float = 0.0
+    unit_type: str = "Unidad"
     description: str | None = None
     low_stock_threshold: int = 5
     is_active: bool = True

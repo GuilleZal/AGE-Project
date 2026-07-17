@@ -178,7 +178,7 @@ def _wire_views(conn, app, permissions) -> None:
         sale_ctrl = SaleController(conn)
         sales_tab = app.get_tab_frame("Ventas")
         if sales_tab is not None:
-            sale_view = SaleView(sales_tab)
+            sale_view = SaleView(sales_tab, role=role_val)
             sale_view.pack(fill="both", expand=True)
             sale_view.set_controller(sale_ctrl)
             app.set_view("Ventas", sale_view)

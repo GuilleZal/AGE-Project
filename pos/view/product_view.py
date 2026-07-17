@@ -45,7 +45,7 @@ class ProductView(ctk.CTkFrame):
         "costo": "Costo",
         "precio": "Precio",
         "ganancia": "Ganancia %",
-        "stock": "Stock",
+        "stock": "Stock/Kg",
     }
 
     def __init__(
@@ -257,6 +257,7 @@ class ProductView(ctk.CTkFrame):
                 cost_price = p.get("cost_price", 0)
                 price = p.get("sale_price", 0)
                 stock = p.get("stock", 0)
+                unit_type = p.get("unit_type", "Unidad")
                 low_stock_threshold = p.get("low_stock_threshold", 5)
                 pid = p.get("id")
             else:
@@ -265,6 +266,7 @@ class ProductView(ctk.CTkFrame):
                 cost_price = getattr(p, "cost_price", 0)
                 price = getattr(p, "sale_price", 0)
                 stock = getattr(p, "stock", 0)
+                unit_type = getattr(p, "unit_type", "Unidad")
                 low_stock_threshold = getattr(p, "low_stock_threshold", 5)
                 pid = getattr(p, "id", None)
 
@@ -273,8 +275,15 @@ class ProductView(ctk.CTkFrame):
             if cost_price > 0:
                 margin_pct = ((price - cost_price) / cost_price) * 100
 
-            # Format stock with warning icon if low
-            stock_display = stock
+            # Format stock with warning icon if low and unit
+            try:
+                f_stock = float(stock)
+                formatted_stock = f"{f_stock:.2f}".rstrip('0').rstrip('.') if not f_stock.is_integer() else str(int(f_stock))
+            except ValueError:
+                formatted_stock = str(stock)
+
+            stock_display = f"{formatted_stock} Kg" if unit_type == "Kg" else f"{formatted_stock} u."
+            
             is_low_stock = False
             if isinstance(stock, (int, float)) and isinstance(low_stock_threshold, (int, float)):
                 if stock <= low_stock_threshold:
@@ -415,6 +424,7 @@ class ProductView(ctk.CTkFrame):
             "sale_price": product.sale_price,
             "cost_price": product.cost_price,
             "stock": product.stock,
+            "unit_type": getattr(product, "unit_type", "Unidad"),
             "description": getattr(product, "description", None),
             "low_stock_threshold": getattr(product, "low_stock_threshold", 5),
         }

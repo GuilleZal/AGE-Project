@@ -15,6 +15,7 @@ from pos.repository.product_repo import ProductRepo
 from pos.repository.category_repo import CategoryRepo
 from pos.repository.cash_register_repo import CashRegisterRepo
 from pos.service.sale_service import SaleService
+from pos.service.settings_service import SettingsService
 
 
 class SaleController:
@@ -30,6 +31,7 @@ class SaleController:
         self._category_repo = CategoryRepo(db)
         self._cash_register_repo = CashRegisterRepo(db)
         self._sale_service = SaleService(db)
+        self._settings_service = SettingsService(db)
         self._cart: list[dict] = []
         self._discount_pct: float = 0.0
         self._discount_amount: int = 0
@@ -319,6 +321,45 @@ class SaleController:
             },
             "error": None,
         }
+
+    def get_payment_surcharge_pct(self, method: str) -> dict:
+        """Return the fixed surcharge percentage for the given payment method."""
+        try:
+            if method == "transfer":
+                pct = self._settings_service.get_transfer_surcharge_pct()
+            elif method == "debit_card":
+                pct = self._settings_service.get_debit_surcharge_pct()
+            elif method == "credit_card":
+                pct = self._settings_service.get_credit_surcharge_pct()
+            else:
+                pct = 0.0
+            return {"success": True, "data": pct, "error": None}
+        except Exception as e:
+            return {"success": False, "data": 0.0, "error": str(e)}
+
+    def get_sale_settings(self) -> dict:
+        """Return current sale settings (surcharges)."""
+        try:
+            settings = {
+                "transfer_surcharge_pct": self._settings_service.get_transfer_surcharge_pct(),
+                "debit_surcharge_pct": self._settings_service.get_debit_surcharge_pct(),
+                "credit_surcharge_pct": self._settings_service.get_credit_surcharge_pct(),
+            }
+            return {"success": True, "data": settings, "error": None}
+        except Exception as e:
+            return {"success": False, "data": None, "error": str(e)}
+
+    def apply_sale_settings(self, transfer_surcharge_pct: float, debit_surcharge_pct: float, credit_surcharge_pct: float) -> dict:
+        """Apply new sale settings (surcharges)."""
+        try:
+            self._settings_service.set_transfer_surcharge_pct(transfer_surcharge_pct)
+            self._settings_service.set_debit_surcharge_pct(debit_surcharge_pct)
+            self._settings_service.set_credit_surcharge_pct(credit_surcharge_pct)
+            self._db.commit()
+            return {"success": True, "data": None, "error": None}
+        except Exception as e:
+            self._db.rollback()
+            return {"success": False, "data": None, "error": str(e)}
 
     # ------------------------------------------------------------- complete ----
 

@@ -87,6 +87,10 @@ class SaleService:
                 movement_type = MovementType.SALE_CASH
             elif pm == PaymentMethod.CARD:
                 movement_type = MovementType.SALE_CARD
+            elif pm == PaymentMethod.DEBIT_CARD:
+                movement_type = MovementType.SALE_DEBIT_CARD
+            elif pm == PaymentMethod.CREDIT_CARD:
+                movement_type = MovementType.SALE_CREDIT_CARD
             elif pm == PaymentMethod.TRANSFER:
                 movement_type = MovementType.SALE_TRANSFER
             else:

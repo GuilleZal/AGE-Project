@@ -93,47 +93,10 @@ def _run_migrations(conn: sqlite3.Connection) -> None:
     if "is_active" not in columns:
         conn.execute("ALTER TABLE products ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1")
 
-    # Migration 4: Remove unit_type column from products (MVP assumes all units)
-    row = conn.execute("PRAGMA table_info(products)").fetchall()
-    columns = [col["name"] for col in row]
-    if "unit_type" in columns:
-        # SQLite doesn't support DROP COLUMN in older versions, so we recreate the table.
-        # Must disable FK checks temporarily because sale_items, purchase_items, and
-        # returns all reference products(id).
-        conn.execute("PRAGMA foreign_keys=OFF")
-        conn.executescript("""
-            CREATE TABLE products_new (
-                id                  INTEGER PRIMARY KEY AUTOINCREMENT,
-                barcode             TEXT UNIQUE,
-                name                TEXT NOT NULL,
-                category_id         INTEGER REFERENCES categories(id),
-                sale_price          INTEGER NOT NULL,
-                cost_price          INTEGER NOT NULL,
-                stock               INTEGER NOT NULL DEFAULT 0,
-                description         TEXT,
-                low_stock_threshold INTEGER DEFAULT 5,
-                is_active           INTEGER NOT NULL DEFAULT 1,
-                created_at          TEXT NOT NULL DEFAULT (datetime('now')),
-                updated_at          TEXT NOT NULL DEFAULT (datetime('now'))
-            );
-            
-            INSERT INTO products_new (id, barcode, name, category_id, sale_price, cost_price, 
-                                     stock, description, low_stock_threshold, is_active, 
-                                     created_at, updated_at)
-            SELECT id, barcode, name, category_id, sale_price, cost_price, 
-                   stock, description, low_stock_threshold, is_active, 
-                   created_at, updated_at
-            FROM products;
-            
-            DROP TABLE products;
-            
-            ALTER TABLE products_new RENAME TO products;
-            
-            CREATE INDEX IF NOT EXISTS idx_products_barcode ON products(barcode);
-            CREATE INDEX IF NOT EXISTS idx_products_name ON products(name);
-            CREATE INDEX IF NOT EXISTS idx_products_category ON products(category_id);
-        """)
-        conn.execute("PRAGMA foreign_keys=ON")
+    # Migration 4: DEPRECATED - We now support unit_type (Unidad/Kg).
+    # This migration previously dropped unit_type. Disabled to prevent data loss.
+    pass
+    # (Migration 4 remainder removed to prevent data loss)
 
     # Migration 6: Add surcharge column to sales table
     row = conn.execute("PRAGMA table_info(sales)").fetchall()
@@ -145,44 +108,9 @@ def _run_migrations(conn: sqlite3.Connection) -> None:
         except Exception:
             pass
 
-    # Migration 5: Convert stock and low_stock_threshold from REAL to INTEGER
-    row = conn.execute("PRAGMA table_info(products)").fetchall()
-    stock_col = [col for col in row if col["name"] == "stock"]
-    if stock_col and stock_col[0]["type"].upper() == "REAL":
-        conn.execute("PRAGMA foreign_keys=OFF")
-        conn.executescript("""
-            CREATE TABLE products_new (
-                id                  INTEGER PRIMARY KEY AUTOINCREMENT,
-                barcode             TEXT UNIQUE,
-                name                TEXT NOT NULL,
-                category_id         INTEGER REFERENCES categories(id),
-                sale_price          INTEGER NOT NULL,
-                cost_price          INTEGER NOT NULL,
-                stock               INTEGER NOT NULL DEFAULT 0,
-                description         TEXT,
-                low_stock_threshold INTEGER DEFAULT 5,
-                is_active           INTEGER NOT NULL DEFAULT 1,
-                created_at          TEXT NOT NULL DEFAULT (datetime('now')),
-                updated_at          TEXT NOT NULL DEFAULT (datetime('now'))
-            );
-
-            INSERT INTO products_new (id, barcode, name, category_id, sale_price, cost_price,
-                                     stock, description, low_stock_threshold, is_active,
-                                     created_at, updated_at)
-            SELECT id, barcode, name, category_id, sale_price, cost_price,
-                   CAST(stock AS INTEGER), description, CAST(low_stock_threshold AS INTEGER),
-                   is_active, created_at, updated_at
-            FROM products;
-
-            DROP TABLE products;
-
-            ALTER TABLE products_new RENAME TO products;
-
-            CREATE INDEX IF NOT EXISTS idx_products_barcode ON products(barcode);
-            CREATE INDEX IF NOT EXISTS idx_products_name ON products(name);
-            CREATE INDEX IF NOT EXISTS idx_products_category ON products(category_id);
-        """)
-        conn.execute("PRAGMA foreign_keys=ON")
+    # Migration 5: DEPRECATED - We now support REAL stock for Kg.
+    # This migration previously forced stock to INTEGER. Disabled.
+    pass
 
     # Migration 7: Add users and sessions tables for login system
     row = conn.execute(
@@ -211,6 +139,65 @@ def _run_migrations(conn: sqlite3.Connection) -> None:
             CREATE INDEX idx_sessions_active ON sessions(logout_time);
         """)
 
+    # Migration 8: Add debit_card and credit_card to sales and cash_movements
+    row = conn.execute(
+        "SELECT sql FROM sqlite_master WHERE type='table' AND name='sales'"
+    ).fetchone()
+    if row and "debit_card" not in row["sql"]:
+        # Clean up any orphan temp tables from a previous failed run
+        conn.execute("DROP TABLE IF EXISTS sales_new")
+        conn.execute("DROP TABLE IF EXISTS cash_movements_new")
+        conn.commit()
+
+        conn.executescript("""
+            PRAGMA foreign_keys=OFF;
+
+            CREATE TABLE sales_new (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                total           INTEGER NOT NULL,
+                discount        INTEGER NOT NULL DEFAULT 0,
+                surcharge       INTEGER NOT NULL DEFAULT 0,
+                payment_method  TEXT NOT NULL CHECK(payment_method IN ('cash','card','debit_card','credit_card','transfer')),
+                cash_register_id INTEGER REFERENCES cash_registers(id),
+                created_at      TEXT NOT NULL DEFAULT (datetime('now'))
+            );
+            INSERT INTO sales_new (id, total, discount, surcharge, payment_method, cash_register_id, created_at)
+                SELECT id, total,
+                    COALESCE(discount, 0),
+                    COALESCE(surcharge, 0),
+                    payment_method,
+                    cash_register_id,
+                    created_at
+                FROM sales;
+            DROP TABLE sales;
+            ALTER TABLE sales_new RENAME TO sales;
+            CREATE INDEX IF NOT EXISTS idx_sales_date    ON sales(created_at);
+            CREATE INDEX IF NOT EXISTS idx_sales_payment ON sales(payment_method);
+
+            CREATE TABLE cash_movements_new (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                cash_register_id INTEGER NOT NULL REFERENCES cash_registers(id),
+                type            TEXT NOT NULL CHECK(type IN ('sale_cash','sale_card','sale_debit_card','sale_credit_card','sale_transfer','return','supplier_payment','expense')),
+                amount          INTEGER NOT NULL,
+                description     TEXT,
+                created_at      TEXT NOT NULL DEFAULT (datetime('now'))
+            );
+            INSERT INTO cash_movements_new SELECT * FROM cash_movements;
+            DROP TABLE cash_movements;
+            ALTER TABLE cash_movements_new RENAME TO cash_movements;
+            CREATE INDEX IF NOT EXISTS idx_cash_movements_register ON cash_movements(cash_register_id);
+            CREATE INDEX IF NOT EXISTS idx_cash_movements_type     ON cash_movements(type);
+            CREATE INDEX IF NOT EXISTS idx_cash_movements_date     ON cash_movements(created_at);
+
+            PRAGMA foreign_keys=ON;
+        """)
+
+    # Migration 9: Add unit_type to products for supporting Kg
+    row = conn.execute("PRAGMA table_info(products)").fetchall()
+    columns = [col["name"] for col in row]
+    if "unit_type" not in columns:
+        conn.execute("ALTER TABLE products ADD COLUMN unit_type TEXT NOT NULL DEFAULT 'Unidad' CHECK(unit_type IN ('Unidad', 'Kg'))")
+
 
 # ------------------------------------------------------------------ DDL ----
 # NOTE: Currency fields (prices, amounts, totals) use INTEGER to represent
@@ -234,7 +221,8 @@ CREATE TABLE IF NOT EXISTS products (
     category_id         INTEGER REFERENCES categories(id),
     sale_price          INTEGER NOT NULL,
     cost_price          INTEGER NOT NULL,
-    stock               INTEGER NOT NULL DEFAULT 0,
+    stock               REAL NOT NULL DEFAULT 0.0,
+    unit_type           TEXT NOT NULL DEFAULT 'Unidad' CHECK(unit_type IN ('Unidad', 'Kg')),
     description         TEXT,
     low_stock_threshold INTEGER DEFAULT 5,
     is_active           INTEGER NOT NULL DEFAULT 1,
@@ -251,7 +239,7 @@ CREATE TABLE IF NOT EXISTS sales (
     total           INTEGER NOT NULL,
     discount        INTEGER NOT NULL DEFAULT 0,
     surcharge       INTEGER NOT NULL DEFAULT 0,
-    payment_method  TEXT NOT NULL CHECK(payment_method IN ('cash','card','transfer')),
+    payment_method  TEXT NOT NULL CHECK(payment_method IN ('cash','card','debit_card','credit_card','transfer')),
     cash_register_id INTEGER REFERENCES cash_registers(id),
     created_at      TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -323,7 +311,7 @@ CREATE INDEX IF NOT EXISTS idx_cash_registers_time   ON cash_registers(opening_t
 CREATE TABLE IF NOT EXISTS cash_movements (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
     cash_register_id INTEGER NOT NULL REFERENCES cash_registers(id),
-    type            TEXT NOT NULL CHECK(type IN ('sale_cash','sale_card','sale_transfer','return','supplier_payment','expense')),
+    type            TEXT NOT NULL CHECK(type IN ('sale_cash','sale_card','sale_debit_card','sale_credit_card','sale_transfer','return','supplier_payment','expense')),
     amount          INTEGER NOT NULL,
     description     TEXT,
     created_at      TEXT NOT NULL DEFAULT (datetime('now'))
