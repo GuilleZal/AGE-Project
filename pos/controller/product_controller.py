@@ -180,6 +180,7 @@ class ProductController:
             ``category_id`` — exact category match
             ``low_stock`` — bool, only products at/below threshold
             ``include_inactive`` — bool, include inactive products
+            ``barcode`` — search by barcode (partial match)
         """
         try:
             if filters and filters.get("search"):
@@ -196,6 +197,9 @@ class ProductController:
                     products = [p for p in products if p.category_id == filters["category_id"]]
                 if filters.get("low_stock"):
                     products = [p for p in products if p.stock <= p.low_stock_threshold]
+                if filters.get("barcode"):
+                    barcode_query = filters["barcode"].strip().lower()
+                    products = [p for p in products if p.barcode and barcode_query in p.barcode.lower()]
 
             return {"success": True, "data": products, "error": None}
         except POSException as e:

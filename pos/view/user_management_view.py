@@ -88,6 +88,8 @@ class UserManagementView(ctk.CTkFrame):
         self._tree.configure(yscrollcommand=self._vscroll.set)
         self._vscroll.grid(row=0, column=1, sticky="ns")
 
+        self._tree.bind("<<TreeviewSelect>>", self._update_toggle_button)
+
         # --- Action buttons ---
         self._action_frame = ctk.CTkFrame(self, fg_color="transparent")
         self._action_frame.grid(row=2, column=0, sticky="ew", padx=10, pady=(5, 10))
@@ -139,6 +141,7 @@ class UserManagementView(ctk.CTkFrame):
                 iid=str(u["id"]),
                 values=(u["username"], role_display, status),
             )
+        self._update_toggle_button()
 
     def _on_create_clicked(self) -> None:
         """Show create form."""
@@ -204,6 +207,24 @@ class UserManagementView(ctk.CTkFrame):
             self.refresh_users()
         else:
             messagebox.showerror("Error", result["error"])
+
+    def _update_toggle_button(self, event: tk.Event | None = None) -> None:
+        """Update toggle button text and color based on selected user status."""
+        sel = self._tree.selection()
+        if not sel:
+            self._toggle_btn.configure(text="Desactivar", fg_color="#8b1a1a")
+            return
+
+        values = self._tree.item(sel[0], "values")
+        if not values or len(values) < 3:
+            self._toggle_btn.configure(text="Desactivar", fg_color="#8b1a1a")
+            return
+
+        status = values[2]
+        if status == "Inactivo":
+            self._toggle_btn.configure(text="Activar", fg_color="#28a745")
+        else:
+            self._toggle_btn.configure(text="Desactivar", fg_color="#8b1a1a")
 
     def _configure_style(self) -> None:
         """Configure ttk styles to blend with CTk dark theme."""

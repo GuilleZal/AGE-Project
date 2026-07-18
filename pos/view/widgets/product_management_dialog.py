@@ -74,7 +74,7 @@ class ProductManagementDialog(CenteredDialog):
         search_frame.grid(row=0, column=0, sticky="ew", pady=(5, 5))
         search_frame.grid_columnconfigure(1, weight=1)
 
-        ctk.CTkLabel(search_frame, text="Buscar:", font=theme.scaled_font(13)).grid(
+        ctk.CTkLabel(search_frame, text="Nombre:", font=theme.scaled_font(13)).grid(
             row=0, column=0, padx=(10, 5)
         )
         self._prod_search_var = tk.StringVar()

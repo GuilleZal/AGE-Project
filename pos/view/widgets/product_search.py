@@ -56,29 +56,26 @@ class ProductSearch(ctk.CTkFrame):
         ctk.CTkLabel(self, text="Código:", font=theme.scaled_font(12)).grid(
             row=0, column=0, padx=(10, 2), pady=5
         )
-        self._barcode_var = tk.StringVar()
         self._barcode_entry = ctk.CTkEntry(
             self,
             width=140,
-            textvariable=self._barcode_var,
             placeholder_text="Escanear código...",
         )
         self._barcode_entry.grid(row=0, column=1, padx=(0, 5), pady=5, sticky="ew")
+        self._barcode_entry.bind("<KeyRelease>", self._handle_search)
         self._barcode_entry.bind("<Return>", self._handle_barcode)
 
         # --- name search ---
-        ctk.CTkLabel(self, text="Buscar:", font=theme.scaled_font(12)).grid(
+        ctk.CTkLabel(self, text="Nombre:", font=theme.scaled_font(12)).grid(
             row=0, column=2, padx=(5, 2), pady=5
         )
-        self._name_var = tk.StringVar()
-        self._name_var.trace_add("write", self._handle_search)
         self._name_entry = ctk.CTkEntry(
             self,
             width=200,
-            textvariable=self._name_var,
             placeholder_text="Nombre del producto...",
         )
         self._name_entry.grid(row=0, column=3, padx=(0, 5), pady=5, sticky="ew")
+        self._name_entry.bind("<KeyRelease>", self._handle_search)
 
         # --- category filter ---
         ctk.CTkLabel(self, text="Categoría:", font=theme.scaled_font(12)).grid(
@@ -116,23 +113,32 @@ class ProductSearch(ctk.CTkFrame):
         """Return the current search state.
 
         Returns:
-            Dict with ``query`` (str), ``category_id`` (int | None),
+            Dict with ``search`` (str), ``category_id`` (int | None),
             and ``barcode`` (str).
         """
+        search_val = self._name_entry.get().strip()
+        barcode_val = self._barcode_entry.get().strip()
+
+        # Guard against placeholder text if returned by CTkEntry
+        if search_val == "Nombre del producto...":
+            search_val = ""
+        if barcode_val == "Escanear código...":
+            barcode_val = ""
+
         return {
-            "query": self._name_var.get().strip(),
+            "search": search_val,
             "category_id": self._category_options.get(
                 self._category_var.get(), None
             ),
-            "barcode": self._barcode_var.get().strip(),
+            "barcode": barcode_val,
         }
 
     def clear_barcode(self) -> None:
         """Clear the barcode entry field."""
-        self._barcode_var.set("")
+        self._barcode_entry.delete(0, "end")
 
     def set_on_search(
-        self, callback: Callable[[str, int | None], None]
+        self, callback: Callable[[dict[str, Any]], None]
     ) -> None:
         """Wire the search callback."""
         self._on_search = callback
@@ -145,22 +151,10 @@ class ProductSearch(ctk.CTkFrame):
 
     def _handle_search(self, *_args: Any) -> None:
         if self._on_search is not None:
-            query = self._name_var.get().strip()
-            cat_id = self._category_options.get(
-                self._category_var.get(), None
-            )
-            self._on_search(query, cat_id)
+            self._on_search(self.get_search_state())
 
     def _handle_category_changed(self, _value: str) -> None:
-        if self._on_search is not None:
-            query = self._name_var.get().strip()
-            cat_id = self._category_options.get(
-                self._category_var.get(), None
-            )
-            self._on_search(query, cat_id)
+        self._handle_search()
 
     def _handle_barcode(self, _event: tk.Event) -> None:
-        barcode = self._barcode_var.get().strip()
-        self._barcode_var.set("")
-        if barcode and self._on_barcode is not None:
-            self._on_barcode(barcode)
+        self._handle_search()

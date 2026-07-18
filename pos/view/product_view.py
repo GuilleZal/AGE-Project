@@ -73,7 +73,7 @@ class ProductView(ctk.CTkFrame):
         self._on_import: Callable[[], None] | None = callbacks.get(
             "on_import"
         )
-        self._on_search: Callable[[str, int | None], None] | None = (
+        self._on_search: Callable[[dict[str, Any]], None] | None = (
             callbacks.get("on_search")
         )
         self._on_create_category: Callable[[str], None] | None = callbacks.get(
@@ -348,9 +348,9 @@ class ProductView(ctk.CTkFrame):
         self._on_import = callback
 
     def set_on_search(
-        self, callback: Callable[[str, int | None], None]
+        self, callback: Callable[[dict[str, Any]], None]
     ) -> None:
-        """Wire the search callback (receives query, category_id)."""
+        """Wire the search callback (receives filters dict)."""
         self._on_search = callback
         self._search_bar.set_on_search(callback)
 
@@ -469,12 +469,9 @@ class ProductView(ctk.CTkFrame):
             else:
                 messagebox.showerror("Error", result["error"])
 
-    def _controller_search(self, query: str, category_id: int | None = None) -> None:
+    def _controller_search(self, filters: dict[str, Any]) -> None:
         """Search products via controller and update the treeview."""
-        result = self._controller.list_products({
-            "search": query,
-            "category_id": category_id,
-        })
+        result = self._controller.list_products(filters)
         if result["success"]:
             self.update_products(result["data"])
         else:
@@ -557,14 +554,14 @@ class ProductView(ctk.CTkFrame):
 
     # ------------------------------------------------------- event handlers ---
 
-    def _handle_search(self, query: str, category_id: int | None) -> None:
+    def _handle_search(self, filters: dict[str, Any]) -> None:
         if self._on_search is not None:
-            self._on_search(query, category_id)
+            self._on_search(filters)
 
     def _handle_barcode_search(self, barcode: str) -> None:
         # Treat barcode as a search-by-barcode action
         if self._on_search is not None:
-            self._on_search(barcode, None)
+            self._on_search({"search": "", "category_id": None, "barcode": barcode})
 
     def _handle_create(self) -> None:
         if self._on_create is not None:

@@ -214,6 +214,12 @@ class TestGetAndListProducts:
         assert len(result["data"]) == 1
         assert result["data"][0].name == "Coca-Cola 1.5L"
 
+    def test_list_with_barcode(self, product_ctrl, sample_products):
+        result = product_ctrl.list_products({"barcode": "7790895000782"})
+        assert result["success"] is True
+        assert len(result["data"]) == 1
+        assert result["data"][0].name == "Coca-Cola 1.5L"
+
     def test_list_low_stock(self, product_ctrl, sample_products):
         result = product_ctrl.list_products({"low_stock": True})
         assert result["success"] is True
