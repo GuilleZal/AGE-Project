@@ -837,20 +837,29 @@ class SaleView(ctk.CTkFrame):
             self._barcode_entry.focus_set()
             return
         if len(products) == 1:
-            add_result = self._controller.add_by_barcode(products[0].barcode)
-            if add_result["success"]:
-                self._update_cart()
-            else:
-                messagebox.showerror("Error", add_result.get("error", "Error desconocido"))
-            self._barcode_entry.focus_set()
-            return
+            p = products[0]
+            has_barcode = bool(p.barcode and p.barcode.strip() and p.barcode != "—")
+            if has_barcode:
+                add_result = self._controller.add_by_barcode(p.barcode)
+                if add_result["success"]:
+                    self._update_cart()
+                else:
+                    messagebox.showerror("Error", add_result.get("error", "Error desconocido"))
+                self._barcode_entry.focus_set()
+                return
         from pos.view.widgets.product_search_dialog import ProductSearchDialog
         categories = self._get_categories()
         dialog = ProductSearchDialog(self, products, categories)
         self.wait_window(dialog)
         selected = dialog.result
         if selected is not None:
-            add_result = self._controller.add_by_barcode(selected.barcode)
+            qty = getattr(dialog, "selected_quantity", 1.0)
+            has_barcode = bool(selected.barcode and selected.barcode.strip() and selected.barcode != "—")
+            if has_barcode:
+                add_result = self._controller.add_by_barcode(selected.barcode, quantity=qty)
+            else:
+                add_result = self._controller.add_by_product_id(selected.id, quantity=qty)
+
             if add_result["success"]:
                 self._update_cart()
             else:
@@ -876,7 +885,13 @@ class SaleView(ctk.CTkFrame):
         self.wait_window(dialog)
         selected = dialog.result
         if selected is not None:
-            add_result = self._controller.add_by_barcode(selected.barcode)
+            qty = getattr(dialog, "selected_quantity", 1.0)
+            has_barcode = bool(selected.barcode and selected.barcode.strip() and selected.barcode != "—")
+            if has_barcode:
+                add_result = self._controller.add_by_barcode(selected.barcode, quantity=qty)
+            else:
+                add_result = self._controller.add_by_product_id(selected.id, quantity=qty)
+
             if add_result["success"]:
                 self._update_cart()
             else:

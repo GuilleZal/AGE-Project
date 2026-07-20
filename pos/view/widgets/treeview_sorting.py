@@ -131,14 +131,17 @@ def _detect_column_type(items: list[tuple[str, str]]) -> str:
 def _clean_value(val: str) -> str:
     """Clean a value string for numeric parsing.
     
-    Removes currency symbols, commas, and whitespace.
+    Removes currency symbols, commas, whitespace, and unit suffixes.
     """
+    cleaned = val.lower()
     # Remove common currency symbols and formatting
-    cleaned = val.replace("$", "").replace(",", "").replace(" ", "").strip()
+    cleaned = cleaned.replace("$", "").replace(",", "").replace(" ", "").strip()
     # Remove percentage sign
     cleaned = cleaned.replace("%", "")
     # Remove warning symbols
     cleaned = cleaned.replace("⚠", "").strip()
+    # Remove stock unit suffixes
+    cleaned = cleaned.replace("kg", "").replace("u.", "").replace("u", "").strip()
     return cleaned
 
 

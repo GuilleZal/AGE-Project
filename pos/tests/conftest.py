@@ -94,3 +94,17 @@ def open_register(db: sqlite3.Connection) -> int:
     reg_id = cur.fetchone()["id"]
     db.commit()
     return reg_id
+
+
+# ------------------------------------------------------------- TKINTER ROOT ---
+@pytest.fixture(scope="session")
+def session_root():
+    """Shared CTk root window for the entire test session.
+
+    This prevents Tcl/Tk re-initialization resource errors on Windows.
+    """
+    import customtkinter as ctk
+    r = ctk.CTk()
+    r.withdraw()
+    yield r
+    r.destroy()

@@ -83,6 +83,33 @@ class SaleController:
 
         return self._add_product_to_cart(product, quantity)
 
+    def add_by_product_id(
+        self, product_id: int, quantity: float = 1.0
+    ) -> dict:
+        """Look up a product by *product_id* and add it to the cart with *quantity*.
+
+        Args:
+            product_id: ID of the product.
+            quantity: Quantity to add (supports float for weight in kg).
+
+        Returns:
+            ``{"success": True, "data": cart_item, "error": None}`` on success
+            or ``{"success": False, "data": None, "error": message}`` on failure.
+        """
+        try:
+            product = self._product_repo.find_by_id(product_id)
+        except POSException as e:
+            return {"success": False, "data": None, "error": str(e)}
+
+        if product is None:
+            return {
+                "success": False,
+                "data": None,
+                "error": "Producto no encontrado",
+            }
+
+        return self._add_product_to_cart(product, quantity)
+
     def create_quick_product(
         self, barcode: str, name: str, sale_price: int
     ) -> dict:

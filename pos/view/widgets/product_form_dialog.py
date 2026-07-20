@@ -118,31 +118,52 @@ class ProductFormDialog(CenteredDialog):
         self._category_menu.grid(row=row, column=0, sticky="w", padx=15, pady=(0, 5))
         row += 1
 
-        # Sale price + Cost price (side by side)
+        # Calculate initial margin percentage if cost and sale are present
+        prev_margin = ""
+        if prev.get("cost_price") and prev.get("sale_price"):
+            c = prev["cost_price"]
+            s = prev["sale_price"]
+            if c > 0:
+                prev_margin = f"{((s - c) / c) * 100:.1f}".rstrip('0').rstrip('.')
+
+        # Cost price + Margin % + Sale price (side by side)
         price_frame = ctk.CTkFrame(body, fg_color="transparent")
         price_frame.grid(row=row, column=0, sticky="ew", padx=15, pady=5)
         price_frame.grid_columnconfigure(0, weight=1)
         price_frame.grid_columnconfigure(1, weight=1)
+        price_frame.grid_columnconfigure(2, weight=1)
         row += 1
 
-        ctk.CTkLabel(price_frame, text="Precio venta ($) *", font=theme.scaled_font(12)).grid(
+        ctk.CTkLabel(price_frame, text="Precio costo ($) *", font=theme.scaled_font(12)).grid(
             row=0, column=0, sticky="w", padx=(0, 5)
         )
-        ctk.CTkLabel(price_frame, text="Precio costo ($) *", font=theme.scaled_font(12)).grid(
-            row=0, column=1, sticky="w", padx=(5, 0)
+        ctk.CTkLabel(price_frame, text="Ganancia (%)", font=theme.scaled_font(12)).grid(
+            row=0, column=1, sticky="w", padx=(5, 5)
         )
-
-        self._sale_price_entry = ctk.CTkEntry(
-            price_frame, width=180, placeholder_text="0"
+        ctk.CTkLabel(price_frame, text="Precio venta ($) *", font=theme.scaled_font(12)).grid(
+            row=0, column=2, sticky="w", padx=(5, 0)
         )
-        self._sale_price_entry.insert(0, prev_sale)
-        self._sale_price_entry.grid(row=1, column=0, sticky="w", padx=(0, 5), pady=(2, 0))
 
         self._cost_price_entry = ctk.CTkEntry(
-            price_frame, width=180, placeholder_text="0"
+            price_frame, width=120, placeholder_text="0"
         )
         self._cost_price_entry.insert(0, prev_cost)
-        self._cost_price_entry.grid(row=1, column=1, sticky="w", padx=(5, 0), pady=(2, 0))
+        self._cost_price_entry.grid(row=1, column=0, sticky="w", padx=(0, 5), pady=(2, 0))
+        self._cost_price_entry.bind("<KeyRelease>", self._on_cost_changed)
+
+        self._margin_entry = ctk.CTkEntry(
+            price_frame, width=120, placeholder_text="0"
+        )
+        self._margin_entry.insert(0, prev_margin)
+        self._margin_entry.grid(row=1, column=1, sticky="w", padx=(5, 5), pady=(2, 0))
+        self._margin_entry.bind("<KeyRelease>", self._on_margin_changed)
+
+        self._sale_price_entry = ctk.CTkEntry(
+            price_frame, width=120, placeholder_text="0"
+        )
+        self._sale_price_entry.insert(0, prev_sale)
+        self._sale_price_entry.grid(row=1, column=2, sticky="w", padx=(5, 0), pady=(2, 0))
+        self._sale_price_entry.bind("<KeyRelease>", self._on_sale_changed)
 
         # Stock + Low stock threshold + Unit type (side by side)
         stock_frame = ctk.CTkFrame(body, fg_color="transparent")
@@ -228,6 +249,97 @@ class ProductFormDialog(CenteredDialog):
         self._name_entry.focus_set()
         self._name_entry.bind("<Return>", lambda _e: self._confirm())
         theme.apply_theme_to_widget(self, theme.get_contrast_map())
+
+    def _on_cost_changed(self, event: Any = None) -> None:
+        cost_str = self._cost_price_entry.get().strip()
+        margin_str = self._margin_entry.get().strip()
+        sale_str = self._sale_price_entry.get().strip()
+
+        try:
+            cost = float(cost_str)
+        except ValueError:
+            return
+
+        if cost <= 0:
+            return
+
+        # Case 1: If margin is filled, calculate selling price
+        if margin_str:
+            try:
+                margin = float(margin_str)
+                sale_price = int(cost * (1 + margin / 100))
+                self._sale_price_entry.delete(0, "end")
+                self._sale_price_entry.insert(0, str(sale_price))
+            except ValueError:
+                pass
+        # Case 2: If margin is empty but selling price is filled, calculate margin
+        elif sale_str:
+            try:
+                sale = float(sale_str)
+                margin = ((sale - cost) / cost) * 100
+                self._margin_entry.delete(0, "end")
+                self._margin_entry.insert(0, f"{margin:.1f}".rstrip('0').rstrip('.'))
+            except ValueError:
+                pass
+
+    def _on_margin_changed(self, event: Any = None) -> None:
+        cost_str = self._cost_price_entry.get().strip()
+        margin_str = self._margin_entry.get().strip()
+        sale_str = self._sale_price_entry.get().strip()
+
+        try:
+            margin = float(margin_str)
+        except ValueError:
+            return
+
+        # Case 1: If cost is filled, calculate selling price
+        if cost_str:
+            try:
+                cost = float(cost_str)
+                sale_price = int(cost * (1 + margin / 100))
+                self._sale_price_entry.delete(0, "end")
+                self._sale_price_entry.insert(0, str(sale_price))
+            except ValueError:
+                pass
+        # Case 2: If cost is empty but selling price is filled, calculate cost price
+        elif sale_str:
+            try:
+                sale = float(sale_str)
+                cost_price = int(sale / (1 + margin / 100))
+                self._cost_price_entry.delete(0, "end")
+                self._cost_price_entry.insert(0, str(cost_price))
+            except ValueError:
+                pass
+
+    def _on_sale_changed(self, event: Any = None) -> None:
+        cost_str = self._cost_price_entry.get().strip()
+        margin_str = self._margin_entry.get().strip()
+        sale_str = self._sale_price_entry.get().strip()
+
+        try:
+            sale = float(sale_str)
+        except ValueError:
+            return
+
+        # Case 1: If cost is filled, calculate margin %
+        if cost_str:
+            try:
+                cost = float(cost_str)
+                if cost > 0:
+                    margin = ((sale - cost) / cost) * 100
+                    self._margin_entry.delete(0, "end")
+                    self._margin_entry.insert(0, f"{margin:.1f}".rstrip('0').rstrip('.'))
+            except ValueError:
+                pass
+        # Case 2: If cost is empty but margin is filled, calculate cost price
+        elif margin_str:
+            try:
+                margin = float(margin_str)
+                cost_price = int(sale / (1 + margin / 100))
+                self._cost_price_entry.delete(0, "end")
+                self._cost_price_entry.insert(0, str(cost_price))
+            except ValueError:
+                pass
 
     @property
     def result(self) -> dict[str, Any] | None:

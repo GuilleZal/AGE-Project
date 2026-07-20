@@ -19,6 +19,7 @@ from pos.view.widgets.column_persistence import (
     get_treeview_widths,
     apply_treeview_widths,
 )
+from pos.view.widgets.centered_dialog import CenteredDialog
 from pos.view.widgets.treeview_sorting import add_sorting_to_treeview
 from pos.view import theme
 
@@ -48,12 +49,14 @@ class CashRegisterView(ctk.CTkFrame):
         master: tk.Widget,
         callbacks: dict[str, Callable[..., Any]] | None = None,
         cash_register_mode: str = "full",
+        role: str = "",
         **kwargs,
     ) -> None:
         border_color = theme.get_contrast_map()["search_border"]
         super().__init__(master, fg_color="transparent", border_width=2, border_color=border_color, **kwargs)
         callbacks = callbacks or {}
         self._cash_register_mode = cash_register_mode
+        self._role = role
 
         self._on_open: Callable[[int], None] | None = callbacks.get(
             "on_open"
@@ -476,6 +479,7 @@ class CashRegisterView(ctk.CTkFrame):
             self._open_btn.configure(state="normal")
             self._close_btn.configure(state="disabled")
             self._set_balance_defaults()
+            self._clear_preview()
         else:
             self._status_label.configure(
                 text=f"CAJA ABIERTA — #{status['register']['id']}",
@@ -581,26 +585,34 @@ class CashRegisterView(ctk.CTkFrame):
         """Open the cash register via controller."""
         result = self._controller.open_register(amount)
         if result["success"]:
-            messagebox.showinfo("Caja", "Caja abierta correctamente")
+            messagebox.showinfo("Caja", "Caja abierta correctamente", parent=self.winfo_toplevel())
             self._refresh_status()
             self._refresh_history()
         else:
-            messagebox.showerror("Error", result["error"])
+            messagebox.showerror("Error", result["error"], parent=self.winfo_toplevel())
 
     def _controller_close(self, amount: int, notes: str) -> None:
         """Close the cash register via controller."""
         result = self._controller.close_register(amount, notes)
         if result["success"]:
-            data = result["data"]
-            diff = data.get("diff", 0)
-            messagebox.showinfo(
-                "Caja cerrada",
-                f"Caja cerrada correctamente.\nDiferencia: ${diff:,}",
-            )
+            role_str = (
+                self._role.value
+                if hasattr(self._role, "value")
+                else str(self._role or "")
+            ).lower()
+
+            if role_str == "cajero" or self._cash_register_mode == "restricted":
+                msg = "Caja cerrada correctamente."
+            else:
+                data = result["data"]
+                diff = data.get("diff", 0)
+                msg = f"Caja cerrada correctamente.\nDiferencia: ${diff:,}"
+
+            messagebox.showinfo("Caja cerrada", msg, parent=self.winfo_toplevel())
             self._refresh_status()
             self._refresh_history()
         else:
-            messagebox.showerror("Error", result["error"])
+            messagebox.showerror("Error", result["error"], parent=self.winfo_toplevel())
 
     def _controller_outflow(
         self, type_: str, amount: int, description: str | None
@@ -608,11 +620,11 @@ class CashRegisterView(ctk.CTkFrame):
         """Register a manual outflow via controller."""
         result = self._controller.register_outflow(type_, amount, description)
         if result["success"]:
-            messagebox.showinfo("Egreso", "Egreso registrado correctamente")
+            messagebox.showinfo("Egreso", "Egreso registrado correctamente", parent=self.winfo_toplevel())
             self._refresh_status()
             self._refresh_history()
         else:
-            messagebox.showerror("Error", result["error"])
+            messagebox.showerror("Error", result["error"], parent=self.winfo_toplevel())
 
     def _controller_refresh(self) -> None:
         """Refresh both status and history."""
@@ -625,7 +637,7 @@ class CashRegisterView(ctk.CTkFrame):
         if result["success"]:
             self.update_register_status(result["data"])
         else:
-            messagebox.showerror("Error", result["error"])
+            messagebox.showerror("Error", result["error"], parent=self.winfo_toplevel())
 
     def _refresh_history(self, start_date: str | None = None, end_date: str | None = None) -> None:
         """Reload register history from controller and update treeview.
@@ -640,7 +652,7 @@ class CashRegisterView(ctk.CTkFrame):
             # Auto-show movements for active register if one is open
             self._auto_preview_active_register()
         else:
-            messagebox.showerror("Error", result["error"])
+            messagebox.showerror("Error", result["error"], parent=self.winfo_toplevel())
 
     def _apply_date_filter(self) -> None:
         """Apply date filter from the DateEntry widgets and refresh history."""
@@ -656,12 +668,20 @@ class CashRegisterView(ctk.CTkFrame):
         self._end_date_entry.set_date(today)
         self._refresh_history()
 
+    def _clear_preview(self) -> None:
+        """Clear the movement preview panel."""
+        self._preview_label.configure(text="Movimientos")
+        for child in self._preview_tree.get_children():
+            self._preview_tree.delete(child)
+
     def _auto_preview_active_register(self) -> None:
-        """Show movements for the active register in the preview panel."""
+        """Show movements for the active register in the preview panel, or clear if closed."""
         result = self._controller.get_register_status()
         if result["success"] and result["data"]["active"]:
             register_id = result["data"]["register"]["id"]
             self._update_preview(register_id, label=f"Caja actual #{register_id}")
+        else:
+            self._clear_preview()
 
     def _handle_history_select(self, event: Any) -> None:
         """Handle selection in history treeview — show movements for selected register."""
@@ -818,7 +838,7 @@ class CashRegisterView(ctk.CTkFrame):
 # ----------------------------------------------------------------- helpers ---
 
 
-class _AmountDialog(ctk.CTkToplevel):
+class _AmountDialog(CenteredDialog):
     """Prompt the user for an integer amount."""
 
     def __init__(
@@ -828,11 +848,7 @@ class _AmountDialog(ctk.CTkToplevel):
         prompt: str = "Monto ($):",
         **kwargs,
     ) -> None:
-        super().__init__(master, **kwargs)
-        self.title(title)
-        self.resizable(False, False)
-        self.grab_set()
-        self.transient(master)
+        super().__init__(master, width=320, height=180, title=title, **kwargs)
         self._result: int | None = None
 
         ctk.CTkLabel(
@@ -859,8 +875,6 @@ class _AmountDialog(ctk.CTkToplevel):
             btn_frame, text="Aceptar", width=100, command=self._confirm,
         ).pack(side="left", padx=5)
 
-        self.geometry("320x180")
-        self._center_on_master(master)
         theme.apply_theme_to_widget(self, theme.get_contrast_map())
 
     @property
@@ -887,25 +901,12 @@ class _AmountDialog(ctk.CTkToplevel):
         self._result = None
         self.destroy()
 
-    def _center_on_master(self, master: tk.Widget) -> None:
-        self.update_idletasks()
-        mw, mh = master.winfo_width(), master.winfo_height()
-        mx, my = master.winfo_rootx(), master.winfo_rooty()
-        w, h = self.winfo_reqwidth(), self.winfo_reqheight()
-        x = mx + (mw - w) // 2
-        y = my + (mh - h) // 2
-        self.geometry(f"+{x}+{y}")
 
-
-class _CloseDialog(ctk.CTkToplevel):
+class _CloseDialog(CenteredDialog):
     """Prompt for closing amount and notes."""
 
     def __init__(self, master: tk.Widget, **kwargs) -> None:
-        super().__init__(master, **kwargs)
-        self.title("Cerrar caja")
-        self.resizable(False, False)
-        self.grab_set()
-        self.transient(master)
+        super().__init__(master, width=380, height=360, title="Cerrar caja", **kwargs)
         self._result: dict[str, Any] | None = None
 
         ctk.CTkLabel(
@@ -957,8 +958,6 @@ class _CloseDialog(ctk.CTkToplevel):
             fg_color="#8b1a1a", command=self._confirm,
         ).pack(side="left", padx=5)
 
-        self.geometry("380x360")
-        self._center_on_master(master)
         self._amount_entry.focus_set()
         theme.apply_theme_to_widget(self, theme.get_contrast_map())
 
@@ -1008,15 +1007,6 @@ class _CloseDialog(ctk.CTkToplevel):
     def _cancel(self) -> None:
         self._result = None
         self.destroy()
-
-    def _center_on_master(self, master: tk.Widget) -> None:
-        self.update_idletasks()
-        mw, mh = master.winfo_width(), master.winfo_height()
-        mx, my = master.winfo_rootx(), master.winfo_rooty()
-        w, h = self.winfo_reqwidth(), self.winfo_reqheight()
-        x = mx + (mw - w) // 2
-        y = my + (mh - h) // 2
-        self.geometry(f"+{x}+{y}")
 
 
 # --------------------------------------------------------------- helpers ---

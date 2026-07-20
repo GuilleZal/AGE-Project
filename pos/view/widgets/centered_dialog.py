@@ -58,19 +58,19 @@ class CenteredDialog(ctk.CTkToplevel):
         self._center_on_parent(master)
 
     def _center_on_parent(self, master: tk.Widget) -> None:
-        """Center the dialog relative to the parent window.
+        """Center the dialog relative to the parent window (top-level).
 
         Uses update_idletasks to ensure geometry is calculated correctly.
         """
-        # Force geometry calculation
         self.update_idletasks()
 
-        # Get parent window position and size
-        if master.winfo_exists():
-            parent_x = master.winfo_rootx()
-            parent_y = master.winfo_rooty()
-            parent_width = master.winfo_width()
-            parent_height = master.winfo_height()
+        target = master.winfo_toplevel() if master.winfo_exists() else master
+        if target.winfo_exists():
+            target.update_idletasks()
+            parent_x = target.winfo_rootx()
+            parent_y = target.winfo_rooty()
+            parent_width = target.winfo_width()
+            parent_height = target.winfo_height()
         else:
             # Fallback to screen center if parent doesn't exist
             parent_x = 0

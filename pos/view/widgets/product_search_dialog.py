@@ -40,9 +40,11 @@ class ProductSearchDialog(CenteredDialog):
         super().__init__(master, width=600, height=450, title="Seleccionar producto", **kwargs)
 
         self._result: Product | None = None
+        self._selected_quantity: float = 1.0
         self._all_products = products
         self._categories = categories or []
-        
+        self._visible_products: list[Product] = []
+
         # Build category lookup dict
         self._category_map = {cat['id']: cat['name'] for cat in self._categories}
 
@@ -77,19 +79,17 @@ class ProductSearchDialog(CenteredDialog):
         search_frame = ctk.CTkFrame(self)
         search_frame.pack(fill="x", padx=10, pady=(10, 5))
         
-        ctk.CTkLabel(search_frame, text="Buscar:", font=theme.scaled_font(12)).pack(
+        ctk.CTkLabel(search_frame, text="Nombre:", font=theme.scaled_font(12)).pack(
             side="left", padx=(0, 5)
         )
         
-        self._search_var = tk.StringVar()
-        self._search_var.trace_add("write", self._on_search_changed)
         self._search_entry = ctk.CTkEntry(
             search_frame,
-            textvariable=self._search_var,
             placeholder_text="Nombre o categoría...",
             width=300
         )
         self._search_entry.pack(side="left", fill="x", expand=True)
+        self._search_entry.bind("<KeyRelease>", self._on_search_changed)
         self._search_entry.focus_set()
 
         # Treeview with category column
@@ -123,6 +123,9 @@ class ProductSearchDialog(CenteredDialog):
             }
         )
 
+        self._tree.bind("<Double-1>", self._on_select)
+        self._tree.bind("<Return>", self._on_select)
+
         # 1. Aseguramos los botones en la base PRIMERO
         btn_frame = ctk.CTkFrame(self)
         btn_frame.pack(side="bottom", pady=(5, 15))
@@ -154,6 +157,8 @@ class ProductSearchDialog(CenteredDialog):
         for item in self._tree.get_children():
             self._tree.delete(item)
         
+        self._visible_products = list(products)
+
         # Insert new items
         for p in products:
             category_name = self._category_map.get(p.category_id, "") if p.category_id else ""
@@ -165,7 +170,9 @@ class ProductSearchDialog(CenteredDialog):
 
     def _on_search_changed(self, *args) -> None:
         """Filter products based on search text (name or category)."""
-        search_text = self._search_var.get().strip().lower()
+        search_text = self._search_entry.get().strip().lower()
+        if search_text == "nombre o categoría...":
+            search_text = ""
         
         if not search_text:
             # Show all products
@@ -192,26 +199,42 @@ class ProductSearchDialog(CenteredDialog):
         """The selected ``Product``, or ``None`` if cancelled."""
         return self._result
 
+    @property
+    def selected_quantity(self) -> float:
+        """The selected quantity/weight in Kg (defaults to 1.0)."""
+        return self._selected_quantity
+
     def _on_select(self, _event: tk.Event | None = None) -> None:
         sel = self._tree.selection()
         if not sel:
             return
-        # Get the product from the visible (filtered) list
-        visible_products = []
-        for item in self._tree.get_children():
-            values = self._tree.item(item, 'values')
-            barcode = values[0] if values[0] != "—" else None
-            # Find matching product
-            for p in self._all_products:
-                if (p.barcode or "—") == barcode:
-                    visible_products.append(p)
-                    break
-        
+
         idx = self._tree.index(sel[0])
-        if idx < len(visible_products):
-            self._result = visible_products[idx]
-            self.destroy()
+        if idx < len(self._visible_products):
+            selected_p = self._visible_products[idx]
+            has_barcode = bool(selected_p.barcode and selected_p.barcode.strip() and selected_p.barcode != "—")
+
+            if not has_barcode:
+                from pos.view.widgets.weight_calculation_dialog import WeightCalculationDialog
+
+                calc_dialog = WeightCalculationDialog(
+                    self,
+                    product_name=selected_p.name,
+                    sale_price=selected_p.sale_price,
+                )
+                self.wait_window(calc_dialog)
+                calc_result = calc_dialog.result
+
+                if calc_result is not None:
+                    self._result = selected_p
+                    self._selected_quantity = calc_result
+                    self.destroy()
+            else:
+                self._result = selected_p
+                self._selected_quantity = 1.0
+                self.destroy()
 
     def _cancel(self) -> None:
         self._result = None
+        self._selected_quantity = 1.0
         self.destroy()

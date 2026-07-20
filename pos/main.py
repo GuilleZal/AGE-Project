@@ -59,6 +59,12 @@ def _run_login_loop(conn, login_ctrl) -> None:
     _root = ctk.CTk()
     _root.withdraw()  # Hide it - it's just a Tkinter root anchor
 
+    # Silence Tcl background errors (e.g. pending animation timers firing on destroyed widgets)
+    try:
+        _root.tk.call("proc", "bgerror", "msg", "")
+    except Exception:
+        pass
+
     while True:
         # Create LoginView as a Toplevel of the persistent root
         login_view = LoginView(_root)
@@ -100,12 +106,19 @@ def _run_login_loop(conn, login_ctrl) -> None:
         
         # After logout/close, destroy MainWindow
         try:
+            app.update_idletasks()
+        except Exception:
+            pass
+        try:
             app.destroy()
         except Exception:
             pass
     
     # Clean up the persistent root
-    _root.destroy()
+    try:
+        _root.destroy()
+    except Exception:
+        pass
 
 
 def _create_main_window(conn, login_ctrl, user, permissions):
@@ -211,7 +224,7 @@ def _wire_views(conn, app, permissions) -> None:
         cash_register_ctrl = CashRegisterController(conn)
         cash_tab = app.get_tab_frame("Caja")
         if cash_tab is not None:
-            cash_register_view = CashRegisterView(cash_tab, cash_register_mode=cash_mode)
+            cash_register_view = CashRegisterView(cash_tab, cash_register_mode=cash_mode, role=role_val)
             cash_register_view.pack(fill="both", expand=True)
             cash_register_view.set_controller(cash_register_ctrl)
             app.set_view("Caja", cash_register_view)

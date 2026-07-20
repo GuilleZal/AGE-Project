@@ -70,10 +70,8 @@ class CartTreeview(ctk.CTkFrame):
         self._tree.column("precio_unit", width=100, anchor="e")
         self._tree.column("subtotal", width=120, anchor="e")
 
-        # Load saved column widths
-        saved_widths = load_column_widths("cart_treeview")
-        self._tree._view_name = "cart_treeview"
-        apply_treeview_widths(self._tree, saved_widths)
+        # Bind resize event to automatically make columns responsive
+        self._tree.bind("<Configure>", self._on_resize)
 
         # Add column sorting
         add_sorting_to_treeview(
@@ -202,6 +200,28 @@ class CartTreeview(ctk.CTkFrame):
         tags = self._tree.item(sel[0], "tags")
         if tags and self._on_delete is not None:
             self._on_delete(int(tags[0]))
+
+    def _on_resize(self, event: tk.Event) -> None:
+        """Dynamically resize treeview columns proportionally to fit window size."""
+        total_width = event.width
+        if total_width <= 100:
+            return
+
+        # Deduct scrollbar width (approx 20px)
+        net_width = total_width - 20
+        if net_width <= 100:
+            return
+
+        # Proportions: producto (48%), cantidad (14%), precio_unit (17%), subtotal (21%)
+        w_prod = int(net_width * 0.48)
+        w_qty = int(net_width * 0.14)
+        w_price = int(net_width * 0.17)
+        w_sub = int(net_width * 0.21)
+
+        self._tree.column("producto", width=w_prod, minwidth=150)
+        self._tree.column("cantidad", width=w_qty, minwidth=60)
+        self._tree.column("precio_unit", width=w_price, minwidth=80)
+        self._tree.column("subtotal", width=w_sub, minwidth=90)
 
     @staticmethod
     def _parse_currency(val: str) -> int:
