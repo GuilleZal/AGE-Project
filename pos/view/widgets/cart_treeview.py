@@ -46,10 +46,12 @@ class CartTreeview(ctk.CTkFrame):
         self,
         master: tk.Widget,
         on_delete: Callable[[int], None] | None = None,
+        role: str = "",
         **kwargs,
     ) -> None:
         super().__init__(master, **kwargs)
         self._on_delete: Callable[[int], None] | None = on_delete
+        self._role = role
 
         # --- dark style for ttk widgets inside a CTk frame ---
         self._style = ttk.Style(self)
@@ -79,7 +81,7 @@ class CartTreeview(ctk.CTkFrame):
             list(self.COLUMNS),
             column_types={
                 "producto": "str",
-                "cantidad": "int",
+                "cantidad": "float",
                 "precio_unit": "int",
                 "subtotal": "int",
             }
@@ -105,19 +107,29 @@ class CartTreeview(ctk.CTkFrame):
         """Refresh the treeview with current cart *items*.
 
         Each item dict should have keys: ``product_id``, ``name``,
-        ``quantity``, ``unit_price``, ``subtotal``.
+        ``quantity``, ``unit_price``, ``subtotal``, ``unit_type``.
         """
         for child in self._tree.get_children():
             self._tree.delete(child)
 
         for item in items:
+            qty_val = item["quantity"]
+            if self._role == "cajero":
+                unit_type = item.get("unit_type", "Unidad")
+                if unit_type == "Kg":
+                    qty_str = f"{float(qty_val)} Kg"
+                else:
+                    qty_str = f"{int(qty_val)} u."
+            else:
+                qty_str = int(qty_val)
+
             self._tree.insert(
                 "",
                 "end",
                 iid=str(item["product_id"]),
                 values=(
                     item["name"],
-                    int(item["quantity"]),
+                    qty_str,
                     f"${item['unit_price']:,}",
                     f"${item['subtotal']:,}",
                 ),
@@ -138,10 +150,14 @@ class CartTreeview(ctk.CTkFrame):
         tags = self._tree.item(sel[0], "tags")
         if not values or not tags:
             return None
+        
+        qty_str = str(values[1])
+        qty_str = qty_str.replace(" u.", "").replace(" Kg", "").replace(" kg", "").strip()
+        
         return {
             "product_id": int(tags[0]),
             "name": values[0],
-            "quantity": float(values[1]),
+            "quantity": float(qty_str),
             "unit_price": self._parse_currency(values[2]),
             "subtotal": self._parse_currency(values[3]),
         }

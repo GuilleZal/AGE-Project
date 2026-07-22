@@ -48,11 +48,13 @@ class ReturnView(ctk.CTkFrame):
         self,
         master: tk.Widget,
         callbacks: dict[str, Callable[..., Any]] | None = None,
+        role: str = "",
         **kwargs,
     ) -> None:
         border_color = theme.get_contrast_map()["search_border"]
         super().__init__(master, fg_color="transparent", border_width=2, border_color=border_color, **kwargs)
         callbacks = callbacks or {}
+        self._role = role
 
         # --- callback slots ---
         self._on_search: Callable[[str], None] | None = callbacks.get("on_search")
@@ -158,7 +160,6 @@ class ReturnView(ctk.CTkFrame):
             qty_ctrl_frame, textvariable=self._qty_var, justify="center", height=28, font=theme.scaled_font(14)
         )
         self._qty_spin.grid(row=0, column=1, sticky="ew", padx=5)
-        self._qty_spin.bind("<KeyRelease>", lambda e: self._update_refund())
         
         ctk.CTkButton(
             qty_ctrl_frame, text="＋", width=40, font=theme.scaled_font(16, "bold"),
@@ -263,6 +264,9 @@ class ReturnView(ctk.CTkFrame):
         # Reducimos su margen al mínimo absoluto para que no quite espacio vital
         self._error_label.grid(row=2, column=0, padx=10, pady=(0, 2))
 
+        # Trace quantity changes to automatically update summary
+        self._qty_var.trace_add("write", lambda *args: self._update_refund())
+
         # Auto-focus the barcode entry
         self.bind("<Map>", lambda _e: self._barcode_entry.focus_set())
         
@@ -275,6 +279,15 @@ class ReturnView(ctk.CTkFrame):
         self._barcode_val_lbl.configure(text=product.get("barcode", "—"))
         self._price_val_lbl.configure(text=f"${product.get('sale_price', 0):,}")
         self._confirm_btn.configure(state="normal")
+        
+        # Set quantity entry default based on unit type
+        unit_type = product.get("unit_type", "Unidad")
+        is_kg = unit_type.lower() in ("kg", "weight_kg")
+        if is_kg:
+            self._qty_var.set("")
+        else:
+            self._qty_var.set("1")
+            
         self._update_refund()
 
     def clear_product(self) -> None:
@@ -286,6 +299,7 @@ class ReturnView(ctk.CTkFrame):
         self._summary_subtotal_lbl.configure(text="$0")
         self._summary_qty_lbl.configure(text="0")
         self._refund_label.configure(text="$0")
+        self._qty_var.set("1")
         self._confirm_btn.configure(state="disabled")
 
     def clear_form(self) -> None:
@@ -377,36 +391,78 @@ class ReturnView(ctk.CTkFrame):
             self._on_search(barcode)
 
     def _increment_qty(self) -> None:
+        if self._current_product is None:
+            return
+        unit_type = self._current_product.get("unit_type", "Unidad")
+        is_kg = unit_type.lower() in ("kg", "weight_kg")
+        step = 0.1 if is_kg else 1.0
+
+        val = self._qty_var.get().strip()
         try:
-            qty = float(self._qty_var.get())
+            qty = float(val) if val else 0.0
         except ValueError:
-            qty = 1.0
-        qty += 1.0
-        self._qty_var.set(
-            str(int(qty)) if qty == int(qty) else f"{qty:.2f}"
-        )
+            qty = 0.0
+        qty += step
+        if is_kg:
+            self._qty_var.set(f"{qty:.2f}")
+        else:
+            self._qty_var.set(str(int(qty)))
         self._update_refund()
 
     def _decrement_qty(self) -> None:
+        if self._current_product is None:
+            return
+        unit_type = self._current_product.get("unit_type", "Unidad")
+        is_kg = unit_type.lower() in ("kg", "weight_kg")
+        step = 0.1 if is_kg else 1.0
+
+        val = self._qty_var.get().strip()
         try:
-            qty = float(self._qty_var.get())
+            qty = float(val) if val else 0.0
         except ValueError:
-            qty = 1.0
-        qty = max(0.0, qty - 1.0)
-        self._qty_var.set(
-            str(int(qty)) if qty == int(qty) else f"{qty:.2f}"
-        )
+            qty = 0.0
+        qty = max(0.0, qty - step)
+        if is_kg:
+            self._qty_var.set(f"{qty:.2f}")
+        else:
+            self._qty_var.set(str(int(qty)))
         self._update_refund()
 
     def _update_refund(self) -> None:
+        # Prevent updates if widgets are not yet initialized during trace registration
+        if not hasattr(self, "_summary_subtotal_lbl") or not hasattr(self, "_summary_qty_lbl") or not hasattr(self, "_refund_label"):
+            return
+
         if self._current_product is None:
             self._summary_subtotal_lbl.configure(text="$0")
             self._summary_qty_lbl.configure(text="0")
             self._refund_label.configure(text="$0")
             return
             
+        unit_type = self._current_product.get("unit_type", "Unidad")
+        is_kg = unit_type.lower() in ("kg", "weight_kg")
+        
+        val = self._qty_var.get().strip()
+        if not is_kg:
+            # Clean non-digits (prevent floats for units)
+            cleaned = "".join(c for c in val if c.isdigit())
+            if cleaned != val:
+                self._qty_var.set(cleaned)
+                val = cleaned
+        else:
+            # Clean non-decimal chars (only allow digits and at most one dot)
+            val_replaced = val.replace(",", ".")
+            parts = val_replaced.split(".")
+            if len(parts) > 2:
+                val_replaced = parts[0] + "." + "".join(parts[1:])
+            
+            cleaned = "".join(c for c in val_replaced if c.isdigit() or c == ".")
+            if cleaned != val:
+                self._qty_var.set(cleaned)
+                val = cleaned
+            
         try:
-            qty = float(self._qty_var.get())
+            qty = float(val) if val else 0.0
         except ValueError:
             qty = 0.0
             
@@ -414,7 +470,12 @@ class ReturnView(ctk.CTkFrame):
         total = int(price * qty)
 
         self._summary_subtotal_lbl.configure(text=f"${price:,}")
-        qty_str = str(int(qty)) if qty == int(qty) else f"{qty:.2f}"
+        
+        if is_kg:
+            qty_str = f"{qty} Kg"
+        else:
+            qty_str = f"{int(qty)} u."
+            
         self._summary_qty_lbl.configure(text=qty_str)
         self._refund_label.configure(text=f"${total:,}")
 
@@ -431,8 +492,13 @@ class ReturnView(ctk.CTkFrame):
         if self._current_product is None:
             return
 
+        val = self._qty_var.get().strip()
+        if not val:
+            self._error_label.configure(text="Ingrese una cantidad válida")
+            return
+
         try:
-            qty = float(self._qty_var.get())
+            qty = float(val)
         except ValueError:
             self._error_label.configure(text="Ingrese una cantidad válida")
             return
@@ -473,7 +539,7 @@ class ReturnView(ctk.CTkFrame):
 
         from pos.view.widgets.product_search_dialog import ProductSearchDialog
         categories = self._get_categories()
-        dialog = ProductSearchDialog(self, products, categories)
+        dialog = ProductSearchDialog(self, products, categories, role=self._role, is_return=True)
         self.wait_window(dialog)
         selected = dialog.result
         if selected is not None:
@@ -482,6 +548,7 @@ class ReturnView(ctk.CTkFrame):
                 "barcode": selected.barcode,
                 "name": selected.name,
                 "sale_price": selected.sale_price,
+                "unit_type": selected.unit_type,
             })
         self._barcode_entry.focus_set()
 

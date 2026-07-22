@@ -30,18 +30,21 @@ class WeightCalculationDialog(CenteredDialog):
         product_name: str,
         sale_price: int,
         initial_weight: float = 0.5,
+        role: str = "",
         **kwargs,
     ) -> None:
+        dialog_height = 340 if role == "cajero" else 320
         super().__init__(
             master,
             width=420,
-            height=320,
+            height=dialog_height,
             title="Ingresar Peso o Monto",
             **kwargs,
         )
 
         self._product_name = product_name
         self._sale_price = sale_price
+        self._role = role
         self._result: float | None = None
         self._updating = False
 
@@ -103,7 +106,10 @@ class WeightCalculationDialog(CenteredDialog):
         self._monto_entry.bind("<KeyRelease>", self._on_monto_changed)
 
         # --- Initial values setup ---
-        if initial_weight > 0:
+        if self._role == "cajero":
+            # Cashier role: leave fields empty
+            pass
+        elif initial_weight > 0:
             self._peso_entry.insert(0, str(initial_weight))
             monto_init = int(round(initial_weight * sale_price))
             self._monto_entry.insert(0, f"${monto_init:,}")
@@ -117,6 +123,16 @@ class WeightCalculationDialog(CenteredDialog):
             wraplength=360,
             justify="center",
         ).pack(pady=(8, 2))
+
+        # Cashier role specific example note
+        if self._role == "cajero":
+            ctk.CTkLabel(
+                self,
+                text="Aclaración: 500 gramos equivale a 0.5 kg",
+                font=theme.scaled_font(12, weight="bold"),
+                text_color="#3498db",
+                justify="center",
+            ).pack(pady=(2, 8))
 
         # --- Error label ---
         self._error_label = ctk.CTkLabel(
@@ -160,6 +176,12 @@ class WeightCalculationDialog(CenteredDialog):
         theme.apply_theme_to_widget(self, theme.get_contrast_map())
         self._peso_entry.focus_set()
         self._peso_entry.select_range(0, tk.END)
+
+        # Ensure dialog size fits all content dynamically and is centered properly
+        self.update_idletasks()
+        req_height = self.winfo_reqheight()
+        self._height = max(req_height, dialog_height)
+        self._center_on_parent(master)
 
     @property
     def result(self) -> float | None:

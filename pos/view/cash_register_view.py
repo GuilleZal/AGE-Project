@@ -705,6 +705,8 @@ class CashRegisterView(ctk.CTkFrame):
         type_labels = {
             "sale_cash": "Venta (Efectivo)",
             "sale_card": "Venta (Tarjeta)",
+            "sale_debit_card": "Venta (T. Débito)",
+            "sale_credit_card": "Venta (T. Crédito)",
             "sale_transfer": "Venta (Transfer.)",
             "return": "Devolución",
             "supplier_payment": "Pago prov.",
@@ -735,9 +737,9 @@ class CashRegisterView(ctk.CTkFrame):
             self._outflow_frame.grid_remove()
             # Keep _preview_frame visible so gerente can see movements of selected register
         elif mode == "restricted":
-            # Cajero: hide history, diferencia, esperado
+            # Cajero: hide history, diferencia, esperado, ingresos, egresos
             self._history_frame.grid_remove()
-            for key in ("expected", "difference"):
+            for key in ("inflows", "outflows", "expected", "difference"):
                 self._balance_labels[key].grid_remove()
                 # Also hide the corresponding label (column 0 in same row)
                 for widget in self._balance_frame.winfo_children():

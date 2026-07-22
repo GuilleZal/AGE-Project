@@ -122,7 +122,7 @@ def test_product_search_dialog_barcodeless_product_opens_calc(session_root, monk
 
     # Mock WeightCalculationDialog to simulate user confirming 0.75 Kg
     class MockCalcDialog:
-        def __init__(self, master, product_name, sale_price):
+        def __init__(self, master, product_name, sale_price, *args, **kwargs):
             self.result = 0.75
 
     monkeypatch.setattr(
@@ -142,3 +142,23 @@ def test_product_search_dialog_barcodeless_product_opens_calc(session_root, monk
 
     assert dialog.result == p_barcodeless
     assert dialog.selected_quantity == 0.75
+
+
+def test_weight_calculation_dialog_cajero_initialization(session_root):
+    dialog = WeightCalculationDialog(
+        session_root,
+        product_name="Queso Cremoso",
+        sale_price=9500,
+        initial_weight=0.5,
+        role="cajero"
+    )
+    session_root.update()
+
+    # Verify fields are empty
+    assert dialog._peso_entry.get() == ""
+    assert dialog._monto_entry.get() == ""
+
+    # Verify height is at least 340
+    assert dialog._height >= 340
+
+    dialog.destroy()

@@ -35,15 +35,18 @@ class ProductSearchDialog(CenteredDialog):
 
     def __init__(
         self, master: tk.Widget, products: list[Product], 
-        categories: list[dict] | None = None, **kwargs
+        categories: list[dict] | None = None, role: str = "", is_return: bool = False, **kwargs
     ) -> None:
-        super().__init__(master, width=600, height=450, title="Seleccionar producto", **kwargs)
+        dialog_width = 750 if role == "cajero" else 600
+        super().__init__(master, width=dialog_width, height=450, title="Seleccionar producto", **kwargs)
 
         self._result: Product | None = None
         self._selected_quantity: float = 1.0
         self._all_products = products
         self._categories = categories or []
         self._visible_products: list[Product] = []
+        self._role = role
+        self._is_return = is_return
 
         # Build category lookup dict
         self._category_map = {cat['id']: cat['name'] for cat in self._categories}
@@ -92,24 +95,81 @@ class ProductSearchDialog(CenteredDialog):
         self._search_entry.bind("<KeyRelease>", self._on_search_changed)
         self._search_entry.focus_set()
 
+        # Category filter dropdown (only for cajero)
+        if self._role == "cajero":
+            ctk.CTkLabel(search_frame, text="Categoría:", font=theme.scaled_font(12)).pack(
+                side="left", padx=(10, 2)
+            )
+            self._category_options: dict[str, int | None] = {"Todas": None}
+            if self._categories:
+                for cat in self._categories:
+                    self._category_options[cat["name"]] = cat["id"]
+            self._category_var = tk.StringVar(value="Todas")
+            self._category_menu = ctk.CTkOptionMenu(
+                search_frame,
+                values=list(self._category_options.keys()),
+                variable=self._category_var,
+                width=130,
+                command=self._on_category_changed,
+            )
+            self._category_menu.pack(side="left", padx=(0, 5))
+
+        # Treeview container frame
+        tree_frame = ctk.CTkFrame(self)
+        
         # Treeview with category column
         columns = ("codigo", "nombre", "categoria", "precio")
         self._tree = ttk.Treeview(
-            self, columns=columns, show="headings", height=12
+            tree_frame, columns=columns, show="headings", height=12
         )
         self._tree.heading("codigo", text="Código")
         self._tree.heading("nombre", text="Nombre")
         self._tree.heading("categoria", text="Categoría")
         self._tree.heading("precio", text="Precio")
-        self._tree.column("codigo", width=100, anchor="w")
-        self._tree.column("nombre", width=200, anchor="w")
-        self._tree.column("categoria", width=120, anchor="w")
-        self._tree.column("precio", width=80, anchor="e")
+        
+        if self._role == "cajero":
+            self._tree.column("codigo", width=140, minwidth=140, anchor="center")
+            self._tree.column("nombre", width=250, minwidth=250, anchor="w")
+            self._tree.column("categoria", width=160, minwidth=160, anchor="w")
+            self._tree.column("precio", width=110, minwidth=110, anchor="e")
+            
+            # Bloqueamos el redimensionamiento manual
+            self._tree.bind("<Button-1>", self._prevent_resize)
+            self._tree.bind("<B1-Motion>", self._prevent_resize)
+        else:
+            self._tree.column("codigo", width=100, anchor="w")
+            self._tree.column("nombre", width=200, anchor="w")
+            self._tree.column("categoria", width=120, anchor="w")
+            self._tree.column("precio", width=80, anchor="e")
+            
+            # Load saved column widths
+            saved_widths = load_column_widths("product_search_dialog")
+            self._tree._view_name = "product_search_dialog"
+            apply_treeview_widths(self._tree, saved_widths)
 
-        # Load saved column widths
-        saved_widths = load_column_widths("product_search_dialog")
-        self._tree._view_name = "product_search_dialog"
-        apply_treeview_widths(self._tree, saved_widths)
+        self._tree.grid(row=0, column=0, sticky="nsew")
+
+        vscroll = ttk.Scrollbar(
+            tree_frame,
+            orient="vertical",
+            command=self._tree.yview,
+        )
+        vscroll.grid(row=0, column=1, sticky="ns")
+
+        hscroll = ttk.Scrollbar(
+            tree_frame,
+            orient="horizontal",
+            command=self._tree.xview,
+        )
+        hscroll.grid(row=1, column=0, sticky="ew")
+
+        self._tree.configure(
+            yscrollcommand=vscroll.set,
+            xscrollcommand=hscroll.set,
+        )
+        
+        tree_frame.grid_rowconfigure(0, weight=1)
+        tree_frame.grid_columnconfigure(0, weight=1)
 
         # Add column sorting
         add_sorting_to_treeview(
@@ -146,7 +206,7 @@ class ProductSearchDialog(CenteredDialog):
         ).pack(side="left", padx=5)
 
         # 2. Empaquetamos la tabla DESPUÉS para que respete a los botones
-        self._tree.pack(fill="both", expand=True, padx=10, pady=(5, 5))
+        tree_frame.pack(fill="both", expand=True, padx=10, pady=(5, 5))
 
         self._populate_tree(products)
         theme.apply_theme_to_widget(self, theme.get_contrast_map())
@@ -168,29 +228,41 @@ class ProductSearchDialog(CenteredDialog):
                 values=(p.barcode or "—", p.name, category_name, f"${p.sale_price:,}"),
             )
 
+    def _on_category_changed(self, _value: str) -> None:
+        """Trigger search update when category changes."""
+        self._on_search_changed()
+
+    def _prevent_resize(self, event: Any) -> str | None:
+        """Evita que el usuario cambie el tamaño de las columnas arrastrando el separador."""
+        if event.widget.identify_region(event.x, event.y) == "separator":
+            return "break"
+        return None
+
     def _on_search_changed(self, *args) -> None:
-        """Filter products based on search text (name or category)."""
+        """Filter products based on search text (name or category) and selected category."""
         search_text = self._search_entry.get().strip().lower()
         if search_text == "nombre o categoría...":
             search_text = ""
         
-        if not search_text:
-            # Show all products
-            self._populate_tree(self._all_products)
-            return
-        
-        # Filter products by name or category
+        selected_cat_id = None
+        if self._role == "cajero" and hasattr(self, "_category_var"):
+            selected_cat_id = self._category_options.get(self._category_var.get())
+
         filtered = []
         for p in self._all_products:
-            # Check name
-            if search_text in p.name.lower():
-                filtered.append(p)
+            # 1. Filter by category
+            if selected_cat_id is not None and p.category_id != selected_cat_id:
                 continue
-            # Check category
-            if p.category_id:
-                category_name = self._category_map.get(p.category_id, "").lower()
-                if search_text in category_name:
-                    filtered.append(p)
+
+            # 2. Filter by search text (if any)
+            if search_text:
+                name_match = search_text in p.name.lower()
+                category_name = self._category_map.get(p.category_id, "").lower() if p.category_id else ""
+                cat_match = search_text in category_name
+                if not (name_match or cat_match):
+                    continue
+
+            filtered.append(p)
         
         self._populate_tree(filtered)
 
@@ -214,13 +286,14 @@ class ProductSearchDialog(CenteredDialog):
             selected_p = self._visible_products[idx]
             has_barcode = bool(selected_p.barcode and selected_p.barcode.strip() and selected_p.barcode != "—")
 
-            if not has_barcode:
+            if not has_barcode and not self._is_return:
                 from pos.view.widgets.weight_calculation_dialog import WeightCalculationDialog
 
                 calc_dialog = WeightCalculationDialog(
                     self,
                     product_name=selected_p.name,
                     sale_price=selected_p.sale_price,
+                    role=getattr(self.master, "_role", ""),
                 )
                 self.wait_window(calc_dialog)
                 calc_result = calc_dialog.result

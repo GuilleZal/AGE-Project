@@ -95,7 +95,7 @@ class CashRegisterRepo:
 
         inflows = self._db.execute(
             """SELECT COALESCE(SUM(amount), 0) FROM cash_movements
-               WHERE cash_register_id = ? AND type IN ('sale_cash', 'sale_card', 'sale_transfer')""",
+               WHERE cash_register_id = ? AND type IN ('sale_cash', 'sale_card', 'sale_debit_card', 'sale_credit_card', 'sale_transfer')""",
             (register_id,),
         ).fetchone()[0]
 

@@ -514,6 +514,7 @@ class SaleController:
             "quantity": quantity,
             "unit_price": product.sale_price,
             "subtotal": int(product.sale_price * quantity),
+            "unit_type": product.unit_type,
         }
         self._cart.append(entry)
         return {"success": True, "data": entry, "error": None}

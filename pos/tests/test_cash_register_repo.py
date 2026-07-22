@@ -110,9 +110,10 @@ class TestGetBalance:
         mov_repo = CashMovementRepo(db)
 
         reg = reg_repo.open_register(10000)
-        # Inflow: sale_cash
+        # Inflow: sale_cash, sale_debit_card, sale_credit_card
         mov_repo.create(reg.id, MovementType.SALE_CASH, 3000, "Venta")
-        mov_repo.create(reg.id, MovementType.SALE_CASH, 2000, "Venta")
+        mov_repo.create(reg.id, MovementType.SALE_DEBIT_CARD, 2000, "Venta tarjeta debito")
+        mov_repo.create(reg.id, MovementType.SALE_CREDIT_CARD, 1000, "Venta tarjeta credito")
         # Outflow: return
         mov_repo.create(reg.id, MovementType.RETURN, 500, "Devolución")
         # Outflow: expense
@@ -121,9 +122,9 @@ class TestGetBalance:
 
         balance = reg_repo.get_balance(reg.id)
         assert balance["opening"] == 10000
-        assert balance["inflows"] == 5000    # 3000 + 2000
+        assert balance["inflows"] == 6000    # 3000 + 2000 + 1000
         assert balance["outflows"] == 700    # 500 + 200
-        assert balance["expected"] == 14300  # 10000 + 5000 - 700
+        assert balance["expected"] == 15300  # 10000 + 6000 - 700
 
     def test_not_found(self, db):
         repo = CashRegisterRepo(db)

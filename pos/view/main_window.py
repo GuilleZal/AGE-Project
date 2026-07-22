@@ -293,10 +293,7 @@ class MainWindow(ctk.CTk):
             kwargs = {}
             if tab_name == "Caja" and self._permissions:
                 kwargs["cash_register_mode"] = self._permissions.cash_register_mode
-            if tab_name == "Productos" and self._permissions:
-                role_val = self._permissions.user.role
-                kwargs["role"] = role_val.value if hasattr(role_val, 'value') else role_val
-            if tab_name == "Ventas" and self._permissions:
+            if tab_name in ("Productos", "Ventas", "Devoluciones") and self._permissions:
                 role_val = self._permissions.user.role
                 kwargs["role"] = role_val.value if hasattr(role_val, 'value') else role_val
 

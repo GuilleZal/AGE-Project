@@ -213,7 +213,7 @@ def _wire_views(conn, app, permissions) -> None:
         return_ctrl = ReturnController(conn)
         returns_tab = app.get_tab_frame("Devoluciones")
         if returns_tab is not None:
-            return_view = ReturnView(returns_tab)
+            return_view = ReturnView(returns_tab, role=role_val)
             return_view.pack(fill="both", expand=True)
             return_view.set_controller(return_ctrl)
             app.set_view("Devoluciones", return_view)

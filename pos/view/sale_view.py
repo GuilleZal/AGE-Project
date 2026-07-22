@@ -149,6 +149,7 @@ class SaleView(ctk.CTkFrame):
         self._cart_tree = CartTreeview(
             left_frame,
             on_delete=self._handle_remove,
+            role=self._role,
         )
         self._cart_tree.grid(row=1, column=0, columnspan=3, sticky="nsew")
 
@@ -849,7 +850,7 @@ class SaleView(ctk.CTkFrame):
                 return
         from pos.view.widgets.product_search_dialog import ProductSearchDialog
         categories = self._get_categories()
-        dialog = ProductSearchDialog(self, products, categories)
+        dialog = ProductSearchDialog(self, products, categories, role=self._role)
         self.wait_window(dialog)
         selected = dialog.result
         if selected is not None:
@@ -881,7 +882,7 @@ class SaleView(ctk.CTkFrame):
             return
         from pos.view.widgets.product_search_dialog import ProductSearchDialog
         categories = self._get_categories()
-        dialog = ProductSearchDialog(self, products, categories)
+        dialog = ProductSearchDialog(self, products, categories, role=self._role)
         self.wait_window(dialog)
         selected = dialog.result
         if selected is not None:
