@@ -8,7 +8,7 @@ Defaults to dark theme at 1280x720, centered on screen, with the Sales tab activ
 """
 
 import tkinter as tk
-from typing import Callable
+from typing import Callable, Any
 
 import customtkinter as ctk
 
@@ -147,9 +147,52 @@ class MainWindow(ctk.CTk):
         # Set callback for theme propagation
         theme.set_on_change_callback(self._on_theme_changed)
 
+        # Bind keyboard shortcuts
+        self.bind("<F1>", self._on_f1_pressed)
+        self.bind("<F2>", self._on_f2_pressed)
+        self.bind("<F3>", self._on_f3_pressed)
+        self.bind("<F4>", self._on_f4_pressed)
+
+        # Keyboard shortcuts help bar for Cashier
+        role_val = permissions.user.role.value if permissions is not None and hasattr(permissions.user.role, 'value') else (permissions.user.role if permissions is not None else "")
+        if permissions is not None and role_val == "cajero":
+            self._shortcuts_frame = ctk.CTkFrame(self, fg_color="transparent")
+            self._shortcuts_frame.place(relx=0.5, rely=1.0, y=-6, anchor="s")
+            
+            shortcuts = [
+                ("F1", "Ventas"),
+                ("F2", "Devoluciones"),
+                ("F3", "Caja"),
+                ("F4", "Abrir/Cerrar Caja")
+            ]
+            for idx, (key, label) in enumerate(shortcuts):
+                # Key badge
+                key_lbl = ctk.CTkLabel(
+                    self._shortcuts_frame,
+                    text=key,
+                    font=theme.scaled_font(10, weight="bold"),
+                    text_color="#ffffff",
+                    fg_color="#0078d4",
+                    corner_radius=4,
+                    padx=6,
+                    pady=2,
+                    height=20
+                )
+                key_lbl._custom_theme_color = "skip"  # Prevent theme from overriding badge color
+                key_lbl.pack(side="left", padx=(5 if idx > 0 else 0, 2))
+                
+                # Label description
+                desc_lbl = ctk.CTkLabel(
+                    self._shortcuts_frame,
+                    text=label,
+                    font=theme.scaled_font(11, weight="bold"),
+                    text_color="#a0a0a0"
+                )
+                desc_lbl.pack(side="left", padx=(0, 10))
+
         # --- tab container ---
         self._tabview = ctk.CTkTabview(self, command=self._on_tab_changed)
-        self._tabview.pack(fill="both", expand=True, padx=10, pady=(50, 10))
+        self._tabview.pack(fill="both", expand=True, padx=10, pady=(50, 32))
 
         self._tab_frames: dict[str, ctk.CTkFrame] = {}
 
@@ -337,7 +380,15 @@ class MainWindow(ctk.CTk):
         """Handle font scale dropdown change."""
         level_map = {"Aa Normal": 0, "Aa Grande": 1, "Aa Muy grande": 2, "Aa Máximo": 3}
         level = level_map.get(choice, 0)
-        theme.set_font_scale_level(level)
+        
+        from pos.model.database import get_connection
+        conn = get_connection()
+        try:
+            theme.set_font_scale_level(level, db=conn)
+            conn.commit()
+        finally:
+            conn.close()
+
         self.refresh_all_views()
         self._apply_current_theme()
 
@@ -353,7 +404,14 @@ class MainWindow(ctk.CTk):
 
     def _on_bg_color_changed(self, color_name: str) -> None:
         """Handle background color change."""
-        theme.set_bg_color(color_name)
+        from pos.model.database import get_connection
+        conn = get_connection()
+        try:
+            theme.set_bg_color(color_name, db=conn)
+            conn.commit()
+        finally:
+            conn.close()
+
         self._apply_current_theme()
 
     def _show_resolution_menu(self) -> None:
@@ -454,3 +512,53 @@ class MainWindow(ctk.CTk):
         
         # Bloqueamos nuevamente
         self.resizable(False, False)
+
+    def _on_f1_pressed(self, event: Any = None) -> None:
+        """Switch to Ventas tab and focus the scan/barcode entry."""
+        if "Ventas" in self._tab_frames:
+            try:
+                self._tabview.set("Ventas")
+                self._on_tab_changed()
+                sale_view = self._views.get("Ventas")
+                if sale_view and hasattr(sale_view, "_barcode_entry"):
+                    sale_view._barcode_entry.focus_set()
+            except Exception:
+                pass
+
+    def _on_f2_pressed(self, event: Any = None) -> None:
+        """Switch to Devoluciones tab and focus the scan/barcode entry."""
+        if "Devoluciones" in self._tab_frames:
+            try:
+                self._tabview.set("Devoluciones")
+                self._on_tab_changed()
+                return_view = self._views.get("Devoluciones")
+                if return_view and hasattr(return_view, "focus_barcode"):
+                    return_view.focus_barcode()
+            except Exception:
+                pass
+
+    def _on_f3_pressed(self, event: Any = None) -> None:
+        """Switch to Caja tab."""
+        if "Caja" in self._tab_frames:
+            try:
+                self._tabview.set("Caja")
+                self._on_tab_changed()
+            except Exception:
+                pass
+
+    def _on_f4_pressed(self, event: Any = None) -> None:
+        """Open or Close the cash register from any view."""
+        cash_view = self._views.get("Caja")
+        if cash_view and hasattr(cash_view, "_controller"):
+            try:
+                status_res = cash_view._controller.get_register_status()
+                if status_res["success"]:
+                    active = status_res["data"]["active"]
+                    if active:
+                        # Register is open, trigger Close register
+                        cash_view._handle_close()
+                    else:
+                        # Register is closed, trigger Open register
+                        cash_view._handle_open()
+            except Exception:
+                pass

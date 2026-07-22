@@ -178,3 +178,60 @@ class TestGetHistory:
         result = cash_ctrl.get_history()
         assert result["success"] is True
         assert len(result["data"]) == 0
+
+
+class TestMovementDescriptionFormatting:
+    """Session-based dynamic indexing of sales and returns, plus return quantities."""
+
+    def test_movements_formatting_sales_and_returns(self, cash_ctrl, db):
+        # 1. Setup sample products and active register
+        db.execute(
+            "INSERT INTO products (id, name, barcode, category_id, sale_price, cost_price, stock, unit_type) "
+            "VALUES (10, 'Coca-Cola 1.5L', '123456', NULL, 200, 100, 10, 'Unidad')"
+        )
+        db.execute(
+            "INSERT INTO products (id, name, barcode, category_id, sale_price, cost_price, stock, unit_type) "
+            "VALUES (20, 'Queso Kg', '789101', NULL, 1000, 500, 10, 'Kg')"
+        )
+        cash_ctrl.open_register(5000)
+
+        # 2. Insert sales movements (with global index numbers in desc)
+        db.execute(
+            "INSERT INTO cash_movements (cash_register_id, type, amount, description) VALUES (1, 'sale_cash', 200, 'Venta #99')"
+        )
+        db.execute(
+            "INSERT INTO cash_movements (cash_register_id, type, amount, description) VALUES (1, 'sale_card', 200, 'Venta #100')"
+        )
+
+        # 3. Insert return records in returns table, and corresponding cash outflows
+        db.execute(
+            "INSERT INTO returns (id, product_id, quantity, refund_amount, cash_register_id, reason, created_at) "
+            "VALUES (5, 10, 3.0, 600, 1, 'Vencido', '2026-07-22 18:00:00')"
+        )
+        db.execute(
+            "INSERT INTO cash_movements (cash_register_id, type, amount, description) VALUES (1, 'return', 600, 'Devolución #5 — Coca-Cola 1.5L')"
+        )
+
+        db.execute(
+            "INSERT INTO returns (id, product_id, quantity, refund_amount, cash_register_id, reason, created_at) "
+            "VALUES (6, 20, 1.5, 1500, 1, 'Mal estado', '2026-07-22 18:05:00')"
+        )
+        db.execute(
+            "INSERT INTO cash_movements (cash_register_id, type, amount, description) VALUES (1, 'return', 1500, 'Devolución #6 — Queso Kg')"
+        )
+
+        db.commit()
+
+        # 4. Fetch summary & check formatted descriptions
+        result = cash_ctrl.get_daily_summary()
+        assert result["success"] is True
+        movements = result["data"]["movements"]
+        assert len(movements) == 4
+
+        # Check Sales: should be numbered #1 and #2 (resetting index in session)
+        assert movements[0]["description"] == "Venta #1"
+        assert movements[1]["description"] == "Venta #2"
+
+        # Check Returns: should be numbered #1 and #2, and display quantities
+        assert movements[2]["description"] == "Devolución #1 — 3 u. Coca-Cola 1.5L"
+        assert movements[3]["description"] == "Devolución #2 — 1.5 Kg Queso Kg"

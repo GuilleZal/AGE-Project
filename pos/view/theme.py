@@ -65,7 +65,7 @@ CONTRAST_MAP = {
     "#f5f5dc": {  # Crema (light)
         "text": "#111111",
         "panel": "#e8e8d0",  # Slightly darker variant
-        "treeview_bg": "#ffffff",  # Pure white for contrast
+        "treeview_bg": "#e8e8d0",  # Cream color matching panel
         "treeview_fg": "#111111",
         "treeview_header": "#d0d0b8",
         "entry_bg": "#dddcc8",
@@ -196,7 +196,9 @@ def apply_theme_to_widget(widget, contrast: dict) -> None:
     
     elif widget_type in ("CTkLabel", "CTkRadioButton"):
         try:
-            widget.configure(text_color=contrast["text"])
+            custom_color = getattr(widget, "_custom_theme_color", None)
+            if custom_color != "skip":
+                widget.configure(text_color=contrast["text"])
         except:
             pass
     

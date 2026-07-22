@@ -127,8 +127,8 @@ def _create_main_window(conn, login_ctrl, user, permissions):
     
     # MainWindow is a CTk root window (independent from the manager root)
     app = MainWindow(permissions=permissions)
-    app._apply_current_theme()
     _wire_views(conn, app, permissions)
+    app._apply_current_theme()
     
     # Set callbacks - only quit mainloop, don't destroy
     def on_logout():

@@ -31,38 +31,40 @@ class ReceiptPreview(CenteredDialog):
     def __init__(
         self, master: tk.Widget, sale_data: dict[str, Any], **kwargs
     ) -> None:
-        super().__init__(master, width=500, height=560, title="Comprobante de venta", **kwargs)
+        super().__init__(master, width=520, height=600, title="Comprobante de venta", **kwargs)
 
         sale = sale_data.get("sale", {})
         items = sale_data.get("items", [])
         change = sale_data.get("change", 0)
 
+        # Determine border color based on theme
+        dark_border = "#1a1a1a" if theme.get_bg_color() != "#f5f5dc" else "#9c9a7a"
+
+        # --- main ticket card container ---
+        ticket_card = ctk.CTkFrame(self, border_width=2, border_color=dark_border)
+        ticket_card.pack(fill="both", expand=True, padx=20, pady=(20, 10))
+
         # --- header ---
-        header_frame = ctk.CTkFrame(self)
-        header_frame.pack(fill="x", padx=20, pady=(20, 10))
+        header_frame = ctk.CTkFrame(ticket_card, border_width=1, border_color=dark_border)
+        header_frame.pack(fill="x", padx=15, pady=(15, 5))
 
         ctk.CTkLabel(
             header_frame,
             text=f"Venta #{sale.get('id', '—')}",
             font=theme.scaled_font(22, weight="bold"),
-        ).pack(anchor="w", padx=10, pady=(5, 0))
+        ).pack(anchor="w", padx=15, pady=(5, 0))
 
         ctk.CTkLabel(
             header_frame,
             text=f"Fecha: {sale.get('created_at', '—')}",
             font=theme.scaled_font(13),
-        ).pack(anchor="w", padx=10)
+        ).pack(anchor="w", padx=15)
 
         ctk.CTkLabel(
             header_frame,
             text=f"Método de pago: {_format_method(sale.get('payment_method', '—'))}",
             font=theme.scaled_font(13),
-        ).pack(anchor="w", padx=10, pady=(0, 5))
-
-        # --- separator ---
-        ctk.CTkFrame(self, height=2, fg_color="#3b3b3b").pack(
-            fill="x", padx=20, pady=5
-        )
+        ).pack(anchor="w", padx=15, pady=(0, 5))
 
         # --- items ---
         # ========================================================
@@ -78,8 +80,8 @@ class ReceiptPreview(CenteredDialog):
         ).pack(side="bottom", pady=(5, 20))
 
         # Totales (Se ancla arriba del botón cerrar)
-        totals_frame = ctk.CTkFrame(self)
-        totals_frame.pack(side="bottom", fill="x", padx=20, pady=(5, 10))
+        totals_frame = ctk.CTkFrame(ticket_card, border_width=1, border_color=dark_border)
+        totals_frame.pack(side="bottom", fill="x", padx=15, pady=(5, 15))
 
         sale_total = sale.get('total', 0)
         discount = sale.get('discount', 0)
@@ -92,51 +94,51 @@ class ReceiptPreview(CenteredDialog):
                 text=f"Subtotal:  ${subtotal:,}",
                 font=theme.scaled_font(14),
                 text_color="#a0a0a0",
-            ).pack(anchor="e", padx=10, pady=(5, 0))
+            ).pack(anchor="e", padx=15, pady=(5, 0))
 
             if discount > 0:
-                ctk.CTkLabel(
+                lbl_disc = ctk.CTkLabel(
                     totals_frame,
                     text=f"Descuento:  -${discount:,}",
                     font=theme.scaled_font(14),
-                    text_color="#2ecc71",
-                ).pack(anchor="e", padx=10, pady=(2, 0))
+                    text_color="#27ae60",
+                )
+                lbl_disc._custom_theme_color = "skip"
+                lbl_disc.pack(anchor="e", padx=15, pady=(2, 0))
 
             if surcharge > 0:
-                ctk.CTkLabel(
+                lbl_sur = ctk.CTkLabel(
                     totals_frame,
                     text=f"Recargo:  +${surcharge:,}",
                     font=theme.scaled_font(14),
-                    text_color="#e74c3c",
-                ).pack(anchor="e", padx=10, pady=(2, 0))
+                    text_color="#c0392b",
+                )
+                lbl_sur._custom_theme_color = "skip"
+                lbl_sur.pack(anchor="e", padx=15, pady=(2, 0))
 
         ctk.CTkLabel(
             totals_frame,
             text=f"TOTAL:  ${sale_total:,}",
             font=theme.scaled_font(20, weight="bold"),
-        ).pack(anchor="e", padx=10, pady=5)
+        ).pack(anchor="e", padx=15, pady=5)
 
         if change:
             ctk.CTkLabel(
                 totals_frame,
                 text=f"Vuelto:  ${change:,}",
                 font=theme.scaled_font(16),
-            ).pack(anchor="e", padx=10, pady=(0, 5))
-
-        # Separador inferior (Se ancla arriba de los totales)
-        ctk.CTkFrame(self, height=2, fg_color="#3b3b3b").pack(
-            side="bottom", fill="x", padx=20, pady=5
-        )
+            ).pack(anchor="e", padx=15, pady=(0, 5))
 
         # ========================================================
         # 2. ESPACIO CENTRAL FLEXIBLE (Tabla de productos)
         # ========================================================
         
         items_frame = ctk.CTkScrollableFrame(
-            self, width=420, height=180, fg_color="transparent"
+            ticket_card, width=420, height=180, border_width=1, border_color=dark_border
         )
+        items_frame._custom_theme_color = "treeview_bg"
         # ALERTA: expand=True y fill="both" evitan que se aplaste lo de abajo
-        items_frame.pack(side="top", fill="both", expand=True, padx=20, pady=5)
+        items_frame.pack(side="top", fill="both", expand=True, padx=15, pady=5)
 
         if items:
             for item in items:
@@ -151,12 +153,29 @@ class ReceiptPreview(CenteredDialog):
                     anchor="w",
                 ).grid(row=0, column=0, sticky="w")
 
+                unit_type = item.get("unit_type", "Unidad")
+                is_kg = unit_type.lower() in ("kg", "weight_kg")
+                qty = item.get("quantity", 1.0)
+                if is_kg:
+                    qty_str = f"{float(qty)} Kg"
+                else:
+                    qty_str = f"{int(qty)} u."
+
                 ctk.CTkLabel(
                     row,
-                    text=f"x{int(item.get('quantity', 1))}",
+                    text=qty_str,
                     font=theme.scaled_font(13),
-                    width=50,
+                    width=60,
+                    anchor="e",
                 ).grid(row=0, column=1)
+
+                ctk.CTkLabel(
+                    row,
+                    text=f"x ${item.get('unit_price', 0):,}",
+                    font=theme.scaled_font(13),
+                    width=80,
+                    anchor="e",
+                ).grid(row=0, column=2)
 
                 ctk.CTkLabel(
                     row,
@@ -164,13 +183,15 @@ class ReceiptPreview(CenteredDialog):
                     font=theme.scaled_font(13),
                     width=80,
                     anchor="e",
-                ).grid(row=0, column=2)
+                ).grid(row=0, column=3)
         else:
             ctk.CTkLabel(
                 items_frame,
                 text="Sin productos",
                 font=theme.scaled_font(13),
             ).pack()
+
+        theme.apply_theme_to_widget(self, theme.get_contrast_map())
 
 
     # --------------------------------------------------------------- private ---
@@ -184,5 +205,7 @@ def _format_method(method: str) -> str:
         "cash": "Efectivo",
         "card": "Tarjeta",
         "transfer": "Transferencia",
+        "debit_card": "Tarjeta de Débito",
+        "credit_card": "Tarjeta de Crédito",
     }
     return labels.get(method, method)

@@ -16,6 +16,7 @@ import customtkinter as ctk
 from pos.view.widgets.barcode_entry import BarcodeEntry
 from pos.view.widgets.cart_treeview import CartTreeview
 from pos.view import theme
+from pos.view.widgets.centered_dialog import CenteredDialog
 
 class SaleView(ctk.CTkFrame):
     """POS terminal — two-column layout with integrated payment sidebar.
@@ -645,7 +646,7 @@ class SaleView(ctk.CTkFrame):
                             f'El producto "{product_name}" ha sido reactivado y agregado al carrito.',
                         )
                     else:
-                        messagebox.showerror("Error", reactivate_result["error"])
+                        self.show_error(reactivate_result["error"])
                 # Whether they confirm or not, return focus to barcode entry
                 self._barcode_entry.focus_set()
                 return
@@ -668,9 +669,9 @@ class SaleView(ctk.CTkFrame):
                         # visible before the products treeview redraws.
                         self.after_idle(self._on_product_created)
                 else:
-                    messagebox.showerror("Error", create_result["error"])
+                    self.show_error(create_result["error"])
         else:
-            messagebox.showerror("Error", result.get("error", "Error desconocido"))
+            self.show_error(result.get("error", "Error desconocido"))
 
         self._barcode_entry.focus_set()
 
@@ -680,7 +681,7 @@ class SaleView(ctk.CTkFrame):
         if result["success"]:
             self._update_cart()
         else:
-            messagebox.showerror("Error", result["error"])
+            self.show_error(result["error"])
 
     def _controller_remove_item(self, product_id: int) -> None:
         """Handle item removal via controller."""
@@ -688,7 +689,7 @@ class SaleView(ctk.CTkFrame):
         if result["success"]:
             self._update_cart()
         else:
-            messagebox.showerror("Error", result["error"])
+            self.show_error(result["error"])
 
     def _controller_discount(self, discount_pct: float) -> None:
         """Handle discount application via controller."""
@@ -698,7 +699,7 @@ class SaleView(ctk.CTkFrame):
             self._discount_amount = result["data"]["discount_amount"]
             self.update_total(self._total)
         else:
-            messagebox.showerror("Error", result["error"])
+            self.show_error(result["error"])
 
     def _controller_surcharge(self, surcharge_pct: float) -> None:
         """Handle surcharge application via controller."""
@@ -708,7 +709,7 @@ class SaleView(ctk.CTkFrame):
             self._surcharge_amount = result["data"]["surcharge_amount"]
             self.update_total(self._total)
         else:
-            messagebox.showerror("Error", result["error"])
+            self.show_error(result["error"])
 
     def _controller_payment(self, method: str, received: int) -> None:
         """Process payment via controller and show receipt on success."""
@@ -727,7 +728,7 @@ class SaleView(ctk.CTkFrame):
             if self._on_sale_completed is not None:
                 self._on_sale_completed()
         else:
-            messagebox.showerror("Error", result["error"])
+            self.show_error(result["error"])
 
     def _update_cart(self) -> None:
         """Refresh cart treeview and total label from controller."""
@@ -748,6 +749,11 @@ class SaleView(ctk.CTkFrame):
         self._surcharge_amount = 0
         self.update_total(0)
         self._barcode_entry.focus_set()
+        
+        # Reset payment method selection to cash (default) to avoid cashier confusion
+        self._selected_payment_method = "cash"
+        self._payment_method_var.set("cash")
+        self._on_payment_method_changed("cash")
 
     # --------------------------------------------------------------- private ---
 
@@ -826,7 +832,7 @@ class SaleView(ctk.CTkFrame):
             return
         result = self._controller_search(query)
         if not result["success"]:
-            messagebox.showerror("Error", result.get("error", "Error desconocido"))
+            self.show_error(result.get("error", "Error desconocido"))
             self._barcode_entry.focus_set()
             return
         products = result["data"]
@@ -848,7 +854,7 @@ class SaleView(ctk.CTkFrame):
                 if add_result["success"]:
                     self._update_cart()
                 else:
-                    messagebox.showerror("Error", add_result.get("error", "Error desconocido"))
+                    self.show_error(add_result.get("error", "Error desconocido"))
                 self._barcode_entry.focus_set()
                 return
         from pos.view.widgets.product_search_dialog import ProductSearchDialog
@@ -867,7 +873,7 @@ class SaleView(ctk.CTkFrame):
             if add_result["success"]:
                 self._update_cart()
             else:
-                messagebox.showerror("Error", add_result.get("error", "Error desconocido"))
+                self.show_error(add_result.get("error", "Error desconocido"))
         self._barcode_entry.focus_set()
 
     def _handle_search_button(self) -> None:
@@ -877,7 +883,7 @@ class SaleView(ctk.CTkFrame):
         # Search with empty query to get all products
         result = self._controller_search("")
         if not result["success"]:
-            messagebox.showerror("Error", result.get("error", "Error desconocido"))
+            self.show_error(result.get("error", "Error desconocido"))
             return
         products = result["data"]
         if not products:
@@ -899,7 +905,7 @@ class SaleView(ctk.CTkFrame):
             if add_result["success"]:
                 self._update_cart()
             else:
-                messagebox.showerror("Error", add_result.get("error", "Error desconocido"))
+                self.show_error(add_result.get("error", "Error desconocido"))
         self._barcode_entry.focus_set()
 
     def _get_categories(self) -> list:
@@ -953,7 +959,7 @@ class SaleView(ctk.CTkFrame):
     def _handle_confirm(self) -> None:
         """Process the payment with the selected method and received amount."""
         if self._total == 0:
-            messagebox.showwarning("Pago", "No hay productos en el carrito")
+            self.show_error("No hay productos en el carrito")
             return
 
         method = self._payment_method_var.get()
@@ -966,12 +972,12 @@ class SaleView(ctk.CTkFrame):
             try:
                 received = int(raw)
             except ValueError:
-                messagebox.showerror("Error", "Ingrese un monto válido")
+                self.show_error("Ingrese un monto válido")
                 self._received_entry.focus_set()
                 return
 
             if received < final_total:
-                messagebox.showerror("Error", "Monto insuficiente")
+                self.show_error("Monto insuficiente")
                 self._received_entry.focus_set()
                 return
         else:
@@ -979,6 +985,11 @@ class SaleView(ctk.CTkFrame):
 
         if self._on_payment is not None:
             self._on_payment(method, received)
+
+    def show_error(self, message: str) -> None:
+        """Display an error message centered on the system window."""
+        dialog = SaleErrorDialog(self, message)
+        self.wait_window(dialog)
 
     def _handle_settings_button(self) -> None:
         """Open sale settings dialog."""
@@ -991,3 +1002,53 @@ class SaleView(ctk.CTkFrame):
         # If settings were applied, immediately update the total based on current method
         if dialog.applied:
             self._on_payment_method_changed(self._selected_payment_method)
+
+
+class SaleErrorDialog(CenteredDialog):
+    """Custom error message dialog centered on the system window."""
+
+    def __init__(self, master: tk.Widget, message: str, **kwargs) -> None:
+        super().__init__(
+            master,
+            width=380,
+            height=200,
+            title="Error",
+            **kwargs,
+        )
+
+        # --- Icon/Header ---
+        ctk.CTkLabel(
+            self,
+            text="⚠️ Error",
+            font=theme.scaled_font(16, weight="bold"),
+            text_color="#ef4444",
+        ).pack(pady=(20, 10))
+
+        # --- Message ---
+        ctk.CTkLabel(
+            self,
+            text=message,
+            font=theme.scaled_font(13),
+            justify="center",
+            wraplength=320,
+        ).pack(pady=(0, 20))
+
+        # --- Close button ---
+        ctk.CTkButton(
+            self,
+            text="Aceptar",
+            width=100,
+            height=32,
+            font=theme.scaled_font(13, weight="bold"),
+            command=self.destroy,
+        ).pack(pady=(0, 15))
+
+        self.bind("<Return>", lambda _e: self.destroy())
+        self.bind("<Escape>", lambda _e: self.destroy())
+
+        theme.apply_theme_to_widget(self, theme.get_contrast_map())
+        self.update_idletasks()
+        self._center_on_parent(master)
+
+        # Focus
+        self.focus_set()

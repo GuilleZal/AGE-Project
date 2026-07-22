@@ -860,7 +860,7 @@ class _AmountDialog(CenteredDialog):
         self._entry = ctk.CTkEntry(self, width=200, placeholder_text="0")
         self._entry.pack(padx=20, pady=5)
         self._entry.bind("<Return>", lambda _e: self._confirm())
-        self._entry.focus_set()
+        self.after(100, self._entry.focus_set)
 
         self._error_label = ctk.CTkLabel(
             self, text="", text_color="red", font=theme.scaled_font(12)
@@ -916,6 +916,7 @@ class _CloseDialog(CenteredDialog):
         ).pack(pady=(20, 10))
         self._amount_entry = ctk.CTkEntry(self, width=200, placeholder_text="0")
         self._amount_entry.pack(padx=20, pady=5)
+        self._amount_entry.bind("<Return>", lambda _e: self._confirm())
 
         ctk.CTkLabel(
             self, text="Motivo de cierre:", font=theme.scaled_font(14)
@@ -960,7 +961,7 @@ class _CloseDialog(CenteredDialog):
             fg_color="#8b1a1a", command=self._confirm,
         ).pack(side="left", padx=5)
 
-        self._amount_entry.focus_set()
+        self.after(100, self._amount_entry.focus_set)
         theme.apply_theme_to_widget(self, theme.get_contrast_map())
 
     @property

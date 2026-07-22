@@ -279,16 +279,7 @@ class CashRegisterController:
                 "data": {
                     "register": active,
                     "balance": status["data"]["balance"],
-                    "movements": [
-                        {
-                            "id": m.id,
-                            "type": m.type,
-                            "amount": m.amount,
-                            "description": m.description,
-                            "created_at": m.created_at,
-                        }
-                        for m in movements
-                    ],
+                    "movements": self._format_movements_for_display(movements),
                 },
                 "error": None,
             }
@@ -331,17 +322,88 @@ class CashRegisterController:
             movements = self._movement_repo.get_by_register(register_id)
             return {
                 "success": True,
-                "data": [
-                    {
-                        "id": m.id,
-                        "type": m.type,
-                        "amount": m.amount,
-                        "description": m.description,
-                        "created_at": m.created_at,
-                    }
-                    for m in movements
-                ],
+                "data": self._format_movements_for_display(movements),
                 "error": None,
             }
         except POSException as e:
             return {"success": False, "data": None, "error": str(e)}
+
+    def _format_movements_for_display(self, movements: list) -> list[dict]:
+        """Format movements for display in the cash register view, dynamically numbering sales and returns per session."""
+        formatted = []
+        sale_idx = 0
+        return_idx = 0
+
+        for m in movements:
+            desc = m.description or ""
+            if m.type in ("sale_cash", "sale_card", "sale_debit_card", "sale_credit_card", "sale_transfer"):
+                sale_idx += 1
+                if "Venta #" in desc:
+                    parts = desc.split("Venta #", 1)
+                    number_str = ""
+                    suffix = ""
+                    for char in parts[1]:
+                        if char.isdigit():
+                            number_str += char
+                        else:
+                            suffix = parts[1][len(number_str):]
+                            break
+                    desc = f"{parts[0]}Venta #{sale_idx}{suffix}"
+                else:
+                    desc = f"Venta #{sale_idx}"
+            
+            elif m.type == "return":
+                return_idx += 1
+                return_id = None
+                if "Devolución #" in desc:
+                    parts = desc.split("Devolución #", 1)
+                    number_str = ""
+                    for char in parts[1]:
+                        if char.isdigit():
+                            number_str += char
+                        else:
+                            break
+                    if number_str:
+                        return_id = int(number_str)
+                
+                qty_str = ""
+                if return_id is not None:
+                    row = self._db.execute(
+                        """SELECT r.quantity, p.unit_type, p.name 
+                           FROM returns r
+                           JOIN products p ON r.product_id = p.id
+                           WHERE r.id = ?""",
+                        (return_id,)
+                    ).fetchone()
+                    if row:
+                        qty = row["quantity"]
+                        unit_type = row["unit_type"] or "Unidad"
+                        product_name = row["name"]
+                        is_kg = unit_type.lower() in ("kg", "weight_kg")
+                        if is_kg:
+                            qty_str = f"{float(qty)} Kg "
+                        else:
+                            qty_str = f"{int(qty)} u. "
+                        desc = f"Devolución #{return_idx} — {qty_str}{product_name}"
+                    else:
+                        if " — " in desc:
+                            pname = desc.split(" — ", 1)[1]
+                            desc = f"Devolución #{return_idx} — {pname}"
+                        else:
+                            desc = f"Devolución #{return_idx}"
+                else:
+                    if " — " in desc:
+                        pname = desc.split(" — ", 1)[1]
+                        desc = f"Devolución #{return_idx} — {pname}"
+                    else:
+                        desc = f"Devolución #{return_idx}"
+
+            formatted.append({
+                "id": m.id,
+                "type": m.type,
+                "amount": m.amount,
+                "description": desc,
+                "created_at": m.created_at,
+            })
+        
+        return formatted
