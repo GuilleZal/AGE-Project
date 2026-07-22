@@ -28,6 +28,7 @@ import customtkinter as ctk
 
 from pos.view.widgets.barcode_entry import BarcodeEntry
 from pos.view import theme
+from pos.view.widgets.centered_dialog import CenteredDialog
 
 
 class ReturnView(ctk.CTkFrame):
@@ -138,37 +139,11 @@ class ReturnView(ctk.CTkFrame):
         )
         self._price_val_lbl.grid(row=2, column=1, sticky="w", padx=5, pady=(1, 8))
 
-        # 2. Quantity Frame 
-        self._qty_frame = ctk.CTkFrame(self._left_col, fg_color="transparent", border_width=2, border_color=border_color)
-        self._qty_frame.grid(row=1, column=0, sticky="ew", pady=(0, 5))
-
-        ctk.CTkLabel(
-            self._qty_frame, text="Cantidad a Devolver", font=theme.scaled_font(14, "bold")
-        ).pack(anchor="w", padx=15, pady=(6, 1))
-
-        qty_ctrl_frame = ctk.CTkFrame(self._qty_frame, fg_color="transparent")
-        qty_ctrl_frame.pack(fill="x", padx=15, pady=(0, 6))
-        qty_ctrl_frame.grid_columnconfigure(1, weight=1)
-
-        ctk.CTkButton(
-            qty_ctrl_frame, text="−", width=40, font=theme.scaled_font(16, "bold"),
-            command=self._decrement_qty
-        ).grid(row=0, column=0, padx=(0, 5))
-        
         self._qty_var = tk.StringVar(value="1")
-        self._qty_spin = ctk.CTkEntry(
-            qty_ctrl_frame, textvariable=self._qty_var, justify="center", height=28, font=theme.scaled_font(14)
-        )
-        self._qty_spin.grid(row=0, column=1, sticky="ew", padx=5)
-        
-        ctk.CTkButton(
-            qty_ctrl_frame, text="＋", width=40, font=theme.scaled_font(16, "bold"),
-            command=self._increment_qty
-        ).grid(row=0, column=2, padx=(5, 0))
 
-        # 3. Reason Frame 
+        # 2. Reason Frame 
         self._reason_frame = ctk.CTkFrame(self._left_col, fg_color="transparent", border_width=2, border_color=border_color)
-        self._reason_frame.grid(row=2, column=0, sticky="ew", pady=(0, 0))
+        self._reason_frame.grid(row=1, column=0, sticky="ew", pady=(0, 0))
 
         ctk.CTkLabel(
             self._reason_frame, text="Motivo de la Devolución", font=theme.scaled_font(14, "bold")
@@ -223,6 +198,10 @@ class ReturnView(ctk.CTkFrame):
         details_frame.grid_columnconfigure(0, weight=1)
         details_frame.grid_columnconfigure(1, weight=0)
 
+        details_frame.grid_columnconfigure(0, weight=1)
+        details_frame.grid_columnconfigure(1, weight=0)
+        details_frame.grid_columnconfigure(2, weight=0)
+
         # Subtotal
         ctk.CTkLabel(details_frame, text="Subtotal:", font=theme.scaled_font(13)).grid(row=0, column=0, sticky="w", pady=1)
         self._summary_subtotal_lbl = ctk.CTkLabel(details_frame, text="$0", font=theme.scaled_font(13))
@@ -231,11 +210,27 @@ class ReturnView(ctk.CTkFrame):
         # Cantidad
         ctk.CTkLabel(details_frame, text="Cantidad:", font=theme.scaled_font(13)).grid(row=1, column=0, sticky="w", pady=1)
         self._summary_qty_lbl = ctk.CTkLabel(details_frame, text="1", font=theme.scaled_font(13))
-        self._summary_qty_lbl.grid(row=1, column=1, sticky="e", padx=(5, 0), pady=1)
+        self._summary_qty_lbl.grid(row=1, column=1, sticky="e", padx=(5, 5), pady=1)
+
+        self._modify_qty_btn = ctk.CTkButton(
+            details_frame,
+            text="✏️ Modificar",
+            width=90,
+            height=26,
+            font=theme.scaled_font(11, "bold"),
+            border_width=1,
+            border_color="#3498db",
+            fg_color="transparent",
+            hover_color="#1f538d",
+            text_color="#3498db",
+            command=self._handle_modify_qty,
+            state="disabled"
+        )
+        self._modify_qty_btn.grid(row=1, column=2, sticky="e", pady=1)
 
         # Sep
         sep = ctk.CTkFrame(details_frame, height=2, fg_color="#555555")
-        sep.grid(row=2, column=0, columnspan=2, sticky="ew", pady=4)
+        sep.grid(row=2, column=0, columnspan=3, sticky="ew", pady=4)
 
         # Total
         ctk.CTkLabel(
@@ -274,20 +269,23 @@ class ReturnView(ctk.CTkFrame):
 
     def show_product(self, product: dict[str, Any]) -> None:
         """Display product information after a successful lookup."""
+        self.clear_error()
         self._current_product = product
         self._product_name_lbl.configure(text=product.get("name", "—"))
-        self._barcode_val_lbl.configure(text=product.get("barcode", "—"))
+        
+        # Fix: Show "—" if the product has no barcode
+        barcode = product.get("barcode")
+        if not barcode or barcode == "None":
+            self._barcode_val_lbl.configure(text="—")
+        else:
+            self._barcode_val_lbl.configure(text=str(barcode))
+            
         self._price_val_lbl.configure(text=f"${product.get('sale_price', 0):,}")
         self._confirm_btn.configure(state="normal")
+        self._modify_qty_btn.configure(state="normal")
         
-        # Set quantity entry default based on unit type
-        unit_type = product.get("unit_type", "Unidad")
-        is_kg = unit_type.lower() in ("kg", "weight_kg")
-        if is_kg:
-            self._qty_var.set("")
-        else:
-            self._qty_var.set("1")
-            
+        # Default quantity to 1 (since quantity module is removed)
+        self._qty_var.set("1")
         self._update_refund()
 
     def clear_product(self) -> None:
@@ -301,6 +299,7 @@ class ReturnView(ctk.CTkFrame):
         self._refund_label.configure(text="$0")
         self._qty_var.set("1")
         self._confirm_btn.configure(state="disabled")
+        self._modify_qty_btn.configure(state="disabled")
 
     def clear_form(self) -> None:
         """Clear all form fields (quantity and reason)."""
@@ -371,10 +370,10 @@ class ReturnView(ctk.CTkFrame):
         if result["success"]:
             data = result["data"]
             refund = data.get("refund_amount", 0)
-            messagebox.showinfo(
-                "Devolución procesada",
-                f"Devolución registrada correctamente.\nReintegro: ${refund:,}",
-            )
+            
+            dialog = ReturnSuccessDialog(self, refund)
+            self.wait_window(dialog)
+            
             self.clear_product()
             self.clear_form()
             self.focus_barcode()
@@ -390,43 +389,7 @@ class ReturnView(ctk.CTkFrame):
         if self._on_search is not None:
             self._on_search(barcode)
 
-    def _increment_qty(self) -> None:
-        if self._current_product is None:
-            return
-        unit_type = self._current_product.get("unit_type", "Unidad")
-        is_kg = unit_type.lower() in ("kg", "weight_kg")
-        step = 0.1 if is_kg else 1.0
 
-        val = self._qty_var.get().strip()
-        try:
-            qty = float(val) if val else 0.0
-        except ValueError:
-            qty = 0.0
-        qty += step
-        if is_kg:
-            self._qty_var.set(f"{qty:.2f}")
-        else:
-            self._qty_var.set(str(int(qty)))
-        self._update_refund()
-
-    def _decrement_qty(self) -> None:
-        if self._current_product is None:
-            return
-        unit_type = self._current_product.get("unit_type", "Unidad")
-        is_kg = unit_type.lower() in ("kg", "weight_kg")
-        step = 0.1 if is_kg else 1.0
-
-        val = self._qty_var.get().strip()
-        try:
-            qty = float(val) if val else 0.0
-        except ValueError:
-            qty = 0.0
-        qty = max(0.0, qty - step)
-        if is_kg:
-            self._qty_var.set(f"{qty:.2f}")
-        else:
-            self._qty_var.set(str(int(qty)))
-        self._update_refund()
 
     def _update_refund(self) -> None:
         # Prevent updates if widgets are not yet initialized during trace registration
@@ -559,3 +522,219 @@ class ReturnView(ctk.CTkFrame):
             if result["success"]:
                 return result["data"]
         return []
+
+    def _handle_modify_qty(self) -> None:
+        if self._current_product is None:
+            return
+
+        unit_type = self._current_product.get("unit_type", "Unidad")
+        is_kg = unit_type.lower() in ("kg", "weight_kg")
+        
+        # Get current quantity
+        current_val = self._qty_var.get().strip()
+        
+        dialog = ReturnQuantityDialog(
+            self,
+            product_name=self._current_product.get("name", ""),
+            is_kg=is_kg,
+            current_qty=current_val
+        )
+        self.wait_window(dialog)
+        
+        if dialog.result is not None:
+            if is_kg:
+                self._qty_var.set(f"{dialog.result:.3f}".rstrip("0").rstrip("."))
+            else:
+                self._qty_var.set(str(int(dialog.result)))
+            self._update_refund()
+
+
+class ReturnQuantityDialog(CenteredDialog):
+    """Modal dialog to input quantity for unit or weight return products."""
+
+    def __init__(
+        self,
+        master: tk.Widget,
+        product_name: str,
+        is_kg: bool,
+        current_qty: str,
+        **kwargs,
+    ) -> None:
+        super().__init__(
+            master,
+            width=380,
+            height=240,
+            title="Modificar Cantidad",
+            **kwargs,
+        )
+
+        self._result: float | None = None
+        self._is_kg = is_kg
+
+        # --- Header section ---
+        ctk.CTkLabel(
+            self,
+            text="Modificar Cantidad a Devolver",
+            font=theme.scaled_font(15, weight="bold"),
+        ).pack(pady=(15, 2))
+
+        ctk.CTkLabel(
+            self,
+            text=product_name,
+            font=theme.scaled_font(13),
+            text_color="#a0a0a0",
+            wraplength=340,
+        ).pack(pady=(0, 15))
+
+        # --- Form/Input ---
+        form_frame = ctk.CTkFrame(self, fg_color="transparent")
+        form_frame.pack(fill="x", padx=30, pady=5)
+        form_frame.grid_columnconfigure(0, weight=0)
+        form_frame.grid_columnconfigure(1, weight=1)
+
+        label_text = "Cantidad (Kg):" if is_kg else "Cantidad (unidades):"
+        ctk.CTkLabel(
+            form_frame,
+            text=label_text,
+            font=theme.scaled_font(14, weight="bold"),
+            anchor="w",
+        ).grid(row=0, column=0, sticky="w", pady=6, padx=(0, 10))
+
+        self._qty_entry = ctk.CTkEntry(
+            form_frame,
+            height=36,
+            font=theme.scaled_font(14),
+        )
+        self._qty_entry.grid(row=0, column=1, sticky="ew", pady=6)
+        self._qty_entry.insert(0, current_qty)
+        self._qty_entry.select_range(0, tk.END)
+
+        # --- Error label ---
+        self._error_label = ctk.CTkLabel(
+            self,
+            text="",
+            text_color="#ef4444",
+            font=theme.scaled_font(12),
+        )
+        self._error_label.pack(pady=(2, 5))
+
+        # --- Buttons ---
+        btn_frame = ctk.CTkFrame(self, fg_color="transparent")
+        btn_frame.pack(pady=(5, 15))
+
+        ctk.CTkButton(
+            btn_frame,
+            text="Confirmar",
+            width=120,
+            height=34,
+            font=theme.scaled_font(13, weight="bold"),
+            command=self._confirm,
+        ).pack(side="left", padx=8)
+
+        ctk.CTkButton(
+            btn_frame,
+            text="Cancelar",
+            width=100,
+            height=34,
+            fg_color="#52525b",
+            hover_color="#3f3f46",
+            font=theme.scaled_font(13, weight="bold"),
+            command=self._cancel,
+        ).pack(side="left", padx=8)
+
+        # Binds
+        self._qty_entry.bind("<Return>", lambda _e: self._confirm())
+
+        theme.apply_theme_to_widget(self, theme.get_contrast_map())
+        self._qty_entry.focus_set()
+
+        # Center properly
+        self.update_idletasks()
+        self._center_on_parent(master)
+
+    @property
+    def result(self) -> float | None:
+        return self._result
+
+    def _confirm(self) -> None:
+        val = self._qty_entry.get().strip().replace(",", ".")
+        if not val:
+            self._error_label.configure(text="Ingrese una cantidad")
+            self._qty_entry.focus_set()
+            return
+
+        try:
+            qty = float(val)
+        except ValueError:
+            self._error_label.configure(text="Ingrese una cantidad válida")
+            self._qty_entry.focus_set()
+            return
+
+        if qty <= 0:
+            self._error_label.configure(text="La cantidad debe ser mayor a 0")
+            self._qty_entry.focus_set()
+            return
+
+        if not self._is_kg:
+            if not qty.is_integer():
+                self._error_label.configure(text="Ingrese un número entero")
+                self._qty_entry.focus_set()
+                return
+            qty = float(int(qty))
+
+        self._result = qty
+        self.destroy()
+
+    def _cancel(self) -> None:
+        self._result = None
+        self.destroy()
+
+
+class ReturnSuccessDialog(CenteredDialog):
+    """Custom success message dialog centered on the system window."""
+
+    def __init__(self, master: tk.Widget, refund: int, **kwargs) -> None:
+        super().__init__(
+            master,
+            width=360,
+            height=180,
+            title="Devolución Procesada",
+            **kwargs,
+        )
+
+        # --- Icon/Header ---
+        ctk.CTkLabel(
+            self,
+            text="✅ Devolución Procesada",
+            font=theme.scaled_font(16, weight="bold"),
+            text_color="#2ecc71",
+        ).pack(pady=(20, 10))
+
+        # --- Message ---
+        message_text = f"Devolución registrada correctamente.\nReintegro: ${refund:,}"
+        ctk.CTkLabel(
+            self,
+            text=message_text,
+            font=theme.scaled_font(13),
+            justify="center",
+        ).pack(pady=(0, 20))
+
+        # --- Close button ---
+        ctk.CTkButton(
+            self,
+            text="Aceptar",
+            width=100,
+            height=32,
+            font=theme.scaled_font(13, weight="bold"),
+            command=self.destroy,
+        ).pack(pady=(0, 15))
+
+        self.bind("<Return>", lambda _e: self.destroy())
+        self.bind("<Escape>", lambda _e: self.destroy())
+
+        theme.apply_theme_to_widget(self, theme.get_contrast_map())
+        self.update_idletasks()
+        self._center_on_parent(master)
+
+        # Focus
+        self.focus_set()

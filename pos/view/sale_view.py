@@ -262,6 +262,7 @@ class SaleView(ctk.CTkFrame):
 
         # Total box
         total_box = ctk.CTkFrame(totals_frame, fg_color="#2b2b2b", corner_radius=8)
+        total_box._custom_theme_color = "entry_bg"
         total_box.grid(row=5, column=0, columnspan=2, sticky="ew", pady=(4, 0))  # Margen compactado
         total_box.grid_columnconfigure(0, weight=1)
 
@@ -314,6 +315,7 @@ class SaleView(ctk.CTkFrame):
                 corner_radius=10,
                 cursor="hand2",
             )
+            method_frame._custom_theme_color = "skip"
             method_frame.grid(row=grid_row, column=0, sticky="ew", pady=1)
             method_frame.grid_columnconfigure(2, weight=1)
             self._method_frames[method] = method_frame
@@ -379,6 +381,7 @@ class SaleView(ctk.CTkFrame):
                         corner_radius=10,
                         cursor="hand2",
                     )
+                    card_frame._custom_theme_color = "skip"
                     padx_val = (0, 3) if col_idx == 0 else (3, 0)
                     card_frame.grid(row=0, column=col_idx, sticky="ew", padx=padx_val)
                     card_frame.grid_columnconfigure(0, weight=1)

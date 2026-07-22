@@ -180,12 +180,17 @@ def apply_theme_to_widget(widget, contrast: dict) -> None:
     # Apply to current widget based on type
     widget_type = type(widget).__name__
     
-    if widget_type == "CTkFrame":
+    if widget_type in ("CTkFrame", "CTkScrollableFrame"):
         # Check if frame is transparent before applying
         try:
-            current_fg = widget.cget("fg_color")
-            if current_fg != "transparent":
-                widget.configure(fg_color=contrast["panel"])
+            custom_color = getattr(widget, "_custom_theme_color", None)
+            if custom_color != "skip":
+                if custom_color:
+                    widget.configure(fg_color=contrast[custom_color])
+                else:
+                    current_fg = widget.cget("fg_color")
+                    if current_fg != "transparent":
+                        widget.configure(fg_color=contrast["panel"])
         except:
             pass
     
