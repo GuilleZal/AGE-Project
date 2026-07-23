@@ -1,10 +1,10 @@
 {
   "management_products": {
-    "nombre": 233,
-    "categoria": 82,
-    "codigo": 98,
-    "precio": 114,
-    "stock": 173
+    "nombre": 213,
+    "categoria": 146,
+    "codigo": 134,
+    "precio": 77,
+    "stock": 130
   },
   "cash_register_movements": {
     "tipo": 96,

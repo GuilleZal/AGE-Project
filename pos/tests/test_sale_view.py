@@ -198,3 +198,16 @@ def test_keyboard_shortcuts(session_root):
     app._on_f4_pressed()
     
     app.destroy()
+
+
+def test_sale_view_inactive_product_dialogs(session_root):
+    from pos.view.sale_view import SaleConfirmDialog, SaleInfoDialog
+    
+    confirm = SaleConfirmDialog(session_root, "Test Confirm", "Test Confirm Msg")
+    session_root.update()
+    assert confirm.result is False
+    confirm._yes()
+    
+    info = SaleInfoDialog(session_root, "Test Info", "Test Info Msg")
+    session_root.update()
+    info.destroy()

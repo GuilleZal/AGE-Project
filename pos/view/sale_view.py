@@ -630,21 +630,25 @@ class SaleView(ctk.CTkFrame):
             if data.get("inactive"):
                 product = data.get("product")
                 product_name = product.name if product else "producto"
-                confirm = messagebox.askyesno(
-                    "Producto desactivado",
-                    f'El producto "{product_name}" está desactivado.\n\n'
-                    "¿Desea reactivarlo y agregarlo al carrito?",
+                confirm_dialog = SaleConfirmDialog(
+                    self,
+                    title="Producto desactivado",
+                    message=f'El producto "{product_name}" está desactivado.\n\n¿Desea reactivarlo y agregarlo al carrito?',
                 )
+                self.wait_window(confirm_dialog)
+                confirm = confirm_dialog.result
                 if confirm:
                     reactivate_result = self._controller.reactivate_and_add(
                         product.id, 1.0
                     )
                     if reactivate_result["success"]:
                         self._update_cart()
-                        messagebox.showinfo(
-                            "Producto reactivado",
-                            f'El producto "{product_name}" ha sido reactivado y agregado al carrito.',
+                        info_dialog = SaleInfoDialog(
+                            self,
+                            title="Producto reactivado",
+                            message=f'El producto "{product_name}" ha sido reactivado y agregado al carrito.',
                         )
+                        self.wait_window(info_dialog)
                     else:
                         self.show_error(reactivate_result["error"])
                 # Whether they confirm or not, return focus to barcode entry
@@ -1052,3 +1056,130 @@ class SaleErrorDialog(CenteredDialog):
 
         # Focus
         self.focus_set()
+
+
+class SaleConfirmDialog(CenteredDialog):
+    """Custom yes/no confirmation dialog centered on the system window."""
+    
+    def __init__(self, master: tk.Widget, title: str, message: str, **kwargs) -> None:
+        super().__init__(
+            master,
+            width=380,
+            height=200,
+            title=title,
+            **kwargs,
+        )
+        self._result = False
+
+        # --- Icon/Header ---
+        ctk.CTkLabel(
+            self,
+            text=f"❓ {title}",
+            font=theme.scaled_font(16, weight="bold"),
+            text_color="#0078d4",
+        ).place(relx=0.5, y=20, anchor="n")
+
+        # --- Message ---
+        ctk.CTkLabel(
+            self,
+            text=message,
+            font=theme.scaled_font(13),
+            justify="center",
+            wraplength=320,
+        ).place(relx=0.5, y=60, anchor="n")
+
+        # --- Buttons ---
+        btn_frame = ctk.CTkFrame(self, fg_color="transparent")
+        btn_frame.place(relx=0.5, y=140, anchor="n")
+
+        ctk.CTkButton(
+            btn_frame,
+            text="No",
+            width=100,
+            height=32,
+            fg_color="gray",
+            hover_color="#5a6268",
+            font=theme.scaled_font(13, weight="bold"),
+            command=self._no,
+        ).pack(side="left", padx=10)
+
+        self._yes_btn = ctk.CTkButton(
+            btn_frame,
+            text="Sí",
+            width=100,
+            height=32,
+            font=theme.scaled_font(13, weight="bold"),
+            command=self._yes,
+        )
+        self._yes_btn.pack(side="left", padx=10)
+
+        self.bind("<Return>", lambda _e: self._yes())
+        self.bind("<Escape>", lambda _e: self._no())
+
+        theme.apply_theme_to_widget(self, theme.get_contrast_map())
+        self.update_idletasks()
+        self._center_on_parent(master)
+
+        self.after(100, self._yes_btn.focus_set)
+
+    @property
+    def result(self) -> bool:
+        return self._result
+
+    def _yes(self) -> None:
+        self._result = True
+        self.destroy()
+
+    def _no(self) -> None:
+        self._result = False
+        self.destroy()
+
+
+class SaleInfoDialog(CenteredDialog):
+    """Custom info message dialog centered on the system window."""
+
+    def __init__(self, master: tk.Widget, title: str, message: str, **kwargs) -> None:
+        super().__init__(
+            master,
+            width=380,
+            height=200,
+            title=title,
+            **kwargs,
+        )
+
+        # --- Icon/Header ---
+        ctk.CTkLabel(
+            self,
+            text=f"ℹ️ {title}",
+            font=theme.scaled_font(16, weight="bold"),
+            text_color="#0078d4",
+        ).place(relx=0.5, y=20, anchor="n")
+
+        # --- Message ---
+        ctk.CTkLabel(
+            self,
+            text=message,
+            font=theme.scaled_font(13),
+            justify="center",
+            wraplength=320,
+        ).place(relx=0.5, y=60, anchor="n")
+
+        # --- Close button ---
+        self._ok_btn = ctk.CTkButton(
+            self,
+            text="Aceptar",
+            width=100,
+            height=32,
+            font=theme.scaled_font(13, weight="bold"),
+            command=self.destroy,
+        )
+        self._ok_btn.place(relx=0.5, y=140, anchor="n")
+
+        self.bind("<Return>", lambda _e: self.destroy())
+        self.bind("<Escape>", lambda _e: self.destroy())
+
+        theme.apply_theme_to_widget(self, theme.get_contrast_map())
+        self.update_idletasks()
+        self._center_on_parent(master)
+
+        self.after(100, self._ok_btn.focus_set)
