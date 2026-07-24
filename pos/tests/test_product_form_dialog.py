@@ -107,3 +107,33 @@ def test_change_sale_updates_cost_with_margin(session_root):
     
     # Sale = 200, Margin = 100% -> Cost = 100
     assert dialog._cost_price_entry.get() == "100"
+
+
+def test_no_barcode_checkbox_logic(session_root):
+    # Test Create Mode (by default, no barcode checked and entry disabled)
+    dialog_create = ProductFormDialog(session_root, product=None, categories=[])
+    assert dialog_create._no_barcode_var.get() is True
+    assert dialog_create._barcode_entry.cget("state") == "disabled"
+    
+    # Test toggling unchecked
+    dialog_create._no_barcode_var.set(False)
+    dialog_create._on_no_barcode_toggled(set_focus=False)
+    assert dialog_create._no_barcode_var.get() is False
+    assert dialog_create._barcode_entry.cget("state") == "normal"
+
+    # Test Edit Mode with barcode prefilled
+    product_with_barcode = {
+        "cost_price": 100,
+        "sale_price": 150,
+        "barcode": "99999",
+        "name": "Test Product",
+        "category_id": None,
+        "stock": 10.0,
+        "low_stock_threshold": 5,
+        "description": ""
+    }
+    dialog_edit = ProductFormDialog(session_root, product=product_with_barcode, categories=[])
+    assert dialog_edit._no_barcode_var.get() is False
+    assert dialog_edit._barcode_entry.cget("state") == "normal"
+    assert dialog_edit._barcode_entry.get() == "99999"
+

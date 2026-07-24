@@ -79,17 +79,29 @@ class ProductFormDialog(CenteredDialog):
 
         row = 0
 
-        # Barcode
-        ctk.CTkLabel(body, text="Código de barras", font=theme.scaled_font(12)).grid(
-            row=row, column=0, sticky="w", padx=15, pady=(10, 0)
+        # Checkbox "Sin código de barras"
+        self._no_barcode_var = tk.BooleanVar(value=not bool(prev_barcode))
+        self._no_barcode_cb = ctk.CTkCheckBox(
+            body,
+            text="Sin código de barras",
+            variable=self._no_barcode_var,
+            font=theme.scaled_font(12),
+            command=self._on_no_barcode_toggled,
         )
+        self._no_barcode_cb.grid(row=row, column=0, sticky="w", padx=15, pady=(10, 5))
+        row += 1
+
+        # Barcode
+        self._barcode_label = ctk.CTkLabel(body, text="Código de barras", font=theme.scaled_font(12))
+        self._barcode_label.grid(row=row, column=0, sticky="w", padx=15, pady=(5, 0))
         row += 1
         self._barcode_entry = ctk.CTkEntry(
-            body, width=400, placeholder_text="Opcional"
+            body, width=400, placeholder_text="Ingrese o escanee el código"
         )
         self._barcode_entry.insert(0, prev_barcode)
         self._barcode_entry.grid(row=row, column=0, sticky="ew", padx=15, pady=(0, 5))
         row += 1
+        self._on_no_barcode_toggled(set_focus=False)
 
         # Name
         ctk.CTkLabel(body, text="Nombre *", font=theme.scaled_font(12)).grid(
@@ -411,7 +423,14 @@ class ProductFormDialog(CenteredDialog):
             return
 
         # Barcode
-        barcode = self._barcode_entry.get().strip() or None
+        if self._no_barcode_var.get():
+            barcode = None
+        else:
+            barcode = self._barcode_entry.get().strip()
+            if not barcode:
+                self._error_label.configure(text="Debe ingresar un código de barras o marcar 'Sin código de barras'")
+                self._barcode_entry.focus_set()
+                return
 
         # Category
         cat_name = self._category_var.get()
@@ -430,6 +449,18 @@ class ProductFormDialog(CenteredDialog):
             "low_stock_threshold": low_stock_threshold,
         }
         self.destroy()
+
+    def _on_no_barcode_toggled(self, set_focus: bool = True) -> None:
+        """Handle toggling of 'Sin código de barras' checkbox."""
+        if self._no_barcode_var.get():
+            # Disable barcode entry and clear it
+            self._barcode_entry.delete(0, tk.END)
+            self._barcode_entry.configure(state="disabled", placeholder_text="Producto sin código de barras")
+        else:
+            # Enable barcode entry
+            self._barcode_entry.configure(state="normal", placeholder_text="Ingrese o escanee el código")
+            if set_focus:
+                self._barcode_entry.focus_set()
 
     def _cancel(self) -> None:
         self._result = None
