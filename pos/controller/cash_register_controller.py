@@ -316,6 +316,28 @@ class CashRegisterController:
         except POSException as e:
             return {"success": False, "data": None, "error": str(e)}
 
+    def get_register_balance(self, register_id: int) -> dict:
+        """Return the balance of a specific register session, using its status to calculate the correct difference."""
+        try:
+            # Get database row for register to check status and stored difference
+            row = self._db.execute(
+                "SELECT * FROM cash_registers WHERE id = ?", (register_id,)
+            ).fetchone()
+            if row is None:
+                return {"success": False, "data": None, "error": f"Caja #{register_id} no encontrada"}
+            
+            balance = self._register_repo.get_balance(register_id)
+            if row["status"] == "closed":
+                # For closed registers, use the physically stored difference (closing_amount - expected_amount)
+                balance["difference"] = row["difference"]
+            else:
+                # For open/active registers, use net flow (expected - opening)
+                balance["difference"] = balance["expected"] - balance["opening"]
+                
+            return {"success": True, "data": balance, "error": None}
+        except POSException as e:
+            return {"success": False, "data": None, "error": str(e)}
+
     def get_movements(self, register_id: int) -> dict:
         """Return all cash movements for a specific register session."""
         try:

@@ -95,6 +95,20 @@ class TestTopProducts:
         assert len(result["data"]) == 0
 
 
+class TestGetLowStock:
+    """Low stock products query."""
+
+    def test_get_low_stock(self, report_ctrl, db_with_sales, sample_products):
+        # Set one product to be under the threshold
+        db_with_sales.execute("UPDATE products SET stock = 2 WHERE id = ?", (sample_products[0],))
+        db_with_sales.commit()
+
+        result = report_ctrl.get_low_stock()
+        assert result["success"] is True
+        assert len(result["data"]) >= 1
+        assert any(item["name"] == "Coca-Cola 1.5L" for item in result["data"])
+
+
 class TestCsvExport:
     """CSV export functionality."""
 

@@ -86,35 +86,18 @@ def test_update_user(user_mgmt_ctrl: UserManagementController, db: sqlite3.Conne
     assert updated.role == "gerente"
 
 
-def test_deactivate_user(user_mgmt_ctrl: UserManagementController, db: sqlite3.Connection) -> None:
-    """Test deactivating a user."""
-    create_result = user_mgmt_ctrl.create_user("deactivate_me", "pass", "cajero")
+def test_delete_user(user_mgmt_ctrl: UserManagementController, db: sqlite3.Connection) -> None:
+    """Test deleting a user."""
+    create_result = user_mgmt_ctrl.create_user("delete_me", "pass", "cajero")
     db.commit()
     user_id = create_result["data"]["id"]
     
-    result = user_mgmt_ctrl.deactivate_user(user_id)
+    result = user_mgmt_ctrl.delete_user(user_id)
     assert result["success"] is True
     
     user_repo = UserRepo(db)
     user = user_repo.find_by_id(user_id)
-    assert user.is_active == 0
-
-
-def test_activate_user(user_mgmt_ctrl: UserManagementController, db: sqlite3.Connection) -> None:
-    """Test activating a deactivated user."""
-    create_result = user_mgmt_ctrl.create_user("activate_me", "pass", "cajero")
-    db.commit()
-    user_id = create_result["data"]["id"]
-    
-    user_mgmt_ctrl.deactivate_user(user_id)
-    db.commit()
-    
-    result = user_mgmt_ctrl.activate_user(user_id)
-    assert result["success"] is True
-    
-    user_repo = UserRepo(db)
-    user = user_repo.find_by_id(user_id)
-    assert user.is_active == 1
+    assert user is None
 
 
 def test_is_admin_protected(user_mgmt_ctrl: UserManagementController, admin_user: int) -> None:
@@ -122,15 +105,33 @@ def test_is_admin_protected(user_mgmt_ctrl: UserManagementController, admin_user
     assert user_mgmt_ctrl.is_admin_protected(admin_user) is True
 
 
-def test_cannot_deactivate_admin(user_mgmt_ctrl: UserManagementController, admin_user: int) -> None:
-    """Test admin cannot be deactivated."""
-    result = user_mgmt_ctrl.deactivate_user(admin_user)
+def test_cannot_delete_admin(user_mgmt_ctrl: UserManagementController, admin_user: int) -> None:
+    """Test admin cannot be deleted."""
+    result = user_mgmt_ctrl.delete_user(admin_user)
     assert result["success"] is False
     assert "admin" in result["error"].lower()
 
 
-def test_cannot_update_admin(user_mgmt_ctrl: UserManagementController, admin_user: int) -> None:
-    """Test admin cannot be updated."""
-    result = user_mgmt_ctrl.update_user(admin_user, password="new_pass")
-    assert result["success"] is False
-    assert "admin" in result["error"].lower()
+def test_update_admin_password_allowed(user_mgmt_ctrl: UserManagementController, admin_user: int, db: sqlite3.Connection) -> None:
+    """Test updating admin password is allowed but role change is rejected."""
+    result = user_mgmt_ctrl.update_user(admin_user, password="new_admin_pass")
+    assert result["success"] is True
+    
+    user_repo = UserRepo(db)
+    admin = user_repo.find_by_id(admin_user)
+    assert admin.password == "new_admin_pass"
+
+    result2 = user_mgmt_ctrl.update_user(admin_user, role="gerente")
+    assert result2["success"] is False
+    assert "rol" in result2["error"].lower()
+
+
+def test_get_user_password(user_mgmt_ctrl: UserManagementController, db: sqlite3.Connection) -> None:
+    """Test retrieving user password."""
+    create_result = user_mgmt_ctrl.create_user("pass_user", "supersecret", "cajero")
+    db.commit()
+    user_id = create_result["data"]["id"]
+    
+    result = user_mgmt_ctrl.get_user_password(user_id)
+    assert result["success"] is True
+    assert result["data"] == "supersecret"

@@ -99,6 +99,17 @@ class ReportController:
         except ValueError as e:
             return {"success": False, "data": None, "error": str(e)}
 
+    def get_low_stock(self) -> dict:
+        """Return all products whose current stock is at or below threshold.
+
+        Returns ``{"success": True, "data": list[dict], "error": None}``.
+        """
+        try:
+            low_stock = self._report_service.low_stock_products()
+            return {"success": True, "data": low_stock, "error": None}
+        except POSException as e:
+            return {"success": False, "data": None, "error": str(e)}
+
     # ------------------------------------------------------------------ CSV ----
 
     def export_to_csv(self, data: list[dict], file_path: str) -> dict:

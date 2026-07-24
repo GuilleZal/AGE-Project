@@ -96,8 +96,8 @@ class ReportView(ctk.CTkFrame):
         self._border_color = theme.get_contrast_map()["search_border"]
 
         # Configure main grid: 3 rows, 2 columns
-        self.grid_columnconfigure(0, weight=1)
-        self.grid_columnconfigure(1, weight=1)
+        self.grid_columnconfigure(0, weight=3)
+        self.grid_columnconfigure(1, weight=4)
         self.grid_rowconfigure(0, weight=0)   # top bar
         self.grid_rowconfigure(1, weight=0)   # KPIs
         self.grid_rowconfigure(2, weight=1)   # data panel
@@ -120,8 +120,8 @@ class ReportView(ctk.CTkFrame):
         top_bar.grid_columnconfigure(1, weight=1)  # spacer
 
         # Left side: period selector
-        selector_frame = ctk.CTkFrame(top_bar, fg_color="transparent", border_width=2, border_color=self._border_color)
-        selector_frame.grid(row=0, column=0, sticky="w")
+        selector_frame = ctk.CTkFrame(top_bar, fg_color="transparent", border_width=0)
+        selector_frame.grid(row=0, column=0, sticky="w", padx=5, pady=8)
 
         ctk.CTkLabel(
             selector_frame,
@@ -140,7 +140,7 @@ class ReportView(ctk.CTkFrame):
         self._period_menu.pack(side="left", padx=5)
 
         # Custom date range
-        self._custom_frame = ctk.CTkFrame(selector_frame, fg_color="transparent", border_width=2, border_color=self._border_color)
+        self._custom_frame = ctk.CTkFrame(selector_frame, fg_color="transparent", border_width=0)
         self._custom_frame.pack(side="left", padx=10)
 
         ctk.CTkLabel(
@@ -195,7 +195,7 @@ class ReportView(ctk.CTkFrame):
             fg_color="#3b3b3b",
             command=self._handle_export_diario,
         )
-        self._export_diario_btn.grid(row=0, column=2, sticky="e", padx=(10, 15))
+        self._export_diario_btn.grid(row=0, column=2, sticky="e", padx=(10, 15), pady=8)
 
     def _build_kpi_panel(self) -> None:
         """Build the KPI cards row with 5 metric cards."""
@@ -240,206 +240,119 @@ class ReportView(ctk.CTkFrame):
             self._metric_cards[key] = value_lbl
 
     def _build_data_panel(self) -> None:
-        """Build the data panel with 2 columns: left (trees) and right (chart + summary)."""
-        # Left column: Top products + Low stock
+        """Build the data panel with 2 columns: left (unified table) and right (chart + summary)."""
+        # Left column: Unified table (Top products / Low stock)
         left_frame = ctk.CTkFrame(self, fg_color="transparent", border_width=2, border_color=self._border_color)
         left_frame.grid(row=2, column=0, sticky="nsew", padx=(10, 5), pady=5)
         
-        # Blindaje de grilla: Columna 0 (Tablas) se expande, Columna 1 (Scroll Vertical) reserva su espacio fijo
+        # Blindaje de grilla: Columna 0 (Tabla) se expande, Columna 1 (Scroll Vertical) reserva su espacio fijo
         left_frame.grid_columnconfigure(0, weight=1)
         left_frame.grid_columnconfigure(1, weight=0)
         
-        left_frame.grid_rowconfigure(1, weight=1)  # top products tree
-        left_frame.grid_rowconfigure(2, weight=0)  # top scroll H
-        left_frame.grid_rowconfigure(3, weight=0)  # low header
-        left_frame.grid_rowconfigure(4, weight=2)  # low stock tree (¡Doble peso para que crezca más!)
-        left_frame.grid_rowconfigure(5, weight=0)  # low scroll H
+        left_frame.grid_rowconfigure(1, weight=1)  # unified table
+        left_frame.grid_rowconfigure(2, weight=0)  # H scrollbar
 
-        # Top products section
-        top_header = ctk.CTkFrame(left_frame, fg_color="transparent", border_width=2, border_color=self._border_color)
-        top_header.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 5))
-        top_header.grid_columnconfigure(1, weight=1)
+        # Table header section
+        self._table_header = ctk.CTkFrame(left_frame, fg_color="transparent", border_width=2, border_color=self._border_color)
+        self._table_header.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 5))
+        self._table_header.grid_columnconfigure(2, weight=1) # Spacer pushes export button
+
+        # Table selector combobox
+        self._table_type_var = tk.StringVar(value="Top productos más vendidos")
+        self._table_selector = ctk.CTkComboBox(
+            self._table_header,
+            values=["Top productos más vendidos", "Productos bajo stock"],
+            variable=self._table_type_var,
+            width=220,
+            height=28,
+            state="readonly",
+            command=self._handle_table_type_changed,
+        )
+        self._table_selector.grid(row=0, column=0, sticky="w", padx=10, pady=8)
+
+        # Ver Top Controls frame
+        self._top_controls_frame = ctk.CTkFrame(self._table_header, fg_color="transparent")
+        self._top_controls_frame.grid(row=0, column=1, sticky="w", padx=5)
 
         ctk.CTkLabel(
-            top_header,
-            text="Top Productos más vendidos",
-            font=theme.scaled_font(14, weight="bold"),
-        ).grid(row=0, column=0, sticky="w", padx=10, pady=5)
+            self._top_controls_frame,
+            text="Ver Top:",
+            font=theme.scaled_font(12),
+        ).pack(side="left", padx=2)
 
         # Limit selector
         self._top_limit_var = tk.StringVar(value="10")
         self._top_limit_combo = ctk.CTkComboBox(
-            top_header,
+            self._top_controls_frame,
             values=self.TOP_PRODUCT_LIMITS,
             variable=self._top_limit_var,
             width=70,
+            height=26,
+            state="readonly",
             command=self._handle_top_limit_changed,
         )
-        self._top_limit_combo.grid(row=0, column=1, sticky="e", padx=5)
+        self._top_limit_combo.pack(side="left", padx=5)
 
-        ctk.CTkLabel(
-            top_header,
-            text="Ver Top:",
-            font=theme.scaled_font(12),
-        ).grid(row=0, column=2, sticky="e", padx=(5, 2))
-
-        self._export_top_btn = ctk.CTkButton(
-            top_header,
-            text="Exportar Top CSV",
+        # Export button
+        self._export_table_btn = ctk.CTkButton(
+            self._table_header,
+            text="Exportar CSV",
             width=130,
             height=28,
             fg_color="#3b3b3b",
-            command=self._handle_export_top,
+            command=self._handle_export_table,
         )
-        self._export_top_btn.grid(row=0, column=3, sticky="e", padx=(5, 10))
+        self._export_table_btn.grid(row=0, column=3, sticky="e", padx=(10, 10), pady=8)
 
-        # Top products treeview
+        # Treeview styling
         self._style = ttk.Style(left_frame)
         self._configure_style()
 
-        self._top_columns = ("pos", "producto", "cantidad", "monto")
-        self._top_tree = ttk.Treeview(
+        # Unified treeview
+        self._report_columns = ("col0", "col1", "col2", "col3")
+        self._report_tree = ttk.Treeview(
             left_frame,
-            columns=self._top_columns,
+            columns=self._report_columns,
             show="headings",
             selectmode="none",
             height=10,
         )
-        self._top_tree.heading("pos", text="#")
-        self._top_tree.heading("producto", text="Producto")
-        self._top_tree.heading("cantidad", text="Cantidad")
-        self._top_tree.heading("monto", text="Monto total")
 
-        # Anchos mínimos obligatorios y blindaje
-        self._top_tree.column("pos", width=50, minwidth=50, anchor="center")
-        self._top_tree.column("producto", width=250, minwidth=250, stretch=True)
-        self._top_tree.column("cantidad", width=100, minwidth=100, anchor="center")
-        self._top_tree.column("monto", width=140, minwidth=140, anchor="e")
+        self._report_tree.bind("<Button-1>", self._prevent_resize)
+        self._report_tree.bind("<B1-Motion>", self._prevent_resize)
 
-        add_sorting_to_treeview(
-            self._top_tree,
-            list(self._top_columns),
-            column_types={"pos": "int", "producto": "str", "cantidad": "int", "monto": "int"}
-        )
-        self._top_tree.bind("<Button-1>", self._prevent_resize)
-        self._top_tree.bind("<B1-Motion>", self._prevent_resize)
+        self._report_scroll = ttk.Scrollbar(left_frame, orient="vertical", command=self._report_tree.yview)
+        self._report_hscroll = ttk.Scrollbar(left_frame, orient="horizontal", command=self._report_tree.xview)
+        self._report_tree.configure(yscrollcommand=self._report_scroll.set, xscrollcommand=self._report_hscroll.set)
 
-        self._top_scroll = ttk.Scrollbar(left_frame, orient="vertical", command=self._top_tree.yview)
-        self._top_hscroll = ttk.Scrollbar(left_frame, orient="horizontal", command=self._top_tree.xview)
-        self._top_tree.configure(yscrollcommand=self._top_scroll.set, xscrollcommand=self._top_hscroll.set)
+        self._report_tree.grid(row=1, column=0, sticky="nsew")
+        self._report_scroll.grid(row=1, column=1, sticky="ns")
+        self._report_hscroll.grid(row=2, column=0, columnspan=2, sticky="ew")
 
-        self._top_tree.grid(row=1, column=0, sticky="nsew", pady=(0, 0))
-        self._top_scroll.grid(row=1, column=1, sticky="ns", pady=(0, 0))
-        self._top_hscroll.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(0, 5))
-
-        # Low stock section
-        low_header = ctk.CTkFrame(left_frame, fg_color="transparent", border_width=2, border_color=self._border_color)
-        low_header.grid(row=3, column=0, columnspan=2, sticky="ew", pady=(5, 5))
-        low_header.grid_columnconfigure(0, weight=1)
-
-        ctk.CTkLabel(
-            low_header,
-            text="⚠ Productos bajo stock",
-            font=theme.scaled_font(14, weight="bold"),
-            text_color="#ff6b6b",
-        ).grid(row=0, column=0, sticky="w", padx=10, pady=5)
-
-        self._export_faltantes_btn = ctk.CTkButton(
-            low_header,
-            text="Exportar Faltantes CSV",
-            width=150,
-            height=28,
-            fg_color="#3b3b3b",
-            command=self._handle_export_faltantes,
-        )
-        self._export_faltantes_btn.grid(row=0, column=1, sticky="e", padx=(5, 10))
-
-        # Low stock treeview
-        self._low_columns = ("pos", "producto", "stock_actual", "ubicacion")
-        self._low_tree = ttk.Treeview(
-            left_frame,
-            columns=self._low_columns,
-            show="headings",
-            selectmode="none",
-            height=12, # <--- Aumentado de 8 a 12 para ganar altura base
-        )
-        self._low_tree.heading("pos", text="#")
-        self._low_tree.heading("producto", text="Producto")
-        self._low_tree.heading("stock_actual", text="Stock Actual")
-        self._low_tree.heading("ubicacion", text="Ubicación")
-
-        # Anchos mínimos obligatorios y blindaje
-        self._low_tree.column("pos", width=50, minwidth=50, anchor="center")
-        self._low_tree.column("producto", width=250, minwidth=250, stretch=True)
-        self._low_tree.column("stock_actual", width=110, minwidth=110, anchor="center")
-        self._low_tree.column("ubicacion", width=160, minwidth=160, anchor="w")
-
-        add_sorting_to_treeview(
-            self._low_tree,
-            list(self._low_columns),
-            column_types={"pos": "int", "producto": "str", "stock_actual": "int", "ubicacion": "str"}
-        )
-        self._low_tree.bind("<Button-1>", self._prevent_resize)
-        self._low_tree.bind("<B1-Motion>", self._prevent_resize)
-
-        self._low_scroll = ttk.Scrollbar(left_frame, orient="vertical", command=self._low_tree.yview)
-        self._low_hscroll = ttk.Scrollbar(left_frame, orient="horizontal", command=self._low_tree.xview)
-        self._low_tree.configure(yscrollcommand=self._low_scroll.set, xscrollcommand=self._low_hscroll.set)
-
-        self._low_tree.grid(row=4, column=0, sticky="nsew")
-        self._low_scroll.grid(row=4, column=1, sticky="ns")
-        self._low_hscroll.grid(row=5, column=0, columnspan=2, sticky="ew")
-
-        # Right column: Payment chart + Expense summary
+        # Right column: Expense summary
         right_frame = ctk.CTkFrame(self, fg_color="transparent", border_width=2, border_color=self._border_color)
         right_frame.grid(row=2, column=1, sticky="nsew", padx=(5, 10), pady=5)
         right_frame.grid_columnconfigure(0, weight=1)
-        
-        right_frame.grid_rowconfigure(0, weight=1)  # chart (expands)
-        right_frame.grid_rowconfigure(1, weight=0)  # summary (compact)
+        right_frame.grid_rowconfigure(0, weight=1)
 
-        # Payment methods chart
-        self._chart_frame = ctk.CTkFrame(right_frame, fg_color="transparent", border_width=2, border_color=self._border_color)
-        self._chart_frame.grid(row=0, column=0, sticky="nsew", pady=(0, 5))
-        self._chart_frame.grid_columnconfigure(0, weight=1)
-        self._chart_frame.grid_rowconfigure(0, weight=0)  # title
-        self._chart_frame.grid_rowconfigure(1, weight=1)  # canvas
-
-        ctk.CTkLabel(
-            self._chart_frame,
-            text="Ventas por Método de Pago",
-            font=theme.scaled_font(14, weight="bold"),
-        ).grid(row=0, column=0, sticky="n", pady=(10, 5))
-
-        self._chart_canvas_frame = ctk.CTkFrame(
-            self._chart_frame,
-            fg_color="#1a1a1a",
-            corner_radius=8,
-        )
-        self._chart_canvas_frame.grid(row=1, column=0, sticky="nsew", padx=5, pady=(0, 5))
-
-        ctk.CTkLabel(
-            self._chart_canvas_frame,
-            text="[ Gráfico circular - matplotlib ]",
-            font=theme.scaled_font(12),
-            text_color="#666",
-        ).pack(expand=True)
-
-        # Expense summary (DISEÑO APILADO RESPONSIVO)
-        summary_frame = ctk.CTkFrame(right_frame, fg_color="transparent", border_width=2, border_color=self._border_color)
-        summary_frame.grid(row=1, column=0, sticky="ew", pady=(10, 0)) # Margen superior para despegar del gráfico
+        # Expense summary (DISEÑO INTEGRADO RESPONSIVO DE ALTO COMPLETO)
+        summary_frame = ctk.CTkFrame(right_frame, fg_color="transparent", border_width=0)
+        summary_frame.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
         
         # Dos columnas exactas al 50% para que los montos tengan máximo espacio
         summary_frame.grid_columnconfigure(0, weight=1, uniform="sum")
         summary_frame.grid_columnconfigure(1, weight=1, uniform="sum")
+        
+        # Hacemos que la fila del spacer (fila 5) tome todo el espacio sobrante
+        summary_frame.grid_rowconfigure(5, weight=1)
 
         # Título en fila propia, ocupando todo el ancho
         ctk.CTkLabel(
             summary_frame,
             text="Resumen de Egresos y Pérdidas",
-            font=theme.scaled_font(13, weight="bold"),
-            wraplength=250, # Evita estallar con fuentes gigantes
-        ).grid(row=0, column=0, columnspan=2, sticky="w", padx=10, pady=(10, 5))
+            font=theme.scaled_font(14, weight="bold"),
+            wraplength=350, # Evita estallar con fuentes gigantes
+        ).grid(row=0, column=0, columnspan=2, sticky="w", padx=5, pady=(5, 15))
 
         self._summary_labels: dict[str, ctk.CTkLabel] = {}
         summary_items = [
@@ -458,7 +371,7 @@ class ReportView(ctk.CTkFrame):
                 summary_frame,
                 text=label,
                 font=theme.scaled_font(font_size, weight=font_weight),
-            ).grid(row=idx, column=0, sticky="w", padx=10, pady=2)
+            ).grid(row=idx, column=0, sticky="w", padx=5, pady=6)
 
             value_lbl = ctk.CTkLabel(
                 summary_frame,
@@ -466,8 +379,11 @@ class ReportView(ctk.CTkFrame):
                 font=theme.scaled_font(font_size, weight=font_weight),
                 text_color=color,
             )
-            value_lbl.grid(row=idx, column=1, sticky="e", padx=10, pady=2)
+            value_lbl.grid(row=idx, column=1, sticky="e", padx=5, pady=6)
             self._summary_labels[key] = value_lbl
+
+        # Fila 5: Fila vacía que sirve de espaciador empujando el botón al fondo
+        ctk.CTkFrame(summary_frame, fg_color="transparent", height=1).grid(row=5, column=0, columnspan=2, sticky="nsew")
 
         # Botón de exportar en fila propia al fondo, estirado ocupando todo el ancho
         self._export_resumen_btn = ctk.CTkButton(
@@ -477,25 +393,15 @@ class ReportView(ctk.CTkFrame):
             fg_color="#3b3b3b",
             command=self._handle_export_diario,
         )
-        self._export_resumen_btn.grid(row=5, column=0, columnspan=2, sticky="ew", padx=10, pady=(10, 10))
+        self._export_resumen_btn.grid(row=6, column=0, columnspan=2, sticky="ew", padx=5, pady=(10, 5))
 
     # ---------------------------------------------------------------- public ---
 
     def update_report(self, data: dict[str, Any]) -> None:
-        """Refresh metrics, trees, and summary with report *data*.
-
-        Expected keys:
-            ``sales``: {total, count, avg_ticket}
-            ``profit``: {revenue, cost, profit, margin_pct}
-            ``top_products``: [{name, total_quantity, total_amount}, ...]
-            ``low_stock``: [{name, stock, location}, ...]
-            ``payment_methods``: [{payment_method, total_amount, percentage}, ...]
-            ``expenses``: {purchases, shrinkage, operating_expenses, net_profit}
-        """
+        """Refresh metrics, trees, and summary with report *data*."""
+        self._report_data = data
         sales = data.get("sales") or {}
         profit = data.get("profit") or {}
-        top = data.get("top_products") or []
-        low_stock = data.get("low_stock") or []
         expenses = data.get("expenses") or {}
 
         # Update KPI cards
@@ -510,44 +416,15 @@ class ReportView(ctk.CTkFrame):
             text=f"${expenses.get('purchases', 0):,}"
         )
         self._metric_cards["ganancia_bruta"].configure(
-            text=f"${profit.get('profit', 0):,}"
+            text=f"${int(float(profit.get('profit', 0))):,}"
         )
         margin = profit.get("margin_pct", 0)
         self._metric_cards["margen_bruto"].configure(
             text=f"{margin:.1f}%"
         )
 
-        # Update top products
-        for child in self._top_tree.get_children():
-            self._top_tree.delete(child)
-
-        for idx, item in enumerate(top, 1):
-            self._top_tree.insert(
-                "",
-                "end",
-                values=(
-                    idx,
-                    item.get("name", "—"),
-                    int(item.get("total_quantity", 0)),
-                    f"${item.get('total_amount', 0):,}",
-                ),
-            )
-
-        # Update low stock
-        for child in self._low_tree.get_children():
-            self._low_tree.delete(child)
-
-        for idx, item in enumerate(low_stock, 1):
-            self._low_tree.insert(
-                "",
-                "end",
-                values=(
-                    idx,
-                    item.get("name", "—"),
-                    item.get("stock", 0),  # Use 'stock' key from repo
-                    item.get("location", "—"),
-                ),
-            )
+        # Update unified table
+        self._populate_table()
 
         # Update expense summary
         self._summary_labels["compras"].configure(
@@ -561,59 +438,12 @@ class ReportView(ctk.CTkFrame):
         )
         net_profit = expenses.get("net_profit", 0)
         self._summary_labels["ganancia_neta"].configure(
-            text=f"${net_profit:,}"
+            text=f"${int(float(net_profit)):,}"
         )
 
     def _update_payment_chart(self, payment_methods: list[dict]) -> None:
-        """Update the payment methods pie chart."""
-        if not HAS_MATPLOTLIB:
-            return
-
-        # Clear previous chart
-        for widget in self._chart_canvas_frame.winfo_children():
-            widget.destroy()
-
-        # Extraemos los tamaños para validarlos
-        sizes = [item.get("percentage", 0) for item in payment_methods]
-        
-        # PREVENCIÓN DE CRASH: Si la suma de ventas es 0, matplotlib explota. Lo evitamos.
-        if not payment_methods or sum(sizes) == 0:
-            ctk.CTkLabel(
-                self._chart_canvas_frame,
-                text="Sin datos suficientes\npara generar el gráfico",
-                font=theme.scaled_font(13),
-                text_color="#666",
-            ).pack(expand=True)
-            return
-
-        # Prepare data
-        labels = [item["payment_method"] for item in payment_methods]
-        colors = ["#4CAF50", "#2196F3", "#FFC107", "#E91E63", "#9C27B0"]
-
-        # Creamos figura - Usamos márgenes fijos (subplots_adjust) en vez de tight_layout para no crashear con fuentes grandes
-        fig = Figure(figsize=(3, 3), dpi=100, facecolor="#1a1a1a")
-        fig.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05)
-        ax = fig.add_subplot(111)
-        ax.set_facecolor("#1a1a1a")
-
-        # Create pie chart
-        wedges, texts, autotexts = ax.pie(
-            sizes,
-            labels=labels,
-            autopct='%1.1f%%',
-            startangle=90,
-            colors=colors,
-            textprops={'color': "white", 'fontsize': max(8, 9 + get_offset()), 'fontweight': 'bold'}
-        )
-        
-        # Ensure external labels are white too
-        for text in texts:
-            text.set_color("white")
-
-        # Embed in tkinter
-        canvas = FigureCanvasTkAgg(fig, master=self._chart_canvas_frame)
-        canvas.draw()
-        canvas.get_tk_widget().pack(fill="both", expand=True)
+        """Update the payment methods pie chart (No-op after chart removal)."""
+        pass
         
 
     # ----------------------------------------------------------- callbacks ----
@@ -657,7 +487,8 @@ class ReportView(ctk.CTkFrame):
     def _controller_generate(self, start: str, end: str) -> None:
         """Generate a sales report via controller and update the UI."""
         # Get the top limit from the ComboBox
-        top_limit = int(self._top_limit_var.get()) if self._top_limit_var.get() else 10
+        limit_str = self._top_limit_combo.get() if getattr(self, "_top_limit_combo", None) else "10"
+        top_limit = int(limit_str) if limit_str.isdigit() else 10
 
         result = self._controller.generate_sales_report(start, end, top_limit)
         if result["success"]:
@@ -844,3 +675,99 @@ class ReportView(ctk.CTkFrame):
         if date_range is not None and self._on_generate is not None:
             start, end = date_range
             self._on_generate(start, end)
+
+    def _handle_table_type_changed(self, value: str) -> None:
+        """Redraw headings and reload data when table selection changes."""
+        self._populate_table()
+
+    def _handle_export_table(self) -> None:
+        """Handle export button click dynamically based on selected table type."""
+        table_type = self._table_selector.get()
+        if table_type == "Top productos más vendidos":
+            self._handle_export_top()
+        else:
+            self._handle_export_faltantes()
+
+    def _populate_table(self) -> None:
+        """Populate the unified treeview based on the selected option."""
+        # Clear existing items
+        for child in self._report_tree.get_children():
+            self._report_tree.delete(child)
+
+        table_type = self._table_selector.get()
+        if table_type == "Top productos más vendidos":
+            # Show top limit selector
+            self._top_controls_frame.grid()
+
+            # Set headings
+            self._report_tree.heading("col0", text="#")
+            self._report_tree.heading("col1", text="Producto")
+            self._report_tree.heading("col2", text="Cantidad")
+            self._report_tree.heading("col3", text="Monto total")
+
+            # Set column widths & alignments
+            self._report_tree.column("col0", width=50, minwidth=50, anchor="center")
+            self._report_tree.column("col1", width=250, minwidth=250, stretch=True, anchor="w")
+            self._report_tree.column("col2", width=100, minwidth=100, anchor="center")
+            self._report_tree.column("col3", width=140, minwidth=140, anchor="e")
+
+            # Setup sorting
+            column_types = {"col0": "int", "col1": "str", "col2": "int", "col3": "int"}
+            add_sorting_to_treeview(self._report_tree, list(self._report_columns), column_types)
+
+            # Populate data
+            top_products = self._report_data.get("top_products") or []
+            for idx, item in enumerate(top_products, 1):
+                self._report_tree.insert(
+                    "",
+                    "end",
+                    values=(
+                        idx,
+                        item.get("name", "—"),
+                        int(item.get("total_quantity", 0)),
+                        f"${item.get('total_amount', 0):,}",
+                    ),
+                )
+        else:
+            # Hide top limit selector
+            self._top_controls_frame.grid_remove()
+
+            # Set headings
+            self._report_tree.heading("col0", text="#")
+            self._report_tree.heading("col1", text="Producto")
+            self._report_tree.heading("col2", text="Stock Actual")
+            self._report_tree.heading("col3", text="Ubicación")
+
+            # Set column widths & alignments
+            self._report_tree.column("col0", width=50, minwidth=50, anchor="center")
+            self._report_tree.column("col1", width=250, minwidth=250, stretch=True, anchor="w")
+            self._report_tree.column("col2", width=110, minwidth=110, anchor="center")
+            self._report_tree.column("col3", width=160, minwidth=160, anchor="w")
+
+            # Setup sorting
+            column_types = {"col0": "int", "col1": "str", "col2": "float", "col3": "str"}
+            add_sorting_to_treeview(self._report_tree, list(self._report_columns), column_types)
+
+            # Populate data (Always fetch latest real-time low stock products!)
+            low_stock = []
+            if getattr(self, "_controller", None) is not None:
+                result = self._controller.get_low_stock()
+                if result["success"]:
+                    low_stock = result["data"]
+            
+            # Fallback to report cache if controller is not wired or failed
+            if not low_stock and self._report_data:
+                low_stock = self._report_data.get("low_stock") or []
+
+            for idx, item in enumerate(low_stock, 1):
+                self._report_tree.insert(
+                    "",
+                    "end",
+                    values=(
+                        idx,
+                        item.get("name", "—"),
+                        item.get("stock", 0.0),
+                        item.get("location") or "—",
+                    ),
+                )
+

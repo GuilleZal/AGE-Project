@@ -66,36 +66,36 @@ class UserManagementController:
         if user is None:
             return {"success": False, "data": None, "error": "Usuario no encontrado"}
         if self.is_admin_protected(user_id):
-            return {"success": False, "data": None, "error": "No se puede modificar el usuario admin"}
-        if password is not None:
-            user.password = password
-        if role is not None:
-            user.role = role
+            if role is not None and role != "admin":
+                return {"success": False, "data": None, "error": "No se puede cambiar el rol del usuario admin"}
+            if password is not None:
+                user.password = password
+        else:
+            if password is not None:
+                user.password = password
+            if role is not None:
+                user.role = role
         self._user_repo.update(user)
         self._db.commit()
         return {"success": True, "data": None, "error": None}
 
-    def deactivate_user(self, user_id: int) -> dict:
-        """Set is_active=0 for user_id. Cannot deactivate 'admin'."""
+    def delete_user(self, user_id: int) -> dict:
+        """Delete user by user_id. Cannot delete 'admin'."""
         user = self._user_repo.find_by_id(user_id)
         if user is None:
             return {"success": False, "data": None, "error": "Usuario no encontrado"}
         if self.is_admin_protected(user_id):
-            return {"success": False, "data": None, "error": "No se puede desactivar el usuario admin"}
-        user.is_active = 0
-        self._user_repo.update(user)
+            return {"success": False, "data": None, "error": "No se puede eliminar el usuario admin"}
+        self._user_repo.delete(user_id)
         self._db.commit()
         return {"success": True, "data": None, "error": None}
 
-    def activate_user(self, user_id: int) -> dict:
-        """Set is_active=1 for user_id."""
+    def get_user_password(self, user_id: int) -> dict:
+        """Return the password for a user (admin only)."""
         user = self._user_repo.find_by_id(user_id)
         if user is None:
             return {"success": False, "data": None, "error": "Usuario no encontrado"}
-        user.is_active = 1
-        self._user_repo.update(user)
-        self._db.commit()
-        return {"success": True, "data": None, "error": None}
+        return {"success": True, "data": user.password, "error": None}
 
     def is_admin_protected(self, user_id: int) -> bool:
         """Return True if user_id belongs to the bootstrap admin."""

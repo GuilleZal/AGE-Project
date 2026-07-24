@@ -26,7 +26,7 @@ class UserManagementView(ctk.CTkFrame):
         └──────────────────────────────────────────┘
     """
 
-    COLUMNS = ("username", "role", "status")
+    COLUMNS = ("username", "role")
     ROLE_DISPLAY = {
         "admin": "Administrador",
         "gerente": "Gerente",
@@ -74,11 +74,9 @@ class UserManagementView(ctk.CTkFrame):
         )
         self._tree.heading("username", text="Usuario")
         self._tree.heading("role", text="Rol")
-        self._tree.heading("status", text="Estado")
 
-        self._tree.column("username", width=200, minwidth=150, anchor="w")
-        self._tree.column("role", width=150, minwidth=120, anchor="center")
-        self._tree.column("status", width=120, minwidth=100, anchor="center")
+        self._tree.column("username", width=250, minwidth=150, anchor="w")
+        self._tree.column("role", width=200, minwidth=120, anchor="center")
 
         self._tree.grid(row=0, column=0, sticky="nsew")
 
@@ -88,7 +86,7 @@ class UserManagementView(ctk.CTkFrame):
         self._tree.configure(yscrollcommand=self._vscroll.set)
         self._vscroll.grid(row=0, column=1, sticky="ns")
 
-        self._tree.bind("<<TreeviewSelect>>", self._update_toggle_button)
+        self._tree.bind("<<TreeviewSelect>>", self._update_delete_button)
 
         # --- Action buttons ---
         self._action_frame = ctk.CTkFrame(self, fg_color="transparent")
@@ -105,16 +103,16 @@ class UserManagementView(ctk.CTkFrame):
         )
         self._edit_btn.pack(side="left", padx=5)
 
-        self._toggle_btn = ctk.CTkButton(
+        self._delete_btn = ctk.CTkButton(
             self._action_frame,
-            text="Desactivar",
+            text="Eliminar",
             width=120,
             height=36,
             font=theme.scaled_font(13, weight="bold"),
             fg_color="#8b1a1a",
-            command=self._on_deactivate_clicked,
+            command=self._on_delete_clicked,
         )
-        self._toggle_btn.pack(side="left", padx=5)
+        self._delete_btn.pack(side="left", padx=5)
 
     def set_controller(self, controller) -> None:
         """Store reference to UserManagementController."""
@@ -134,14 +132,13 @@ class UserManagementView(ctk.CTkFrame):
 
         for u in result["data"]:
             role_display = self.ROLE_DISPLAY.get(u["role"], u["role"])
-            status = "Activo" if u["is_active"] else "Inactivo"
             self._tree.insert(
                 "",
                 "end",
                 iid=str(u["id"]),
-                values=(u["username"], role_display, status),
+                values=(u["username"], role_display),
             )
-        self._update_toggle_button()
+        self._update_delete_button()
 
     def _on_create_clicked(self) -> None:
         """Show create form."""
@@ -158,19 +155,25 @@ class UserManagementView(ctk.CTkFrame):
                 messagebox.showerror("Error", result["error"])
 
     def _on_edit_clicked(self) -> None:
-        """Show edit form for selected user. Disabled for admin bootstrap."""
+        """Show edit form for selected user."""
         sel = self._tree.selection()
         if not sel:
             messagebox.showwarning("Seleccionar", "Seleccione un usuario para editar")
             return
         user_id = int(sel[0])
-        if self._controller and self._controller.is_admin_protected(user_id):
-            messagebox.showwarning("Protegido", "No se puede editar el usuario admin")
-            return
 
         username = self._tree.item(sel[0], "values")[0]
+        role_display = self._tree.item(sel[0], "values")[1]
+        role_key = next((k for k, v in self.ROLE_DISPLAY.items() if v == role_display), "cajero")
+        
+        password = ""
+        if self._controller:
+            res_pass = self._controller.get_user_password(user_id)
+            if res_pass["success"]:
+                password = res_pass["data"]
+
         dialog = _UserFormDialog(
-            self, title="Editar usuario", username=username, edit_mode=True
+            self, title="Editar usuario", username=username, password=password, role=role_key, edit_mode=True
         )
         self.wait_window(dialog)
         if dialog.result and self._controller:
@@ -185,46 +188,42 @@ class UserManagementView(ctk.CTkFrame):
             else:
                 messagebox.showerror("Error", result["error"])
 
-    def _on_deactivate_clicked(self) -> None:
-        """Toggle active status. Disabled for admin bootstrap."""
+    def _on_delete_clicked(self) -> None:
+        """Delete selected user."""
         sel = self._tree.selection()
         if not sel:
-            messagebox.showwarning("Seleccionar", "Seleccione un usuario")
+            messagebox.showwarning("Seleccionar", "Seleccione un usuario para eliminar")
             return
         user_id = int(sel[0])
         if self._controller and self._controller.is_admin_protected(user_id):
-            messagebox.showwarning("Protegido", "No se puede desactivar el usuario admin")
+            messagebox.showwarning("Protegido", "No se puede eliminar el usuario admin")
             return
 
-        values = self._tree.item(sel[0], "values")
-        current_status = values[2]
-        if current_status == "Activo":
-            result = self._controller.deactivate_user(user_id)
-        else:
-            result = self._controller.activate_user(user_id)
+        username = self._tree.item(sel[0], "values")[0]
+        confirm = messagebox.askyesno(
+            "Confirmar eliminación",
+            f"¿Está seguro de eliminar al usuario '{username}'?\nEsta acción no se puede deshacer.",
+        )
+        if not confirm:
+            return
 
+        result = self._controller.delete_user(user_id)
         if result["success"]:
             self.refresh_users()
         else:
             messagebox.showerror("Error", result["error"])
 
-    def _update_toggle_button(self, event: tk.Event | None = None) -> None:
-        """Update toggle button text and color based on selected user status."""
+    def _update_delete_button(self, event: tk.Event | None = None) -> None:
+        """Disable delete button if admin user is selected."""
         sel = self._tree.selection()
         if not sel:
-            self._toggle_btn.configure(text="Desactivar", fg_color="#8b1a1a")
+            self._delete_btn.configure(state="normal")
             return
-
-        values = self._tree.item(sel[0], "values")
-        if not values or len(values) < 3:
-            self._toggle_btn.configure(text="Desactivar", fg_color="#8b1a1a")
-            return
-
-        status = values[2]
-        if status == "Inactivo":
-            self._toggle_btn.configure(text="Activar", fg_color="#28a745")
+        user_id = int(sel[0])
+        if self._controller and self._controller.is_admin_protected(user_id):
+            self._delete_btn.configure(state="disabled")
         else:
-            self._toggle_btn.configure(text="Desactivar", fg_color="#8b1a1a")
+            self._delete_btn.configure(state="normal")
 
     def _configure_style(self) -> None:
         """Configure ttk styles to blend with CTk dark theme."""
@@ -266,6 +265,8 @@ class _UserFormDialog(ctk.CTkToplevel):
         master,
         title: str = "Crear usuario",
         username: str = "",
+        password: str = "",
+        role: str = "cajero",
         edit_mode: bool = False,
         **kwargs,
     ) -> None:
@@ -289,26 +290,32 @@ class _UserFormDialog(ctk.CTkToplevel):
 
         ctk.CTkLabel(
             self,
-            text="Contrasena:" + ("" if edit_mode else " (obligatoria)"),
+            text="Contraseña:" + ("" if edit_mode else " (obligatoria)"),
             font=theme.scaled_font(14),
         ).pack(pady=(10, 5))
 
         self._password_entry = ctk.CTkEntry(
-            self, width=250, height=36, show="*"
+            self, width=250, height=36, show="" if edit_mode else "*"
         )
         self._password_entry.pack(padx=20, pady=5)
+        if password:
+            self._password_entry.insert(0, password)
 
         ctk.CTkLabel(
             self, text="Rol:", font=theme.scaled_font(14)
         ).pack(pady=(10, 5))
 
-        self._role_var = ctk.StringVar(value="cajero")
+        is_admin = (username == "admin")
+        self._role_var = ctk.StringVar(value="admin" if is_admin else role)
+        role_values = ["admin"] if is_admin else ["gerente", "cajero", "inventario"]
         self._role_menu = ctk.CTkOptionMenu(
             self,
-            values=["gerente", "cajero", "inventario"],
+            values=role_values,
             variable=self._role_var,
             width=250,
         )
+        if is_admin:
+            self._role_menu.configure(state="disabled")
         self._role_menu.pack(padx=20, pady=5)
 
         self._error_label = ctk.CTkLabel(

@@ -180,6 +180,41 @@ class TestGetHistory:
         assert len(result["data"]) == 0
 
 
+class TestGetRegisterBalance:
+    """Balance retrieval for any cash register session."""
+
+    def test_get_register_balance_open(self, cash_ctrl, db):
+        cash_ctrl.open_register(5000)
+        # Register is open, balance: initial=5000, expected=5000, difference=0
+        result = cash_ctrl.get_register_balance(1)
+        assert result["success"] is True
+        bal = result["data"]
+        assert bal["opening"] == 5000
+        assert bal["expected"] == 5000
+        assert bal["difference"] == 0
+
+    def test_get_register_balance_closed(self, cash_ctrl, db):
+        cash_ctrl.open_register(5000)
+        # Add outflow
+        cash_ctrl.register_outflow("expense", 1000, "Gasto")
+        # Expected: 5000 - 1000 = 4000. Close with final_amount = 3800. Difference = -200
+        cash_ctrl.close_register(3800, "Faltante")
+        
+        result = cash_ctrl.get_register_balance(1)
+        assert result["success"] is True
+        bal = result["data"]
+        assert bal["opening"] == 5000
+        assert bal["outflows"] == 1000
+        assert bal["expected"] == 4000
+        assert bal["difference"] == -200
+
+    def test_get_register_balance_nonexistent(self, cash_ctrl):
+        result = cash_ctrl.get_register_balance(9999)
+        assert result["success"] is False
+        assert "no encontrada" in result["error"]
+
+
+
 class TestMovementDescriptionFormatting:
     """Session-based dynamic indexing of sales and returns, plus return quantities."""
 

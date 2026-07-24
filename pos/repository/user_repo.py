@@ -56,6 +56,11 @@ class UserRepo:
             (user.password, role_val, user.is_active, user.id),
         )
 
+    def delete(self, user_id: int) -> None:
+        """Delete user by user_id. Cascades manually to active sessions."""
+        self._db.execute("DELETE FROM sessions WHERE user_id = ?", (user_id,))
+        self._db.execute("DELETE FROM users WHERE id = ?", (user_id,))
+
     def get_all(self) -> list[User]:
         """Return all users ordered by username."""
         rows = self._db.execute(

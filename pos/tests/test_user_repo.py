@@ -92,3 +92,18 @@ def test_duplicate_username_raises(user_repo: UserRepo) -> None:
     
     with pytest.raises(sqlite3.IntegrityError):
         user_repo.create(User(username="duplicate", password="p2", role=UserRole.GERENTE))
+
+
+def test_delete_user(user_repo: UserRepo, db: sqlite3.Connection) -> None:
+    """Test deleting a user and their sessions."""
+    user = User(username="deleteme", password="p", role=UserRole.CAJERO)
+    created = user_repo.create(user)
+    db.execute("INSERT INTO sessions (user_id) VALUES (?)", (created.id,))
+    db.commit()
+
+    user_repo.delete(created.id)
+    db.commit()
+
+    assert user_repo.find_by_id(created.id) is None
+    session_row = db.execute("SELECT * FROM sessions WHERE user_id = ?", (created.id,)).fetchone()
+    assert session_row is None

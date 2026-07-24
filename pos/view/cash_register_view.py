@@ -687,9 +687,32 @@ class CashRegisterView(ctk.CTkFrame):
         """Handle selection in history treeview — show movements for selected register."""
         selection = self._history_tree.selection()
         if not selection:
+            # Revert to active register status and balance
+            self._refresh_status()
             return
+            
         register_id = int(selection[0])
         self._update_preview(register_id, label=f"Caja #{register_id}")
+
+        result = self._controller.get_register_balance(register_id)
+        if result["success"]:
+            bal = result["data"]
+            self._balance_labels["initial"].configure(
+                text=f"${bal.get('opening', 0):,}"
+            )
+            self._balance_labels["inflows"].configure(
+                text=f"${bal.get('inflows', 0):,}"
+            )
+            self._balance_labels["outflows"].configure(
+                text=f"${bal.get('outflows', 0):,}"
+            )
+            self._balance_labels["expected"].configure(
+                text=f"${bal.get('expected', 0):,}"
+            )
+            diff = bal.get("difference", 0)
+            self._balance_labels["difference"].configure(
+                text=f"${diff:,}" if diff is not None else "—"
+            )
 
     def _update_preview(self, register_id: int, label: str = "Movimientos") -> None:
         """Populate the movement preview panel for a specific register."""
