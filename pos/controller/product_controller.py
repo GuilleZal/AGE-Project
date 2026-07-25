@@ -78,11 +78,20 @@ class ProductController:
             if "category_id" in data:
                 existing.category_id = data["category_id"]
             if "sale_price" in data:
-                existing.sale_price = int(data["sale_price"])
+                val = int(data["sale_price"])
+                if val < 0:
+                    raise ValueError("El precio de venta no puede ser negativo")
+                existing.sale_price = val
             if "cost_price" in data:
-                existing.cost_price = int(data["cost_price"])
+                val = int(data["cost_price"])
+                if val < 0:
+                    raise ValueError("El precio de costo no puede ser negativo")
+                existing.cost_price = val
             if "stock" in data:
-                existing.stock = float(data["stock"])
+                val = float(data["stock"])
+                if val < 0:
+                    raise ValueError("El stock no puede ser negativo")
+                existing.stock = val
             if "unit_type" in data:
                 existing.unit_type = data["unit_type"]
             if "description" in data:
@@ -93,7 +102,7 @@ class ProductController:
             updated = self._product_repo.update(existing)
             self._db.commit()
             return {"success": True, "data": updated, "error": None}
-        except POSException as e:
+        except (POSException, ValueError) as e:
             return {"success": False, "data": None, "error": str(e)}
 
     def delete_product(self, product_id: int) -> dict:
@@ -363,3 +372,10 @@ def _validate_product_data(data: dict) -> None:
         raise ValueError("El precio de venta no puede ser negativo")
     if int(data.get("cost_price", -1)) < 0:
         raise ValueError("El precio de costo no puede ser negativo")
+    if "stock" in data:
+        try:
+            st = float(data["stock"])
+        except (ValueError, TypeError):
+            raise ValueError("El stock debe ser un número válido")
+        if st < 0:
+            raise ValueError("El stock no puede ser negativo")

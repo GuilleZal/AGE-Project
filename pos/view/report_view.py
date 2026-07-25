@@ -33,6 +33,7 @@ from pos.view.widgets.column_persistence import (
 from pos.view.widgets.treeview_sorting import add_sorting_to_treeview
 from pos.view import theme
 from pos.view.theme import get_offset
+from pos.view.widgets.report_summary_dialog import ReportSummaryDialog
 
 
 class ReportView(ctk.CTkFrame):
@@ -186,16 +187,16 @@ class ReportView(ctk.CTkFrame):
             command=self._handle_generate,
         ).pack(side="left", padx=(15, 10))
 
-        # Right side: export diario button
-        self._export_diario_btn = ctk.CTkButton(
+        # Right side: view/export summary button
+        self._view_resumen_btn = ctk.CTkButton(
             top_bar,
-            text="Exportar Libro Diario (CSV)",
+            text="Ver/Exportar resumen",
             width=200,
             height=35,
             fg_color="#3b3b3b",
-            command=self._handle_export_diario,
+            command=self._handle_view_summary,
         )
-        self._export_diario_btn.grid(row=0, column=2, sticky="e", padx=(10, 15), pady=8)
+        self._view_resumen_btn.grid(row=0, column=2, sticky="e", padx=(10, 15), pady=8)
 
     def _build_kpi_panel(self) -> None:
         """Build the KPI cards row with 5 metric cards."""
@@ -240,10 +241,10 @@ class ReportView(ctk.CTkFrame):
             self._metric_cards[key] = value_lbl
 
     def _build_data_panel(self) -> None:
-        """Build the data panel with 2 columns: left (unified table) and right (chart + summary)."""
-        # Left column: Unified table (Top products / Low stock)
+        """Build the data panel with a full-width unified table."""
+        # Full-width unified table (Top products / Low stock)
         left_frame = ctk.CTkFrame(self, fg_color="transparent", border_width=2, border_color=self._border_color)
-        left_frame.grid(row=2, column=0, sticky="nsew", padx=(10, 5), pady=5)
+        left_frame.grid(row=2, column=0, columnspan=2, sticky="nsew", padx=10, pady=5)
         
         # Blindaje de grilla: Columna 0 (Tabla) se expande, Columna 1 (Scroll Vertical) reserva su espacio fijo
         left_frame.grid_columnconfigure(0, weight=1)
@@ -329,76 +330,10 @@ class ReportView(ctk.CTkFrame):
         self._report_scroll.grid(row=1, column=1, sticky="ns")
         self._report_hscroll.grid(row=2, column=0, columnspan=2, sticky="ew")
 
-        # Right column: Expense summary
-        right_frame = ctk.CTkFrame(self, fg_color="transparent", border_width=2, border_color=self._border_color)
-        right_frame.grid(row=2, column=1, sticky="nsew", padx=(5, 10), pady=5)
-        right_frame.grid_columnconfigure(0, weight=1)
-        right_frame.grid_rowconfigure(0, weight=1)
-
-        # Expense summary (DISEÑO INTEGRADO RESPONSIVO DE ALTO COMPLETO)
-        summary_frame = ctk.CTkFrame(right_frame, fg_color="transparent", border_width=0)
-        summary_frame.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
-        
-        # Dos columnas exactas al 50% para que los montos tengan máximo espacio
-        summary_frame.grid_columnconfigure(0, weight=1, uniform="sum")
-        summary_frame.grid_columnconfigure(1, weight=1, uniform="sum")
-        
-        # Hacemos que la fila del spacer (fila 5) tome todo el espacio sobrante
-        summary_frame.grid_rowconfigure(5, weight=1)
-
-        # Título en fila propia, ocupando todo el ancho
-        ctk.CTkLabel(
-            summary_frame,
-            text="Resumen de Egresos y Pérdidas",
-            font=theme.scaled_font(14, weight="bold"),
-            wraplength=350, # Evita estallar con fuentes gigantes
-        ).grid(row=0, column=0, columnspan=2, sticky="w", padx=5, pady=(5, 15))
-
-        self._summary_labels: dict[str, ctk.CTkLabel] = {}
-        summary_items = [
-            ("Proveedores:", "compras", "$0", "#888"),
-            ("Pérdidas:", "mermas", "$0", "#888"),
-            ("Gastos:", "gastos", "$0", "#888"),
-            ("Ganancias:", "ganancia_neta", "$0", "#4CAF50"),
-        ]
-
-        # Textos alineados a la izq y derecha con su propio espacio de 50/50
-        for idx, (label, key, default, color) in enumerate(summary_items, start=1):
-            font_size = 18 if key == "ganancia_neta" else 13
-            font_weight = "bold" if key == "ganancia_neta" else "normal"
-
-            ctk.CTkLabel(
-                summary_frame,
-                text=label,
-                font=theme.scaled_font(font_size, weight=font_weight),
-            ).grid(row=idx, column=0, sticky="w", padx=5, pady=6)
-
-            value_lbl = ctk.CTkLabel(
-                summary_frame,
-                text=default,
-                font=theme.scaled_font(font_size, weight=font_weight),
-                text_color=color,
-            )
-            value_lbl.grid(row=idx, column=1, sticky="e", padx=5, pady=6)
-            self._summary_labels[key] = value_lbl
-
-        # Fila 5: Fila vacía que sirve de espaciador empujando el botón al fondo
-        ctk.CTkFrame(summary_frame, fg_color="transparent", height=1).grid(row=5, column=0, columnspan=2, sticky="nsew")
-
-        # Botón de exportar en fila propia al fondo, estirado ocupando todo el ancho
-        self._export_resumen_btn = ctk.CTkButton(
-            summary_frame,
-            text="Exportar CSV",
-            height=32,
-            fg_color="#3b3b3b",
-            command=self._handle_export_diario,
-        )
-        self._export_resumen_btn.grid(row=6, column=0, columnspan=2, sticky="ew", padx=5, pady=(10, 5))
-
     # ---------------------------------------------------------------- public ---
 
     def update_report(self, data: dict[str, Any]) -> None:
-        """Refresh metrics, trees, and summary with report *data*."""
+        """Refresh metrics and trees with report *data*."""
         self._report_data = data
         sales = data.get("sales") or {}
         profit = data.get("profit") or {}
@@ -425,21 +360,6 @@ class ReportView(ctk.CTkFrame):
 
         # Update unified table
         self._populate_table()
-
-        # Update expense summary
-        self._summary_labels["compras"].configure(
-            text=f"${expenses.get('purchases', 0):,}"
-        )
-        self._summary_labels["mermas"].configure(
-            text=f"${expenses.get('shrinkage', 0):,}"
-        )
-        self._summary_labels["gastos"].configure(
-            text=f"${expenses.get('operating_expenses', 0):,}"
-        )
-        net_profit = expenses.get("net_profit", 0)
-        self._summary_labels["ganancia_neta"].configure(
-            text=f"${int(float(net_profit)):,}"
-        )
 
     def _update_payment_chart(self, payment_methods: list[dict]) -> None:
         """Update the payment methods pie chart (No-op after chart removal)."""
@@ -547,10 +467,19 @@ class ReportView(ctk.CTkFrame):
 
     def _controller_export_faltantes(self) -> None:
         """Export low stock products to CSV via file dialog."""
-        if not self._report_data:
+        low_stock = []
+        if getattr(self, "_controller", None) is not None:
+            result = self._controller.get_low_stock()
+            if result["success"]:
+                low_stock = result["data"]
+        
+        if not low_stock and self._report_data:
+            low_stock = self._report_data.get("low_stock") or []
+
+        if not low_stock:
             messagebox.showwarning(
                 "Sin datos",
-                "Genere un reporte antes de exportar.",
+                "No hay productos bajo stock para exportar.",
             )
             return
 
@@ -562,11 +491,48 @@ class ReportView(ctk.CTkFrame):
         if not filepath:
             return
 
-        # TODO: Implement low stock export logic
-        messagebox.showinfo(
-            "Exportación",
-            "Función de exportación de Productos Bajo Stock en desarrollo.",
-        )
+        # Format low stock data for export
+        export_data = []
+        for idx, item in enumerate(low_stock, 1):
+            stock_val = item.get("stock", 0.0)
+            unit_type = item.get("unit_type", "Unidad")
+            unit_suffix = "u." if unit_type == "Unidad" else "Kg"
+            
+            phys_stock = max(0.0, stock_val)
+            deficit = abs(stock_val) if stock_val < 0 else 0.0
+            
+            if unit_type == "Unidad":
+                phys_stock_str = f"{int(phys_stock)} {unit_suffix}"
+                deficit_str = f"{int(deficit)} {unit_suffix}" if deficit > 0 else f"0 {unit_suffix}"
+            else:
+                phys_stock_str = f"{phys_stock:.2f} {unit_suffix}".rstrip('0').rstrip('.')
+                deficit_str = f"{deficit:.2f} {unit_suffix}".rstrip('0').rstrip('.') if deficit > 0 else f"0 {unit_suffix}"
+
+            export_data.append({
+                "Nro": idx,
+                "Producto": item.get("name", "—"),
+                "Stock Actual": phys_stock_str,
+                "Faltante": deficit_str,
+                "Ubicación": item.get("location") or "—",
+            })
+
+        if getattr(self, "_controller", None) is not None:
+            res = self._controller.export_to_csv(export_data, filepath)
+            if res["success"]:
+                messagebox.showinfo(
+                    "Exportación exitosa",
+                    f"Se exportaron los productos bajo stock a:\n{res['data']}",
+                )
+            else:
+                messagebox.showerror(
+                    "Error de exportación",
+                    f"No se pudo exportar:\n{res['error']}",
+                )
+        else:
+            messagebox.showerror(
+                "Error",
+                "El controlador no está disponible.",
+            )
 
     # --------------------------------------------------------------- private ---
     def _prevent_resize(self, event: Any) -> str | None:
@@ -657,6 +623,18 @@ class ReportView(ctk.CTkFrame):
         """Handle export daily book button click."""
         if self._on_export_diario is not None:
             self._on_export_diario()
+
+    def _handle_view_summary(self) -> None:
+        """Open the modal dialog displaying the income and expense summary."""
+        if not self._report_data:
+            messagebox.showwarning(
+                "Sin datos",
+                "Genere un reporte antes de ver el resumen.",
+            )
+            return
+        
+        dialog = ReportSummaryDialog(self, self._report_data)
+        self.wait_window(dialog)
 
     def _handle_export_top(self) -> None:
         """Handle export top products button click."""
@@ -760,13 +738,30 @@ class ReportView(ctk.CTkFrame):
                 low_stock = self._report_data.get("low_stock") or []
 
             for idx, item in enumerate(low_stock, 1):
+                stock_val = item.get("stock", 0.0)
+                unit_type = item.get("unit_type", "Unidad")
+                unit_suffix = "u." if unit_type == "Unidad" else "Kg"
+                
+                try:
+                    f_stock = float(stock_val)
+                    if f_stock < 0:
+                        phys_stock = 0.0
+                        deficit = abs(f_stock)
+                        formatted_deficit = f"{deficit:.2f}".rstrip('0').rstrip('.') if not deficit.is_integer() else str(int(deficit))
+                        stock_display = f"0 {unit_suffix} (Faltante: {formatted_deficit})"
+                    else:
+                        formatted_stock = f"{f_stock:.2f}".rstrip('0').rstrip('.') if not f_stock.is_integer() else str(int(f_stock))
+                        stock_display = f"{formatted_stock} {unit_suffix}"
+                except ValueError:
+                    stock_display = str(stock_val)
+
                 self._report_tree.insert(
                     "",
                     "end",
                     values=(
                         idx,
                         item.get("name", "—"),
-                        item.get("stock", 0.0),
+                        stock_display,
                         item.get("location") or "—",
                     ),
                 )

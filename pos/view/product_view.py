@@ -183,8 +183,14 @@ class ProductView(ctk.CTkFrame):
             row=2, column=0, sticky="ew", padx=10, pady=(5, 10)
         )
 
+        row0_frame = ctk.CTkFrame(self._action_frame, fg_color="transparent")
+        row0_frame.pack(fill="x", expand=True, pady=2)
+
+        row1_frame = ctk.CTkFrame(self._action_frame, fg_color="transparent")
+        row1_frame.pack(fill="x", expand=True, pady=2)
+
         ctk.CTkButton(
-            self._action_frame,
+            row0_frame,
             text="＋ Nuevo Producto",
             width=150,
             font=theme.scaled_font(13, weight="bold"),
@@ -193,36 +199,57 @@ class ProductView(ctk.CTkFrame):
         ).pack(side="left", padx=3)
 
         ctk.CTkButton(
-            self._action_frame,
-            text="📋 Gestionar",
-            width=140,
+            row0_frame,
+            text="✎ Editar",
+            width=100,
+            font=theme.scaled_font(13, weight="bold"),
+            fg_color="#1f538d",
+            command=self._handle_edit_btn,
+        ).pack(side="left", padx=3)
+
+        ctk.CTkButton(
+            row0_frame,
+            text="🗑 Eliminar",
+            width=100,
+            font=theme.scaled_font(13, weight="bold"),
+            fg_color="#8b1a1a",
+            command=self._handle_delete_btn,
+        ).pack(side="left", padx=3)
+
+        ctk.CTkButton(
+            row0_frame,
+            text="📋 Gestionar Categorías",
+            width=170,
             font=theme.scaled_font(13, weight="bold"),
             fg_color="#1f538d",
             command=self._handle_management,
         ).pack(side="left", padx=3)
 
         ctk.CTkButton(
-            self._action_frame,
+            row1_frame,
             text="📥 Importar Excel",
             width=140,
+            font=theme.scaled_font(13, weight="bold"),
             fg_color="#3b3b3b",
             command=self._handle_import,
         ).pack(side="left", padx=3)
 
         # --- preferences button ---
         ctk.CTkButton(
-            self._action_frame,
+            row1_frame,
             text="⚙ Preferencias",
             width=130,
+            font=theme.scaled_font(13, weight="bold"),
             fg_color="#4a4a4a",
             command=self._handle_preferences,
         ).pack(side="left", padx=3)
 
         # --- refresh button ---
         ctk.CTkButton(
-            self._action_frame,
+            row1_frame,
             text="🔄 Actualizar",
             width=120,
+            font=theme.scaled_font(13, weight="bold"),
             fg_color="#3b3b3b",
             command=self._refresh_products,
         ).pack(side="right", padx=3)
@@ -278,11 +305,16 @@ class ProductView(ctk.CTkFrame):
             # Format stock with warning icon if low and unit
             try:
                 f_stock = float(stock)
-                formatted_stock = f"{f_stock:.2f}".rstrip('0').rstrip('.') if not f_stock.is_integer() else str(int(f_stock))
+                if f_stock < 0:
+                    phys_stock = 0.0
+                    deficit = abs(f_stock)
+                    formatted_deficit = f"{deficit:.2f}".rstrip('0').rstrip('.') if not deficit.is_integer() else str(int(deficit))
+                    stock_display = f"0 Kg (Faltante: {formatted_deficit})" if unit_type == "Kg" else f"0 u. (Faltante: {formatted_deficit})"
+                else:
+                    formatted_stock = f"{f_stock:.2f}".rstrip('0').rstrip('.') if not f_stock.is_integer() else str(int(f_stock))
+                    stock_display = f"{formatted_stock} Kg" if unit_type == "Kg" else f"{formatted_stock} u."
             except ValueError:
-                formatted_stock = str(stock)
-
-            stock_display = f"{formatted_stock} Kg" if unit_type == "Kg" else f"{formatted_stock} u."
+                stock_display = str(stock)
             
             is_low_stock = False
             if isinstance(stock, (int, float)) and isinstance(low_stock_threshold, (int, float)):
@@ -588,9 +620,7 @@ class ProductView(ctk.CTkFrame):
             return
         confirm = messagebox.askyesno(
             "Confirmar eliminación",
-            "¿Está seguro de eliminar este producto?\n"
-            "Esta acción no se puede deshacer si el producto "
-            "no tiene transacciones asociadas.",
+            "¿Está seguro de que desea eliminar este producto?",
         )
         if confirm and self._on_delete is not None:
             self._on_delete(pid)

@@ -260,3 +260,23 @@ class TestGenerateTemplate:
         ws = wb.active
         headers = [cell.value for cell in next(ws.iter_rows(min_row=1, max_row=1))]
         assert headers == ["codigo", "nombre", "categoria", "precio_venta", "precio_costo", "stock"]
+
+
+class TestProductNegativeStockValidation:
+    """Validate that stock cannot be negative during creation and updates."""
+
+    def test_create_negative_stock_blocked(self, product_ctrl):
+        result = product_ctrl.create_product({
+            "name": "Sprite 2L",
+            "sale_price": 600,
+            "cost_price": 350,
+            "stock": -10,
+        })
+        assert result["success"] is False
+        assert "no puede ser negativo" in result["error"].lower()
+
+    def test_update_negative_stock_blocked(self, product_ctrl, sample_products):
+        pid = sample_products[0]
+        result = product_ctrl.update_product(pid, {"stock": -5})
+        assert result["success"] is False
+        assert "no puede ser negativo" in result["error"].lower()

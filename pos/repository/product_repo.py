@@ -96,6 +96,7 @@ class ProductRepo:
             """SELECT p.id AS product_id,
                       p.name,
                       p.stock,
+                      p.unit_type,
                       COALESCE(c.name, 'Sin categoría') AS location
                FROM products p
                LEFT JOIN categories c ON p.category_id = c.id
