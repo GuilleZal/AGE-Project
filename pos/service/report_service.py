@@ -131,6 +131,8 @@ class ReportService:
     _PAYMENT_METHOD_LABELS: dict[str, str] = {
         "cash": "Efectivo",
         "card": "Tarjeta",
+        "debit_card": "Tarjeta de Débito",
+        "credit_card": "Tarjeta de Crédito",
         "transfer": "Transferencia",
     }
 
@@ -139,8 +141,8 @@ class ReportService:
     ) -> list[dict]:
         """Return revenue breakdown by payment method for the given period.
 
-        Each entry includes the absolute total and its percentage of total
-        revenue.
+        Each entry includes the absolute total, operations count and its percentage
+        of total revenue.
 
         Args:
             start_date: ISO-like datetime string (inclusive).
@@ -148,7 +150,7 @@ class ReportService:
 
         Returns:
             List of dicts with keys ``payment_method`` (str),
-            ``total_amount`` (int), ``percentage`` (float).
+            ``sale_count`` (int), ``total_amount`` (int), ``percentage`` (float).
             Sorted by ``total_amount`` DESC.
         """
         raw = self._sale_repo.total_by_payment_method(start_date, end_date)
@@ -158,6 +160,7 @@ class ReportService:
         for item in raw:
             method = item["payment_method"]
             total_amount = item["total_amount"]
+            sale_count = item.get("sale_count", 0)
             percentage = (
                 round((total_amount / grand_total) * 100, 1)
                 if grand_total > 0
@@ -168,6 +171,7 @@ class ReportService:
                     "payment_method": self._PAYMENT_METHOD_LABELS.get(
                         method, method
                     ),
+                    "sale_count": sale_count,
                     "total_amount": total_amount,
                     "percentage": percentage,
                 }
@@ -175,6 +179,66 @@ class ReportService:
 
         result.sort(key=lambda x: x["total_amount"], reverse=True)
         return result
+
+    # ---------------------------------------------------- sales by category
+
+    def sales_by_category(
+        self, start_date: str, end_date: str
+    ) -> list[dict]:
+        """Return sales aggregate by product category for the given period.
+
+        Args:
+            start_date: ISO-like datetime string (inclusive).
+            end_date:   ISO-like datetime string (inclusive).
+
+        Returns:
+            List of dicts with keys: ``category_name``, ``qty_kg``, ``qty_unit``,
+            ``total_amount``.
+        """
+        rows = self._db.execute(
+            """SELECT COALESCE(c.name, 'Sin categoría') AS category_name,
+                       SUM(CASE WHEN p.unit_type = 'Kg' THEN si.quantity ELSE 0 END) AS qty_kg,
+                       SUM(CASE WHEN p.unit_type = 'Unidad' THEN si.quantity ELSE 0 END) AS qty_unit,
+                       SUM(si.subtotal) AS total_amount
+                FROM sale_items si
+                JOIN products p ON p.id = si.product_id
+                LEFT JOIN categories c ON c.id = p.category_id
+                JOIN sales s ON s.id = si.sale_id
+                WHERE s.created_at >= ? AND s.created_at <= ?
+                GROUP BY p.category_id
+                ORDER BY total_amount DESC""",
+            (start_date, end_date),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+    # ------------------------------------------------------ returns history
+
+    def returns_history(
+        self, start_date: str, end_date: str
+    ) -> list[dict]:
+        """Return returns history for the given period with product details.
+
+        Args:
+            start_date: ISO-like datetime string (inclusive).
+            end_date:   ISO-like datetime string (inclusive).
+
+        Returns:
+            List of dicts with keys: ``created_at``, ``product_name``,
+            ``quantity``, ``refund_amount``, ``reason``.
+        """
+        rows = self._db.execute(
+            """SELECT r.created_at,
+                       p.name AS product_name,
+                       r.quantity,
+                       r.refund_amount,
+                       r.reason
+                FROM returns r
+                JOIN products p ON p.id = r.product_id
+                WHERE r.created_at >= ? AND r.created_at <= ?
+                ORDER BY r.created_at DESC""",
+            (start_date, end_date),
+        ).fetchall()
+        return [dict(r) for r in rows]
 
     # ----------------------------------------------- purchases summary ----
 
@@ -236,9 +300,18 @@ class ReportService:
             (start_date, end_date),
         ).fetchone()
 
+        # Pérdidas (shrinkage) = returns with reasons other than "Producto en buenas condiciones"
+        shrinkage = self._db.execute(
+            """SELECT COALESCE(SUM(refund_amount), 0) AS total
+               FROM returns
+               WHERE (reason IS NULL OR reason != 'Producto en buenas condiciones')
+                 AND created_at >= ? AND created_at <= ?""",
+            (start_date, end_date),
+        ).fetchone()
+
         return {
             "purchases": purchases["total"] or 0,
-            "shrinkage": 0,  # No source yet
+            "shrinkage": shrinkage["total"] or 0,
             "operating_expenses": operating["total"] or 0,
         }
 

@@ -198,6 +198,16 @@ def _run_migrations(conn: sqlite3.Connection) -> None:
     if "unit_type" not in columns:
         conn.execute("ALTER TABLE products ADD COLUMN unit_type TEXT NOT NULL DEFAULT 'Unidad' CHECK(unit_type IN ('Unidad', 'Kg'))")
 
+    # Migration 10: Add user_id column to cash_registers table
+    row = conn.execute("PRAGMA table_info(cash_registers)").fetchall()
+    columns = [col["name"] for col in row]
+    if "user_id" not in columns:
+        try:
+            conn.execute("ALTER TABLE cash_registers ADD COLUMN user_id INTEGER REFERENCES users(id)")
+            conn.commit()
+        except Exception:
+            pass
+
 
 # ------------------------------------------------------------------ DDL ----
 # NOTE: Currency fields (prices, amounts, totals) use INTEGER to represent
@@ -302,7 +312,8 @@ CREATE TABLE IF NOT EXISTS cash_registers (
     expected_amount INTEGER,
     difference      INTEGER,
     close_reason    TEXT,
-    status          TEXT NOT NULL DEFAULT 'open' CHECK(status IN ('open','closed'))
+    status          TEXT NOT NULL DEFAULT 'open' CHECK(status IN ('open','closed')),
+    user_id         INTEGER REFERENCES users(id)
 );
 CREATE INDEX IF NOT EXISTS idx_cash_registers_status ON cash_registers(status);
 CREATE INDEX IF NOT EXISTS idx_cash_registers_time   ON cash_registers(opening_time);

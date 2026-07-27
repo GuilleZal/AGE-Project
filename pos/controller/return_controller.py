@@ -64,7 +64,7 @@ class ReturnController:
     # ---------------------------------------------------------- process return --
 
     def process_return(
-        self, product_id: int, quantity: float, reason: str | None = None
+        self, product_id: int, quantity: float, reason: str | None = "Producto en buenas condiciones"
     ) -> dict:
         """Process an atomic product return.
 
@@ -115,8 +115,9 @@ class ReturnController:
             # --- Transaction ---
             self._db.execute("BEGIN")
 
-            # Restore stock
-            self._stock_service.restore(product_id, quantity)
+            # Restore stock only if in good condition
+            if reason == "Producto en buenas condiciones":
+                self._stock_service.restore(product_id, quantity)
 
             # Record return
             return_ = Return(

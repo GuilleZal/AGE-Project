@@ -242,3 +242,148 @@ class TestExportCSV:
                 content = f.read()
             assert "producto;ventas" in content
             assert "Coca;10" in content
+
+
+# ------------------------------------------------ payment methods summary
+
+class TestPaymentMethodsSummary:
+    def test_payment_methods_summary(self, db: sqlite3.Connection, sample_products: list[int]):
+        _seed_sales(db, sample_products)
+        svc = ReportService(db)
+
+        result = svc.payment_methods_summary("2026-06-01 00:00:00", "2026-06-05 23:59:59")
+        # Seeded sales payment methods:
+        # Sale 1: cash ($3300)
+        # Sale 2: card ($4000)
+        # Sale 3: cash ($19000)
+        # Sale 4: transfer ($2500)
+        # Sale 5: cash ($3000)
+        # Totals: cash = 25300, card = 4000, transfer = 2500. Grand total = 31800.
+        # Counts: cash = 3, card = 1, transfer = 1
+        
+        assert len(result) == 3
+        # Sorted by total DESC, so first should be cash (Efectivo)
+        assert result[0]["payment_method"] == "Efectivo"
+        assert result[0]["total_amount"] == 25300
+        assert result[0]["sale_count"] == 3
+        assert result[0]["percentage"] == pytest.approx(round((25300/31800)*100, 1))
+
+        assert result[1]["payment_method"] == "Tarjeta"
+        assert result[1]["total_amount"] == 4000
+        assert result[1]["sale_count"] == 1
+
+        assert result[2]["payment_method"] == "Transferencia"
+        assert result[2]["total_amount"] == 2500
+        assert result[2]["sale_count"] == 1
+
+
+# ---------------------------------------------------- sales by category
+
+class TestSalesByCategory:
+    def test_sales_by_category(self, db: sqlite3.Connection, sample_products: list[int]):
+        # Update products to set unit_type for Kg products
+        db.execute("UPDATE products SET unit_type = 'Kg' WHERE name LIKE '%x Kg%'")
+        db.commit()
+
+        _seed_sales(db, sample_products)
+        svc = ReportService(db)
+
+        result = svc.sales_by_category("2026-06-01 00:00:00", "2026-06-05 23:59:59")
+        # Product categories:
+        # p1 (Coca): bebidas (Unidad)
+        # p2 (Fernet): bebidas (Unidad)
+        # p3 (Queso): snacks (Kg)
+        # p4 (Maní): snacks (Kg)
+        # p5 (Six-Pack): bebidas (Unidad)
+        #
+        # Seeded sales items:
+        # Sale 1: Coca x2 ($1600) -> bebidas, Fernet x1 ($2500) -> bebidas
+        # Sale 2: Six-Pack x2 ($4000) -> bebidas
+        # Sale 3: Queso x2 ($19000) -> snacks
+        # Sale 4: Fernet x1 ($2500) -> bebidas
+        # Sale 5: Maní x1 ($3000) -> snacks
+        #
+        # Totals by category:
+        # Bebidas: 1600 (Coca) + 2500 (Fernet) + 4000 (Six-Pack) + 2500 (Fernet) = 10600
+        # Snacks: 19000 (Queso) + 3000 (Maní) = 22000
+        
+        assert len(result) == 2
+        # Sorted by total_amount DESC, so first should be Snacks
+        assert result[0]["category_name"] == "Snacks"
+        assert result[0]["total_amount"] == 22000
+        assert result[0]["qty_kg"] == 3.0 # Queso (2) + Mani (1)
+        assert result[0]["qty_unit"] == 0.0
+
+        assert result[1]["category_name"] == "Bebidas"
+        assert result[1]["total_amount"] == 10600
+        assert result[1]["qty_kg"] == 0.0
+        assert result[1]["qty_unit"] == 6.0 # Coca (2) + Fernet (1) + Six-pack (2) + Fernet (1)
+
+
+# ------------------------------------------------------ returns history
+
+class TestReturnsHistory:
+    def test_returns_history(self, db: sqlite3.Connection, sample_products: list[int], open_register: int):
+        p1, p2, p3, p4, p5 = sample_products
+        # Insert some returns
+        db.execute(
+            """INSERT INTO returns (product_id, quantity, refund_amount, reason, cash_register_id, created_at)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (p1, 1, 800, "Producto fallado", open_register, "2026-06-02 11:00:00")
+        )
+        db.execute(
+            """INSERT INTO returns (product_id, quantity, refund_amount, reason, cash_register_id, created_at)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (p3, 0.5, 4750, "Exceso de peso", open_register, "2026-06-03 15:30:00")
+        )
+        db.commit()
+
+        svc = ReportService(db)
+        result = svc.returns_history("2026-06-01 00:00:00", "2026-06-05 23:59:59")
+
+        # Should return returns ordered by created_at DESC
+        assert len(result) == 2
+        assert result[0]["product_name"] == "Queso Cremoso x Kg"
+        assert result[0]["quantity"] == 0.5
+        assert result[0]["refund_amount"] == 4750
+        assert result[0]["reason"] == "Exceso de peso"
+        assert result[0]["created_at"] == "2026-06-03 15:30:00"
+
+        assert result[1]["product_name"] == "Coca-Cola 1.5L"
+        assert result[1]["quantity"] == 1.0
+        assert result[1]["refund_amount"] == 800
+        assert result[1]["reason"] == "Producto fallado"
+        assert result[1]["created_at"] == "2026-06-02 11:00:00"
+
+
+# ---------------------------------------------------- expenses summary
+
+class TestExpensesSummaryShrinkage:
+    def test_expenses_summary_shrinkage_calculation(self, db: sqlite3.Connection, sample_products: list[int], open_register: int):
+        p1, p2, p3, p4, p5 = sample_products
+        # Returns:
+        # 1. Product fallado (invalid) -> should be counted in shrinkage ($800)
+        # 2. Producto en buenas condiciones (valid) -> should NOT be counted ($1500)
+        # 3. NULL reason -> should be counted ($2000)
+        db.execute(
+            """INSERT INTO returns (product_id, quantity, refund_amount, reason, cash_register_id, created_at)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (p1, 1, 800, "Producto fallado", open_register, "2026-06-02 11:00:00")
+        )
+        db.execute(
+            """INSERT INTO returns (product_id, quantity, refund_amount, reason, cash_register_id, created_at)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (p2, 1, 1500, "Producto en buenas condiciones", open_register, "2026-06-03 12:00:00")
+        )
+        db.execute(
+            """INSERT INTO returns (product_id, quantity, refund_amount, reason, cash_register_id, created_at)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (p3, 1, 2000, None, open_register, "2026-06-04 15:30:00")
+        )
+        db.commit()
+
+        svc = ReportService(db)
+        result = svc.expenses_summary("2026-06-01 00:00:00", "2026-06-05 23:59:59")
+
+        # shrinkage should be 800 + 2000 = 2800
+        assert result["shrinkage"] == 2800

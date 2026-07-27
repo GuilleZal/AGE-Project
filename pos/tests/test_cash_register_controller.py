@@ -179,6 +179,16 @@ class TestGetHistory:
         assert result["success"] is True
         assert len(result["data"]) == 0
 
+    def test_get_history_with_username(self, cash_ctrl, db):
+        db.execute("INSERT INTO users (username, password, role) VALUES ('test_user', 'pass', 'admin')")
+        db.execute("INSERT INTO sessions (user_id) VALUES (1)")
+        db.commit()
+        cash_ctrl.open_register(5000)
+        result = cash_ctrl.get_history()
+        assert result["success"] is True
+        assert len(result["data"]) == 1
+        assert result["data"][0]["username"] == "test_user"
+
 
 class TestGetRegisterBalance:
     """Balance retrieval for any cash register session."""

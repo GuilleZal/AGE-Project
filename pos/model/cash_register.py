@@ -21,6 +21,8 @@ class CashRegister:
     difference: int | None = None
     close_reason: str | None = None
     status: str = "open"
+    user_id: int | None = None
+    username: str | None = None
 
 
 @dataclass

@@ -267,6 +267,10 @@ def _wire_views(conn, app, permissions) -> None:
     if product_view:
         app.on_tab_change("Productos", product_view._refresh_products)
 
+    # Initial status refresh for the register badge if it exists
+    if hasattr(app, "refresh_register_status"):
+        app.refresh_register_status()
+
 
 if __name__ == "__main__":
     main()

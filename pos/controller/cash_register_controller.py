@@ -50,7 +50,13 @@ class CashRegisterController:
                     "error": "Ya existe una caja abierta. Ciérrela antes de abrir una nueva.",
                 }
 
-            register = self._register_repo.open_register(initial_amount)
+            # Find active user_id from session
+            user_row = self._db.execute(
+                "SELECT user_id FROM sessions WHERE logout_time IS NULL ORDER BY login_time DESC LIMIT 1"
+            ).fetchone()
+            user_id = user_row["user_id"] if user_row else None
+
+            register = self._register_repo.open_register(initial_amount, user_id)
             self._db.commit()
             return {"success": True, "data": register, "error": None}
         except POSException as e:
@@ -244,6 +250,8 @@ class CashRegisterController:
 
             balance = self._register_repo.get_balance(active.id)
             balance["difference"] = balance["expected"] - balance["opening"]
+            balance["closing"] = None
+            balance["diff_cash"] = None
             return {
                 "success": True,
                 "data": {
@@ -308,6 +316,7 @@ class CashRegisterController:
                         "difference": r.difference,
                         "close_reason": r.close_reason,
                         "status": r.status,
+                        "username": r.username,
                     }
                     for r in registers
                 ],
@@ -330,10 +339,13 @@ class CashRegisterController:
             if row["status"] == "closed":
                 # For closed registers, use the physically stored difference (closing_amount - expected_amount)
                 balance["difference"] = row["difference"]
+                balance["diff_cash"] = row["closing_amount"] - balance["expected_cash"]
             else:
                 # For open/active registers, use net flow (expected - opening)
                 balance["difference"] = balance["expected"] - balance["opening"]
+                balance["diff_cash"] = None
                 
+            balance["closing"] = row["closing_amount"]
             return {"success": True, "data": balance, "error": None}
         except POSException as e:
             return {"success": False, "data": None, "error": str(e)}

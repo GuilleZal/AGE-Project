@@ -80,7 +80,7 @@ class CashRegisterView(ctk.CTkFrame):
         contrast = theme.get_contrast_map()
         border_color = contrast["search_border"]
 
-        self._left_frame = ctk.CTkFrame(self, fg_color="transparent")
+        self._left_frame = ctk.CTkScrollableFrame(self, fg_color="transparent")
         # Colchón inferior asegurado para no chocar con el borde maestro
         self._left_frame.grid(
             row=0, column=0, sticky="nsew", padx=(10, 5), pady=(10, 5)
@@ -99,46 +99,184 @@ class CashRegisterView(ctk.CTkFrame):
         )
 
         # -- balance panel --
-        self._balance_frame = ctk.CTkFrame(
-            self._left_frame, fg_color="transparent", border_width=2, border_color=border_color
-        )
-        self._balance_frame.grid(
-            row=1, column=0, sticky="ew", padx=10, pady=(0, 8)
-        )
-        self._balance_frame.grid_columnconfigure(0, weight=1)
+        # -- balance container frame --
+        self._balance_container = ctk.CTkFrame(self._left_frame, fg_color="transparent")
+        self._balance_container.grid(row=1, column=0, sticky="ew", padx=10, pady=(0, 8))
+        self._balance_container.grid_columnconfigure(0, weight=1)
 
         self._balance_labels: dict[str, ctk.CTkLabel] = {}
-        metrics = [
-            ("Inicio:", "initial", "—"),
-            ("Ingresos:", "inflows", "—"),
-            ("Egresos:", "outflows", "—"),
-            ("Esperado:", "expected", "—"),
-            ("Diferencia:", "difference", "—"),
-        ]
-        for idx, (label, key, default) in enumerate(metrics):
-            # Magia de márgenes: más espacio arriba para el primero, más abajo para el último
-            if idx == 0:
-                current_pady = (10, 2)
-            elif idx == len(metrics) - 1:
-                current_pady = (2, 10)
-            else:
-                current_pady = (3, 3)
 
+        # ----------------- Module 1: DATOS DE INICIO -----------------
+        self._init_module_frame = ctk.CTkFrame(
+            self._balance_container, fg_color="transparent", border_width=1, border_color=border_color
+        )
+        self._init_module_frame.grid(row=0, column=0, sticky="ew", pady=(0, 4))
+        self._init_module_frame.grid_columnconfigure(0, weight=1)
+        self._init_module_frame.grid_columnconfigure(1, weight=0)
+
+        ctk.CTkLabel(
+            self._init_module_frame,
+            text="DATOS DE INICIO",
+            font=theme.scaled_font(12, weight="bold"),
+            anchor="w",
+        ).grid(row=0, column=0, columnspan=2, sticky="w", padx=12, pady=(8, 4))
+
+        ctk.CTkLabel(
+            self._init_module_frame,
+            text="Inicio efectivo",
+            font=theme.scaled_font(12),
+            anchor="w",
+        ).grid(row=1, column=0, sticky="w", padx=12, pady=(2, 8))
+
+        self._balance_labels["initial"] = ctk.CTkLabel(
+            self._init_module_frame,
+            text="—",
+            font=theme.scaled_font(12, weight="bold"),
+            anchor="e",
+        )
+        self._balance_labels["initial"].grid(row=1, column=1, sticky="e", padx=12, pady=(2, 8))
+
+        # ----------------- Module 2: FLUJO DE INGRESOS (Desglose) -----------------
+        self._inflows_module_frame = ctk.CTkFrame(
+            self._balance_container, fg_color="transparent", border_width=1, border_color=border_color
+        )
+        self._inflows_module_frame.grid(row=1, column=0, sticky="ew", pady=4)
+        self._inflows_module_frame.grid_columnconfigure(0, weight=1)
+        self._inflows_module_frame.grid_columnconfigure(1, weight=0)
+
+        ctk.CTkLabel(
+            self._inflows_module_frame,
+            text="FLUJO DE INGRESOS (Desglose)",
+            font=theme.scaled_font(12, weight="bold"),
+            anchor="w",
+        ).grid(row=0, column=0, columnspan=2, sticky="w", padx=12, pady=(8, 4))
+
+        inflow_rows = [
+            ("Efectivo", "inflow_cash"),
+            ("Transferencia", "inflow_transfer"),
+            ("Débito", "inflow_debit"),
+            ("Crédito", "inflow_credit"),
+        ]
+        for idx, (lbl_txt, key) in enumerate(inflow_rows, start=1):
+            pady_val = (2, 8) if idx == len(inflow_rows) else (2, 2)
             ctk.CTkLabel(
-                self._balance_frame,
-                text=label,
-                font=theme.scaled_font(13),
+                self._inflows_module_frame,
+                text=lbl_txt,
+                font=theme.scaled_font(12),
                 anchor="w",
-            ).grid(row=idx, column=0, sticky="w", padx=15, pady=current_pady)
-            
-            lbl = ctk.CTkLabel(
-                self._balance_frame,
-                text=default,
-                font=theme.scaled_font(13, weight="bold"),
+            ).grid(row=idx, column=0, sticky="w", padx=12, pady=pady_val)
+
+            self._balance_labels[key] = ctk.CTkLabel(
+                self._inflows_module_frame,
+                text="—",
+                font=theme.scaled_font(12, weight="bold"),
                 anchor="e",
             )
-            lbl.grid(row=idx, column=1, sticky="e", padx=15, pady=current_pady)
-            self._balance_labels[key] = lbl
+            self._balance_labels[key].grid(row=idx, column=1, sticky="e", padx=12, pady=pady_val)
+
+        # ----------------- Module 3: FLUJO DE EGRESOS -----------------
+        self._outflows_module_frame = ctk.CTkFrame(
+            self._balance_container, fg_color="transparent", border_width=1, border_color=border_color
+        )
+        self._outflows_module_frame.grid(row=2, column=0, sticky="ew", pady=4)
+        self._outflows_module_frame.grid_columnconfigure(0, weight=1)
+        self._outflows_module_frame.grid_columnconfigure(1, weight=0)
+
+        ctk.CTkLabel(
+            self._outflows_module_frame,
+            text="FLUJO DE EGRESOS",
+            font=theme.scaled_font(12, weight="bold"),
+            anchor="w",
+        ).grid(row=0, column=0, columnspan=2, sticky="w", padx=12, pady=(8, 4))
+
+        outflow_rows = [
+            ("Pago a proveedores", "outflow_supplier"),
+            ("Gastos", "outflow_expense"),
+            ("Egresos Total", "outflow_total"),
+        ]
+        for idx, (lbl_txt, key) in enumerate(outflow_rows, start=1):
+            pady_val = (2, 8) if idx == len(outflow_rows) else (2, 2)
+            font_val = theme.scaled_font(12, weight="bold") if key == "outflow_total" else theme.scaled_font(12)
+            
+            ctk.CTkLabel(
+                self._outflows_module_frame,
+                text=lbl_txt,
+                font=font_val,
+                anchor="w",
+            ).grid(row=idx, column=0, sticky="w", padx=12, pady=pady_val)
+
+            self._balance_labels[key] = ctk.CTkLabel(
+                self._outflows_module_frame,
+                text="—",
+                font=theme.scaled_font(12, weight="bold"),
+                anchor="e",
+            )
+            self._balance_labels[key].grid(row=idx, column=1, sticky="e", padx=12, pady=pady_val)
+
+        # ----------------- Module 4: ARQUEO EFECTIVO (Auditado) -----------------
+        self._arqueo_module_frame = ctk.CTkFrame(
+            self._balance_container, fg_color="transparent", border_width=1, border_color=border_color
+        )
+        self._arqueo_module_frame.grid(row=3, column=0, sticky="ew", pady=(4, 0))
+        self._arqueo_module_frame.grid_columnconfigure(0, weight=1)
+        self._arqueo_module_frame.grid_columnconfigure(1, weight=0)
+
+        ctk.CTkLabel(
+            self._arqueo_module_frame,
+            text="ARQUEO EFECTIVO (Auditado)",
+            font=theme.scaled_font(12, weight="bold"),
+            anchor="w",
+        ).grid(row=0, column=0, columnspan=2, sticky="w", padx=12, pady=(8, 4))
+
+        ctk.CTkLabel(
+            self._arqueo_module_frame,
+            text="Esperado efectivo",
+            font=theme.scaled_font(12),
+            anchor="w",
+        ).grid(row=1, column=0, sticky="w", padx=12, pady=(2, 2))
+
+        self._balance_labels["expected_cash"] = ctk.CTkLabel(
+            self._arqueo_module_frame,
+            text="—",
+            font=theme.scaled_font(12, weight="bold"),
+            anchor="e",
+        )
+        self._balance_labels["expected_cash"].grid(row=1, column=1, sticky="e", padx=12, pady=(2, 2))
+
+        ctk.CTkLabel(
+            self._arqueo_module_frame,
+            text="Final declarado efectivo",
+            font=theme.scaled_font(12),
+            anchor="w",
+        ).grid(row=2, column=0, sticky="w", padx=12, pady=(2, 2))
+
+        self._balance_labels["final_cash"] = ctk.CTkLabel(
+            self._arqueo_module_frame,
+            text="—",
+            font=theme.scaled_font(12, weight="bold"),
+            anchor="e",
+        )
+        self._balance_labels["final_cash"].grid(row=2, column=1, sticky="e", padx=12, pady=(2, 2))
+
+        self._diff_cash_lbl_widget = ctk.CTkLabel(
+            self._arqueo_module_frame,
+            text="Diferencia efectivo",
+            font=theme.scaled_font(12, weight="bold"),
+            anchor="w",
+            text_color=theme.get_contrast_map()["text"],
+        )
+        self._diff_cash_lbl_widget._custom_theme_color = "skip"
+        self._diff_cash_lbl_widget.grid(row=3, column=0, sticky="w", padx=12, pady=(2, 8))
+
+        self._balance_labels["diff_cash"] = ctk.CTkLabel(
+            self._arqueo_module_frame,
+            text="—",
+            font=theme.scaled_font(12, weight="bold"),
+            anchor="e",
+            text_color=theme.get_contrast_map()["text"],
+        )
+        self._balance_labels["diff_cash"]._custom_theme_color = "skip"
+        self._balance_labels["diff_cash"].grid(row=3, column=1, sticky="e", padx=12, pady=(2, 8))
 
         # -- open / close buttons --
         btn_frame = ctk.CTkFrame(self._left_frame, fg_color="transparent", border_width=2, border_color=border_color)
@@ -379,15 +517,27 @@ class CashRegisterView(ctk.CTkFrame):
         ).grid(row=1, column=2, sticky="e", padx=(0, 3), pady=(2, 0)) # sticky="e" ancla a la derecha
 
 
-        # COLUMNAS ACTUALIZADAS: Se eliminó "estado"
-        self._history_columns = (
-            "id",
-            "apertura",
-            "cierre",
-            "inicial",
-            "final",
-            "diferencia",
-        )
+        # Check if the role is admin or gerente
+        is_admin_or_gerente = self._role in ("admin", "gerente")
+
+        if is_admin_or_gerente:
+            self._history_columns = (
+                "id",
+                "apertura",
+                "cierre",
+                "usuario",
+                "motivo",
+            )
+        else:
+            self._history_columns = (
+                "id",
+                "apertura",
+                "cierre",
+                "inicial",
+                "final",
+                "diferencia",
+            )
+
         self._style = ttk.Style(self._history_frame)
         self._configure_style()
 
@@ -396,35 +546,52 @@ class CashRegisterView(ctk.CTkFrame):
             columns=self._history_columns,
             show="headings",
             selectmode="browse",
-            height=10, # <--- Aumentado de 8 a 10 para ganar más filas
+            height=10,
         )
         
         self._history_tree.heading("id", text="ID")
         self._history_tree.heading("apertura", text="Apertura")
         self._history_tree.heading("cierre", text="Cierre")
-        self._history_tree.heading("inicial", text="Inicial")
-        self._history_tree.heading("final", text="Final")
-        self._history_tree.heading("diferencia", text="Dif.")
+        
+        if is_admin_or_gerente:
+            self._history_tree.heading("usuario", text="Usuario")
+            self._history_tree.heading("motivo", text="Motivo")
 
-        self._history_tree.column("id", width=60, minwidth=60, anchor="center")
-        self._history_tree.column("apertura", width=130, minwidth=130) 
-        self._history_tree.column("cierre", width=130, minwidth=130)   
-        self._history_tree.column("inicial", width=110, minwidth=110, anchor="e")
-        self._history_tree.column("final", width=110, minwidth=110, anchor="e")
-        self._history_tree.column("diferencia", width=100, minwidth=100, anchor="e")
+            self._history_tree.column("id", width=60, minwidth=60, anchor="center")
+            self._history_tree.column("apertura", width=180, minwidth=180, anchor="center") 
+            self._history_tree.column("cierre", width=180, minwidth=180, anchor="center")   
+            self._history_tree.column("usuario", width=120, minwidth=120, anchor="center")
+            self._history_tree.column("motivo", width=150, minwidth=150, anchor="w")
+        else:
+            self._history_tree.heading("inicial", text="Inicial")
+            self._history_tree.heading("final", text="Final")
+            self._history_tree.heading("diferencia", text="Dif.")
+
+            self._history_tree.column("id", width=60, minwidth=60, anchor="center")
+            self._history_tree.column("apertura", width=130, minwidth=130) 
+            self._history_tree.column("cierre", width=130, minwidth=130)   
+            self._history_tree.column("inicial", width=110, minwidth=110, anchor="e")
+            self._history_tree.column("final", width=110, minwidth=110, anchor="e")
+            self._history_tree.column("diferencia", width=100, minwidth=100, anchor="e")
         
         # Cargamos solo el ordenamiento (Eliminamos el filtro y la carga de anchos guardados)
+        column_types = {
+            "id": "int",
+            "apertura": "str",
+            "cierre": "str",
+        }
+        if is_admin_or_gerente:
+            column_types["usuario"] = "str"
+            column_types["motivo"] = "str"
+        else:
+            column_types["inicial"] = "int"
+            column_types["final"] = "int"
+            column_types["diferencia"] = "int"
+
         add_sorting_to_treeview(
             self._history_tree,
             list(self._history_columns),
-            column_types={
-                "id": "int",
-                "apertura": "str",
-                "cierre": "str",
-                "inicial": "int",
-                "final": "int",
-                "diferencia": "int",
-            }
+            column_types=column_types
         )
 
         # Bloqueamos el redimensionamiento manual
@@ -492,43 +659,105 @@ class CashRegisterView(ctk.CTkFrame):
             self._balance_labels["initial"].configure(
                 text=f"${bal.get('opening', 0):,}"
             )
-            self._balance_labels["inflows"].configure(
-                text=f"${bal.get('inflows', 0):,}"
+            self._balance_labels["inflow_cash"].configure(
+                text=f"${bal.get('inflow_cash', 0):,}"
             )
-            self._balance_labels["outflows"].configure(
-                text=f"${bal.get('outflows', 0):,}"
+            self._balance_labels["inflow_transfer"].configure(
+                text=f"${bal.get('inflow_transfer', 0):,}"
             )
-            self._balance_labels["expected"].configure(
-                text=f"${bal.get('expected', 0):,}"
+            self._balance_labels["inflow_debit"].configure(
+                text=f"${bal.get('inflow_debit', 0):,}"
             )
-            diff = bal.get("difference", 0)
-            self._balance_labels["difference"].configure(
-                text=f"${diff:,}" if diff is not None else "—"
+            self._balance_labels["inflow_credit"].configure(
+                text=f"${bal.get('inflow_credit', 0):,}"
             )
+            self._balance_labels["outflow_supplier"].configure(
+                text=f"${bal.get('outflow_supplier', 0):,}"
+            )
+            self._balance_labels["outflow_expense"].configure(
+                text=f"${bal.get('outflow_expense', 0):,}"
+            )
+            self._balance_labels["outflow_total"].configure(
+                text=f"${bal.get('outflow_total', 0):,}"
+            )
+            self._balance_labels["expected_cash"].configure(
+                text=f"${bal.get('expected_cash', 0):,}"
+            )
+            closing_val = bal.get("closing")
+            self._balance_labels["final_cash"].configure(
+                text=f"${closing_val:,}" if closing_val is not None else "—"
+            )
+            diff_val = bal.get("diff_cash")
+            if diff_val is not None:
+                if diff_val > 0:
+                    self._balance_labels["diff_cash"].configure(
+                        text=f"+ ${diff_val:,}",
+                        text_color="#2ecc71"
+                    )
+                    self._diff_cash_lbl_widget.configure(text="Diferencia efectivo (Sobrante)", text_color="#2ecc71")
+                elif diff_val < 0:
+                    self._balance_labels["diff_cash"].configure(
+                        text=f"- ${abs(diff_val):,}",
+                        text_color="#e74c3c"
+                    )
+                    self._diff_cash_lbl_widget.configure(text="Diferencia efectivo (Faltante)", text_color="#e74c3c")
+                else:
+                    self._balance_labels["diff_cash"].configure(
+                        text="$0",
+                        text_color=theme.get_contrast_map()["text"]
+                    )
+                    self._diff_cash_lbl_widget.configure(text="Diferencia efectivo", text_color=theme.get_contrast_map()["text"])
+            else:
+                self._balance_labels["diff_cash"].configure(text="—", text_color=theme.get_contrast_map()["text"])
+                self._diff_cash_lbl_widget.configure(text="Diferencia efectivo", text_color=theme.get_contrast_map()["text"])
+
+        # Notify MainWindow to refresh the register status badge
+        try:
+            toplevel = self.winfo_toplevel()
+            if toplevel and hasattr(toplevel, "refresh_register_status"):
+                toplevel.refresh_register_status()
+        except Exception:
+            pass
 
     def update_history(self, registers: list[dict[str, Any]]) -> None:
         """Refresh the history treeview with *registers*."""
         for child in self._history_tree.get_children():
             self._history_tree.delete(child)
 
+        is_admin_or_gerente = self._role in ("admin", "gerente")
+
         for r in registers:
-            self._history_tree.insert(
-                "",
-                "end",
-                iid=str(r["id"]),
-                values=(
-                    r["id"],
-                    _extract_date(r.get("opening_time", "—")),
-                    _extract_date(r.get("closing_time", "—")),
-                    f"${r.get('opening_amount', 0):,}",
-                    f"${r.get('closing_amount', '—'):,}"
-                    if r.get("closing_amount") is not None
-                    else "—",
-                    f"${r.get('difference', 0):,}"
-                    if r.get("difference") is not None
-                    else "—",
-                ),
-            )
+            if is_admin_or_gerente:
+                self._history_tree.insert(
+                    "",
+                    "end",
+                    iid=str(r["id"]),
+                    values=(
+                        r["id"],
+                        _extract_date_time(r.get("opening_time", "—")),
+                        _extract_date_time(r.get("closing_time", "—")),
+                        r.get("username") or "—",
+                        r.get("close_reason") or "—",
+                    ),
+                )
+            else:
+                self._history_tree.insert(
+                    "",
+                    "end",
+                    iid=str(r["id"]),
+                    values=(
+                        r["id"],
+                        _extract_date(r.get("opening_time", "—")),
+                        _extract_date(r.get("closing_time", "—")),
+                        f"${r.get('opening_amount', 0):,}",
+                        f"${r.get('closing_amount', '—'):,}"
+                        if r.get("closing_amount") is not None
+                        else "—",
+                        f"${r.get('difference', 0):,}"
+                        if r.get("difference") is not None
+                        else "—",
+                    ),
+                )
 
 
     def clear_outflow_form(self) -> None:
@@ -700,19 +929,57 @@ class CashRegisterView(ctk.CTkFrame):
             self._balance_labels["initial"].configure(
                 text=f"${bal.get('opening', 0):,}"
             )
-            self._balance_labels["inflows"].configure(
-                text=f"${bal.get('inflows', 0):,}"
+            self._balance_labels["inflow_cash"].configure(
+                text=f"${bal.get('inflow_cash', 0):,}"
             )
-            self._balance_labels["outflows"].configure(
-                text=f"${bal.get('outflows', 0):,}"
+            self._balance_labels["inflow_transfer"].configure(
+                text=f"${bal.get('inflow_transfer', 0):,}"
             )
-            self._balance_labels["expected"].configure(
-                text=f"${bal.get('expected', 0):,}"
+            self._balance_labels["inflow_debit"].configure(
+                text=f"${bal.get('inflow_debit', 0):,}"
             )
-            diff = bal.get("difference", 0)
-            self._balance_labels["difference"].configure(
-                text=f"${diff:,}" if diff is not None else "—"
+            self._balance_labels["inflow_credit"].configure(
+                text=f"${bal.get('inflow_credit', 0):,}"
             )
+            self._balance_labels["outflow_supplier"].configure(
+                text=f"${bal.get('outflow_supplier', 0):,}"
+            )
+            self._balance_labels["outflow_expense"].configure(
+                text=f"${bal.get('outflow_expense', 0):,}"
+            )
+            self._balance_labels["outflow_total"].configure(
+                text=f"${bal.get('outflow_total', 0):,}"
+            )
+            self._balance_labels["expected_cash"].configure(
+                text=f"${bal.get('expected_cash', 0):,}"
+            )
+            closing_val = bal.get("closing")
+            self._balance_labels["final_cash"].configure(
+                text=f"${closing_val:,}" if closing_val is not None else "—"
+            )
+            diff_val = bal.get("diff_cash")
+            if diff_val is not None:
+                if diff_val > 0:
+                    self._balance_labels["diff_cash"].configure(
+                        text=f"+ ${diff_val:,}",
+                        text_color="#2ecc71"
+                    )
+                    self._diff_cash_lbl_widget.configure(text="Diferencia efectivo (Sobrante)", text_color="#2ecc71")
+                elif diff_val < 0:
+                    self._balance_labels["diff_cash"].configure(
+                        text=f"- ${abs(diff_val):,}",
+                        text_color="#e74c3c"
+                    )
+                    self._diff_cash_lbl_widget.configure(text="Diferencia efectivo (Faltante)", text_color="#e74c3c")
+                else:
+                    self._balance_labels["diff_cash"].configure(
+                        text="$0",
+                        text_color=theme.get_contrast_map()["text"]
+                    )
+                    self._diff_cash_lbl_widget.configure(text="Diferencia efectivo", text_color=theme.get_contrast_map()["text"])
+            else:
+                self._balance_labels["diff_cash"].configure(text="—", text_color=theme.get_contrast_map()["text"])
+                self._diff_cash_lbl_widget.configure(text="Diferencia efectivo", text_color=theme.get_contrast_map()["text"])
 
     def _update_preview(self, register_id: int, label: str = "Movimientos") -> None:
         """Populate the movement preview panel for a specific register."""
@@ -760,17 +1027,11 @@ class CashRegisterView(ctk.CTkFrame):
             self._outflow_frame.grid_remove()
             # Keep _preview_frame visible so gerente can see movements of selected register
         elif mode == "restricted":
-            # Cajero: hide history, diferencia, esperado, ingresos, egresos
+            # Cajero: hide history, inflows, outflows, and arqueo modules
             self._history_frame.grid_remove()
-            for key in ("inflows", "outflows", "expected", "difference"):
-                self._balance_labels[key].grid_remove()
-                # Also hide the corresponding label (column 0 in same row)
-                for widget in self._balance_frame.winfo_children():
-                    if isinstance(widget, ctk.CTkLabel):
-                        info = widget.grid_info()
-                        label_info = self._balance_labels[key].grid_info()
-                        if info.get("row") == label_info.get("row") and info.get("column") == 0:
-                            widget.grid_remove()
+            self._inflows_module_frame.grid_remove()
+            self._outflows_module_frame.grid_remove()
+            self._arqueo_module_frame.grid_remove()
         # mode == "full": no changes (admin)
 
     def _prevent_resize(self, event: Any) -> str | None:
@@ -810,8 +1071,10 @@ class CashRegisterView(ctk.CTkFrame):
         )
 
     def _set_balance_defaults(self) -> None:
-        for key in ("initial", "inflows", "outflows", "expected", "difference"):
-            self._balance_labels[key].configure(text="—")
+        """Reset the balance panel labels to default dashes."""
+        for lbl in self._balance_labels.values():
+            lbl.configure(text="—")
+        self._diff_cash_lbl_widget.configure(text="Diferencia efectivo", text_color=theme.get_contrast_map()["text"])
 
     def _handle_open(self) -> None:
         dialog = _AmountDialog(
@@ -1049,5 +1312,14 @@ def _extract_time(ts: str) -> str:
     if ts and len(ts) >= 16:
         # Format is usually YYYY-MM-DDTHH:MM:SS or YYYY-MM-DD HH:MM:SS
         return ts[11:16]
+    return ts or "—"
+
+def _extract_date_time(ts: str) -> str:
+    """Extract YYYY-MM-DD HH:MM from an ISO timestamp."""
+    if ts and len(ts) >= 16:
+        part = ts[:16]
+        if 'T' in part:
+            part = part.replace('T', ' ')
+        return part
     return ts or "—"
 

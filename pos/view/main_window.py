@@ -126,23 +126,27 @@ class MainWindow(ctk.CTk):
             role_val = permissions.user.role.value if hasattr(permissions.user.role, 'value') else permissions.user.role
             role_text = role_display.get(role_val, role_val)
             
-            self._user_label = ctk.CTkLabel(
-                self,
-                text=f"{permissions.user.username} - {role_text}",
-                font=theme.scaled_font(13, weight="bold"),
-            )
-            self._user_label.place(relx=1.0, x=-180, y=15, anchor="ne")
+            # Container for user label and logout button to prevent overlaps
+            self._user_container = ctk.CTkFrame(self, fg_color="transparent")
+            self._user_container.place(relx=1.0, x=-15, y=15, anchor="ne")
 
             self._logout_btn = ctk.CTkButton(
-                self,
+                self._user_container,
                 text="Cerrar sesion",
-                width=120,
+                width=100,
                 height=32,
                 font=theme.scaled_font(12, weight="bold"),
                 fg_color="#8b1a1a",
                 command=self._on_logout,
             )
-            self._logout_btn.place(relx=1.0, x=-40, y=15, anchor="ne")
+            self._logout_btn.pack(side="right", padx=(8, 0))
+
+            self._user_label = ctk.CTkLabel(
+                self._user_container,
+                text=f"{permissions.user.username} - {role_text}",
+                font=theme.scaled_font(13, weight="bold"),
+            )
+            self._user_label.pack(side="right")
         
         # Set callback for theme propagation
         theme.set_on_change_callback(self._on_theme_changed)
@@ -189,6 +193,29 @@ class MainWindow(ctk.CTk):
                     text_color="#a0a0a0"
                 )
                 desc_lbl.pack(side="left", padx=(0, 10))
+
+            # Status Box for Cash Register (Caja)
+            self._register_status_frame = ctk.CTkFrame(
+                self,
+                width=160,
+                height=32,
+                corner_radius=6,
+                border_width=2,
+                border_color="#e74c3c", # red by default
+                fg_color="transparent",
+            )
+            self._register_status_frame._custom_theme_color = "skip"
+            self._register_status_frame.place(relx=0.5, y=15, anchor="n")
+            self._register_status_frame.pack_propagate(False)
+
+            self._register_status_lbl = ctk.CTkLabel(
+                self._register_status_frame,
+                text="● Cerrada",
+                font=theme.scaled_font(12, weight="bold"),
+                text_color="#e74c3c",
+            )
+            self._register_status_lbl._custom_theme_color = "skip"
+            self._register_status_lbl.pack(expand=True, fill="both")
 
         # --- tab container ---
         self._tabview = ctk.CTkTabview(self, command=self._on_tab_changed)
@@ -336,7 +363,7 @@ class MainWindow(ctk.CTk):
             kwargs = {}
             if tab_name == "Caja" and self._permissions:
                 kwargs["cash_register_mode"] = self._permissions.cash_register_mode
-            if tab_name in ("Productos", "Ventas", "Devoluciones") and self._permissions:
+            if tab_name in ("Productos", "Ventas", "Devoluciones", "Caja") and self._permissions:
                 role_val = self._permissions.user.role
                 kwargs["role"] = role_val.value if hasattr(role_val, 'value') else role_val
 
@@ -348,6 +375,7 @@ class MainWindow(ctk.CTk):
 
         # Re-establish cross-view wiring
         self._setup_cross_view_wiring()
+        self.refresh_register_status()
 
         # Restore active tab
         try:
@@ -373,6 +401,45 @@ class MainWindow(ctk.CTk):
 
         if product_view is not None:
             self.on_tab_change("Productos", product_view._refresh_products)
+
+    def refresh_register_status(self) -> None:
+        """Refresh the register status indicator badge at the top of the window."""
+        if not hasattr(self, "_register_status_frame"):
+            return
+
+        controller = self._controllers.get("Caja")
+        if not controller:
+            return
+
+        try:
+            status_res = controller.get_register_status()
+            if status_res["success"]:
+                data = status_res["data"]
+                active = data["active"]
+                if active:
+                    opening_time = data["register"]["opening_time"]
+                    # Format time as HH:MM
+                    try:
+                        time_part = opening_time.split(" ")[1][:5]
+                    except Exception:
+                        time_part = opening_time
+                    self._register_status_lbl.configure(
+                        text=f"● Abierta ({time_part})",
+                        text_color="#2ecc71"
+                    )
+                    self._register_status_frame.configure(
+                        border_color="#2ecc71"
+                    )
+                else:
+                    self._register_status_lbl.configure(
+                        text="● Cerrada",
+                        text_color="#e74c3c"
+                    )
+                    self._register_status_frame.configure(
+                        border_color="#e74c3c"
+                    )
+        except Exception:
+            pass
 
     # --------------------------------------------------------------- private ---
 

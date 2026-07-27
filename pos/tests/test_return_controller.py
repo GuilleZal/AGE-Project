@@ -31,15 +31,23 @@ class TestProcessReturn:
 
     def test_process_return_restores_stock(self, return_ctrl, db_with_register, sample_products):
         pid = sample_products[0]  # stock=24
-        result = return_ctrl.process_return(pid, 2)
+        result = return_ctrl.process_return(pid, 2, "Producto en buenas condiciones")
         assert result["success"] is True
 
         row = db_with_register.execute("SELECT stock FROM products WHERE id = ?", (pid,)).fetchone()
         assert row["stock"] == 26.0  # 24 + 2
 
+    def test_process_return_other_reasons_does_not_restore_stock(self, return_ctrl, db_with_register, sample_products):
+        pid = sample_products[0]  # stock=24
+        result = return_ctrl.process_return(pid, 2, "Producto Dañado")
+        assert result["success"] is True
+
+        row = db_with_register.execute("SELECT stock FROM products WHERE id = ?", (pid,)).fetchone()
+        assert row["stock"] == 24.0  # remains 24
+
     def test_process_return_weight_product(self, return_ctrl, db_with_register, sample_products):
         pid = sample_products[2]  # Queso Cremoso, price=9500, stock=5
-        result = return_ctrl.process_return(pid, 0.5)
+        result = return_ctrl.process_return(pid, 0.5, "Producto en buenas condiciones")
         assert result["success"] is True
         assert result["data"]["refund_amount"] == 4750  # 9500 * 0.5
 
@@ -48,9 +56,9 @@ class TestProcessReturn:
 
     def test_process_return_with_reason(self, return_ctrl, db_with_register, sample_products):
         pid = sample_products[0]
-        result = return_ctrl.process_return(pid, 1, "Producto vencido")
+        result = return_ctrl.process_return(pid, 1, "Producto Vencido")
         assert result["success"] is True
-        assert result["data"]["return"]["reason"] == "Producto vencido"
+        assert result["data"]["return"]["reason"] == "Producto Vencido"
 
     def test_process_return_zero_quantity_blocked(self, return_ctrl, db_with_register, sample_products):
         result = return_ctrl.process_return(sample_products[0], 0)

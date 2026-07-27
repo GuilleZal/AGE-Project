@@ -125,6 +125,16 @@ class TestGetBalance:
         assert balance["inflows"] == 6000    # 3000 + 2000 + 1000
         assert balance["outflows"] == 700    # 500 + 200
         assert balance["expected"] == 15300  # 10000 + 6000 - 700
+        
+        # New breakdown assertions
+        assert balance["inflow_cash"] == 3000
+        assert balance["inflow_transfer"] == 0
+        assert balance["inflow_debit"] == 2000
+        assert balance["inflow_credit"] == 1000
+        assert balance["outflow_supplier"] == 0
+        assert balance["outflow_expense"] == 700
+        assert balance["outflow_total"] == 700
+        assert balance["expected_cash"] == 12300  # 10000 + 3000 - 700
 
     def test_not_found(self, db):
         repo = CashRegisterRepo(db)

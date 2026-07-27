@@ -149,31 +149,22 @@ class ReturnView(ctk.CTkFrame):
             self._reason_frame, text="Motivo de la Devolución", font=theme.scaled_font(14, "bold")
         ).pack(anchor="w", padx=15, pady=(6, 1))
 
-        self._reason_var = tk.StringVar(value="Producto Vencido")
+        self._reason_var = tk.StringVar(value="Producto en buenas condiciones")
+        
+        ctk.CTkRadioButton(
+            self._reason_frame, text="Producto en buenas condiciones", variable=self._reason_var, 
+            value="Producto en buenas condiciones"
+        ).pack(anchor="w", padx=15, pady=1)
         
         ctk.CTkRadioButton(
             self._reason_frame, text="Producto Vencido", variable=self._reason_var, 
-            value="Producto Vencido", command=self._on_reason_change
+            value="Producto Vencido"
         ).pack(anchor="w", padx=15, pady=1)
         
         ctk.CTkRadioButton(
             self._reason_frame, text="Producto Dañado", variable=self._reason_var, 
-            value="Producto Dañado", command=self._on_reason_change
-        ).pack(anchor="w", padx=15, pady=1)
-
-        ctk.CTkRadioButton(
-            self._reason_frame, text="Otro", variable=self._reason_var, 
-            value="Otro", command=self._on_reason_change
-        ).pack(anchor="w", padx=15, pady=1)
-
-        ctk.CTkLabel(
-            self._reason_frame, text="Detalle del motivo:", font=theme.scaled_font(12)
-        ).pack(anchor="w", padx=15, pady=(2, 0))
-        
-        self._reason_entry = ctk.CTkEntry(
-            self._reason_frame, placeholder_text="Aclare el motivo...", state="disabled", height=28
-        )
-        self._reason_entry.pack(fill="x", padx=15, pady=(1, 8))
+            value="Producto Dañado"
+        ).pack(anchor="w", padx=15, pady=(1, 10))
 
         # ==========================================
         # RIGHT COLUMN: Summary and Confirm
@@ -304,12 +295,7 @@ class ReturnView(ctk.CTkFrame):
     def clear_form(self) -> None:
         """Clear all form fields (quantity and reason)."""
         self._qty_var.set("1")
-        self._reason_var.set("Producto Vencido")
-        
-        # Habilitar temporalmente para borrar el texto y luego volver a bloquear
-        self._reason_entry.configure(state="normal")
-        self._reason_entry.delete(0, "end")
-        self._reason_entry.configure(state="disabled")
+        self._reason_var.set("Producto en buenas condiciones")
         
         self.clear_error()
 
@@ -442,15 +428,6 @@ class ReturnView(ctk.CTkFrame):
         self._summary_qty_lbl.configure(text=qty_str)
         self._refund_label.configure(text=f"${total:,}")
 
-    def _on_reason_change(self) -> None:
-        """Enable text entry only when 'Otro' is selected."""
-        if self._reason_var.get() == "Otro":
-            self._reason_entry.configure(state="normal")
-            self._reason_entry.focus_set()
-        else:
-            self._reason_entry.configure(state="disabled")
-            self._reason_entry.delete(0, "end")
-
     def _handle_confirm(self) -> None:
         if self._current_product is None:
             return
@@ -471,14 +448,7 @@ class ReturnView(ctk.CTkFrame):
             return
 
         # Procesar motivo de devolución
-        selected_reason = self._reason_var.get()
-        if selected_reason == "Otro":
-            reason = self._reason_entry.get().strip()
-            if not reason:
-                self._error_label.configure(text="Por favor, aclare el motivo de la devolución")
-                return
-        else:
-            reason = selected_reason
+        reason = self._reason_var.get()
 
         self.clear_error()
 

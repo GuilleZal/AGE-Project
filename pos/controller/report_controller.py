@@ -40,6 +40,8 @@ class ReportController:
             top = self._report_service.top_products(start_date, end_date, top_limit)
             low_stock = self._report_service.low_stock_products()
             payment_methods = self._report_service.payment_methods_summary(start_date, end_date)
+            sales_by_category = self._report_service.sales_by_category(start_date, end_date)
+            returns_history = self._report_service.returns_history(start_date, end_date)
             expenses = self._report_service.expenses_summary(start_date, end_date)
 
             # Calculate net profit
@@ -60,6 +62,8 @@ class ReportController:
                     "top_products": top,
                     "low_stock": low_stock,
                     "payment_methods": payment_methods,
+                    "sales_by_category": sales_by_category,
+                    "returns_history": returns_history,
                     "expenses": expenses,
                 },
                 "error": None,

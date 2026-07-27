@@ -112,6 +112,9 @@ class ReportView(ctk.CTkFrame):
         # --- Row 2: Data panel (2 columns) ---
         self._build_data_panel()
 
+        # Populate initial placeholder table state
+        self._populate_table()
+
     # ------------------------------------------------------------------ UI builders ---
 
     def _build_top_bar(self) -> None:
@@ -212,7 +215,7 @@ class ReportView(ctk.CTkFrame):
         card_defs = [
             ("Ventas Totales", "total_ventas", 0, "$0", "#2b2b2b"),
             ("Operaciones", "operaciones", 1, "0", "#2b2b2b"),
-            ("Compras a Proveedores", "compras", 2, "$0", "#2b2b2b"),
+            ("Gasto Promedio", "gasto_promedio", 2, "$0", "#2b2b2b"),
             ("Ganancia Bruta", "ganancia_bruta", 3, "$0", "#2b2b2b"),
             ("Margen Bruto", "margen_bruto", 4, "0%", "#2b2b2b"),
         ]
@@ -259,10 +262,17 @@ class ReportView(ctk.CTkFrame):
         self._table_header.grid_columnconfigure(2, weight=1) # Spacer pushes export button
 
         # Table selector combobox
-        self._table_type_var = tk.StringVar(value="Top productos más vendidos")
+        self._table_type_var = tk.StringVar(value="Seleccionar reporte")
         self._table_selector = ctk.CTkComboBox(
             self._table_header,
-            values=["Top productos más vendidos", "Productos bajo stock"],
+            values=[
+                "Seleccionar reporte",
+                "Top productos más vendidos",
+                "Productos bajo stock",
+                "Ventas por método de pago",
+                "Ventas por categoría",
+                "Historial de devoluciones",
+            ],
             variable=self._table_type_var,
             width=220,
             height=28,
@@ -270,6 +280,7 @@ class ReportView(ctk.CTkFrame):
             command=self._handle_table_type_changed,
         )
         self._table_selector.grid(row=0, column=0, sticky="w", padx=10, pady=8)
+        self._table_selector.set("Seleccionar reporte")
 
         # Ver Top Controls frame
         self._top_controls_frame = ctk.CTkFrame(self._table_header, fg_color="transparent")
@@ -319,8 +330,8 @@ class ReportView(ctk.CTkFrame):
             height=10,
         )
 
-        self._report_tree.bind("<Button-1>", self._prevent_resize)
-        self._report_tree.bind("<B1-Motion>", self._prevent_resize)
+        self._report_tree.bind("<B1-Motion>", self._on_resize_motion)
+        self._report_tree.bind("<ButtonRelease-1>", self._on_resize_release)
 
         self._report_scroll = ttk.Scrollbar(left_frame, orient="vertical", command=self._report_tree.yview)
         self._report_hscroll = ttk.Scrollbar(left_frame, orient="horizontal", command=self._report_tree.xview)
@@ -346,9 +357,9 @@ class ReportView(ctk.CTkFrame):
         self._metric_cards["operaciones"].configure(
             text=str(sales.get("count", 0))
         )
-        # Compras a Proveedores KPI = same as expenses summary
-        self._metric_cards["compras"].configure(
-            text=f"${expenses.get('purchases', 0):,}"
+        # Gasto Promedio KPI
+        self._metric_cards["gasto_promedio"].configure(
+            text=f"${int(float(sales.get('avg_ticket', 0))):,}"
         )
         self._metric_cards["ganancia_bruta"].configure(
             text=f"${int(float(profit.get('profit', 0))):,}"
@@ -535,11 +546,69 @@ class ReportView(ctk.CTkFrame):
             )
 
     # --------------------------------------------------------------- private ---
-    def _prevent_resize(self, event: Any) -> str | None:
-        """Evita que el usuario cambie el tamaño de las columnas arrastrando el separador."""
-        if event.widget.identify_region(event.x, event.y) == "separator":
-            return "break"
-        return None
+    def _on_resize_motion(self, event: Any) -> None:
+        self.after(10, self._adjust_column_widths)
+
+    def _on_resize_release(self, event: Any) -> None:
+        self._adjust_column_widths()
+
+    def _adjust_column_widths(self) -> None:
+        if not hasattr(self, "_prev_widths") or not self._prev_widths:
+            self._save_current_widths()
+            return
+
+        cols = self._report_tree["columns"]
+        changed_col_idx = None
+        diff = 0
+        for i, c in enumerate(cols):
+            try:
+                curr_w = self._report_tree.column(c, "width")
+            except Exception:
+                continue
+            prev_w = self._prev_widths.get(c, curr_w)
+            if curr_w != prev_w:
+                changed_col_idx = i
+                diff = curr_w - prev_w
+                break
+
+        if changed_col_idx is None or diff == 0:
+            return
+
+        if changed_col_idx < len(cols) - 1:
+            target_idx = changed_col_idx + 1
+        else:
+            target_idx = changed_col_idx - 1
+
+        c = cols[changed_col_idx]
+        target_c = cols[target_idx]
+
+        curr_w = self._report_tree.column(c, "width")
+        target_w = self._report_tree.column(target_c, "width")
+        
+        new_target_w = target_w - diff
+        min_target_w = self._report_tree.column(target_c, "minwidth") or 20
+        
+        if new_target_w < min_target_w:
+            new_target_w = min_target_w
+            actual_diff = target_w - new_target_w
+            new_curr_w = self._prev_widths[c] + actual_diff
+        else:
+            new_curr_w = curr_w
+
+        try:
+            self._report_tree.column(c, width=new_curr_w)
+            self._report_tree.column(target_c, width=new_target_w)
+        except Exception:
+            pass
+
+        self._save_current_widths()
+
+    def _save_current_widths(self) -> None:
+        try:
+            cols = self._report_tree["columns"]
+            self._prev_widths = {c: self._report_tree.column(c, "width") for c in cols}
+        except Exception:
+            self._prev_widths = {}
         
     def _configure_style(self) -> None:
         """Configure Treeview style for dark theme."""
@@ -661,10 +730,149 @@ class ReportView(ctk.CTkFrame):
     def _handle_export_table(self) -> None:
         """Handle export button click dynamically based on selected table type."""
         table_type = self._table_selector.get()
+        if table_type == "Seleccionar reporte":
+            messagebox.showwarning(
+                "Seleccione un reporte",
+                "Por favor seleccione un reporte válido antes de exportar.",
+            )
+            return
+
+        if not self._report_data:
+            messagebox.showwarning(
+                "Sin datos",
+                "Genere un reporte antes de exportar.",
+            )
+            return
+
         if table_type == "Top productos más vendidos":
             self._handle_export_top()
-        else:
+        elif table_type == "Productos bajo stock":
             self._handle_export_faltantes()
+        elif table_type == "Ventas por método de pago":
+            self._handle_export_payment_methods()
+        elif table_type == "Ventas por categoría":
+            self._handle_export_category_sales()
+        elif table_type == "Historial de devoluciones":
+            self._handle_export_returns_history()
+
+    def _handle_export_payment_methods(self) -> None:
+        """Export payment methods to CSV via file dialog."""
+        payment_methods = self._report_data.get("payment_methods") or []
+        if not payment_methods:
+            messagebox.showwarning(
+                "Sin datos",
+                "No hay datos de métodos de pago para exportar.",
+            )
+            return
+
+        filepath = filedialog.asksaveasfilename(
+            title="Exportar Ventas por Método de Pago",
+            defaultextension=".csv",
+            filetypes=[("CSV", "*.csv")],
+        )
+        if not filepath:
+            return
+
+        export_data = []
+        for idx, item in enumerate(payment_methods, 1):
+            export_data.append({
+                "Nro": idx,
+                "Método de Pago": item.get("payment_method", "—"),
+                "Operaciones": int(item.get("sale_count", 0)),
+                "Monto Total": f"${item.get('total_amount', 0):,}",
+                "Porcentaje": f"{item.get('percentage', 0.0):.1f}%",
+            })
+
+        self._execute_export(export_data, filepath, "Ventas por Método de Pago")
+
+    def _handle_export_category_sales(self) -> None:
+        """Export category sales to CSV via file dialog."""
+        sales_by_category = self._report_data.get("sales_by_category") or []
+        if not sales_by_category:
+            messagebox.showwarning(
+                "Sin datos",
+                "No hay datos de ventas por categoría para exportar.",
+            )
+            return
+
+        filepath = filedialog.asksaveasfilename(
+            title="Exportar Ventas por Categoría",
+            defaultextension=".csv",
+            filetypes=[("CSV", "*.csv")],
+        )
+        if not filepath:
+            return
+
+        export_data = []
+        for idx, item in enumerate(sales_by_category, 1):
+            qty_unit = item.get("qty_unit", 0)
+            qty_kg = item.get("qty_kg", 0.0)
+            
+            qty_unit_display = str(int(qty_unit))
+            qty_kg_display = f"{qty_kg:.2f}".rstrip('0').rstrip('.') if not float(qty_kg).is_integer() else str(int(qty_kg))
+            
+            export_data.append({
+                "Nro": idx,
+                "Categoría": item.get("category_name", "—"),
+                "Cant. Unidades": qty_unit_display,
+                "Cant. Kg": qty_kg_display,
+                "Monto Total": f"${item.get('total_amount', 0):,}",
+            })
+
+        self._execute_export(export_data, filepath, "Ventas por Categoría")
+
+    def _handle_export_returns_history(self) -> None:
+        """Export returns history to CSV via file dialog."""
+        returns_history = self._report_data.get("returns_history") or []
+        if not returns_history:
+            messagebox.showwarning(
+                "Sin datos",
+                "No hay historial de devoluciones para exportar.",
+            )
+            return
+
+        filepath = filedialog.asksaveasfilename(
+            title="Exportar Historial de Devoluciones",
+            defaultextension=".csv",
+            filetypes=[("CSV", "*.csv")],
+        )
+        if not filepath:
+            return
+
+        export_data = []
+        for idx, item in enumerate(returns_history, 1):
+            qty = item.get("quantity", 0)
+            qty_display = f"{qty:.2f}".rstrip('0').rstrip('.') if not float(qty).is_integer() else str(int(qty))
+            export_data.append({
+                "Nro": idx,
+                "Fecha/Hora": item.get("created_at", "—"),
+                "Producto": item.get("product_name", "—"),
+                "Cantidad": qty_display,
+                "Reembolso": f"${item.get('refund_amount', 0):,}",
+                "Motivo": item.get("reason") or "—",
+            })
+
+        self._execute_export(export_data, filepath, "Historial de Devoluciones")
+
+    def _execute_export(self, export_data: list[dict], filepath: str, title: str) -> None:
+        """Helper to run the export logic via the controller."""
+        if getattr(self, "_controller", None) is not None:
+            res = self._controller.export_to_csv(export_data, filepath)
+            if res["success"]:
+                messagebox.showinfo(
+                    "Exportación exitosa",
+                    f"Se exportó el reporte '{title}' a:\n{res['data']}",
+                )
+            else:
+                messagebox.showerror(
+                    "Error de exportación",
+                    f"No se pudo exportar:\n{res['error']}",
+                )
+        else:
+            messagebox.showerror(
+                "Error",
+                "El controlador no está disponible.",
+            )
 
     def _populate_table(self) -> None:
         """Populate the unified treeview based on the selected option."""
@@ -673,10 +881,30 @@ class ReportView(ctk.CTkFrame):
             self._report_tree.delete(child)
 
         table_type = self._table_selector.get()
-        if table_type == "Top productos más vendidos":
-            # Show top limit selector
-            self._top_controls_frame.grid()
+        
+        # Hide/Show top controls frame
+        if hasattr(self, "_top_controls_frame") and self._top_controls_frame:
+            if table_type == "Top productos más vendidos":
+                self._top_controls_frame.grid()
+            else:
+                self._top_controls_frame.grid_remove()
 
+        if table_type == "Seleccionar reporte":
+            # Reconfigure treeview for placeholder message
+            self._report_tree.configure(columns=("col0",))
+            self._report_tree.heading("col0", text="Seleccionar reporte")
+            self._report_tree.column("col0", width=600, minwidth=200, anchor="center")
+            self._report_tree.insert(
+                "",
+                "end",
+                values=("Seleccione un tipo de reporte de la lista de arriba y haga clic en 'Generar reporte'.",)
+            )
+            return
+
+        elif table_type == "Top productos más vendidos":
+            columns = ("col0", "col1", "col2", "col3")
+            self._report_tree.configure(columns=columns)
+            
             # Set headings
             self._report_tree.heading("col0", text="#")
             self._report_tree.heading("col1", text="Producto")
@@ -684,14 +912,14 @@ class ReportView(ctk.CTkFrame):
             self._report_tree.heading("col3", text="Monto total")
 
             # Set column widths & alignments
-            self._report_tree.column("col0", width=50, minwidth=50, anchor="center")
-            self._report_tree.column("col1", width=250, minwidth=250, stretch=True, anchor="w")
-            self._report_tree.column("col2", width=100, minwidth=100, anchor="center")
-            self._report_tree.column("col3", width=140, minwidth=140, anchor="e")
+            self._report_tree.column("col0", width=50, minwidth=20, anchor="center")
+            self._report_tree.column("col1", width=250, minwidth=50, stretch=True, anchor="w")
+            self._report_tree.column("col2", width=100, minwidth=30, anchor="center")
+            self._report_tree.column("col3", width=140, minwidth=40, anchor="e")
 
             # Setup sorting
             column_types = {"col0": "int", "col1": "str", "col2": "int", "col3": "int"}
-            add_sorting_to_treeview(self._report_tree, list(self._report_columns), column_types)
+            add_sorting_to_treeview(self._report_tree, list(columns), column_types)
 
             # Populate data
             top_products = self._report_data.get("top_products") or []
@@ -706,9 +934,10 @@ class ReportView(ctk.CTkFrame):
                         f"${item.get('total_amount', 0):,}",
                     ),
                 )
-        else:
-            # Hide top limit selector
-            self._top_controls_frame.grid_remove()
+
+        elif table_type == "Productos bajo stock":
+            columns = ("col0", "col1", "col2", "col3")
+            self._report_tree.configure(columns=columns)
 
             # Set headings
             self._report_tree.heading("col0", text="#")
@@ -717,23 +946,22 @@ class ReportView(ctk.CTkFrame):
             self._report_tree.heading("col3", text="Ubicación")
 
             # Set column widths & alignments
-            self._report_tree.column("col0", width=50, minwidth=50, anchor="center")
-            self._report_tree.column("col1", width=250, minwidth=250, stretch=True, anchor="w")
-            self._report_tree.column("col2", width=110, minwidth=110, anchor="center")
-            self._report_tree.column("col3", width=160, minwidth=160, anchor="w")
+            self._report_tree.column("col0", width=50, minwidth=20, anchor="center")
+            self._report_tree.column("col1", width=250, minwidth=50, stretch=True, anchor="w")
+            self._report_tree.column("col2", width=110, minwidth=30, anchor="center")
+            self._report_tree.column("col3", width=160, minwidth=40, anchor="w")
 
             # Setup sorting
             column_types = {"col0": "int", "col1": "str", "col2": "float", "col3": "str"}
-            add_sorting_to_treeview(self._report_tree, list(self._report_columns), column_types)
+            add_sorting_to_treeview(self._report_tree, list(columns), column_types)
 
-            # Populate data (Always fetch latest real-time low stock products!)
+            # Populate data
             low_stock = []
             if getattr(self, "_controller", None) is not None:
                 result = self._controller.get_low_stock()
                 if result["success"]:
                     low_stock = result["data"]
             
-            # Fallback to report cache if controller is not wired or failed
             if not low_stock and self._report_data:
                 low_stock = self._report_data.get("low_stock") or []
 
@@ -765,4 +993,128 @@ class ReportView(ctk.CTkFrame):
                         item.get("location") or "—",
                     ),
                 )
+
+        elif table_type == "Ventas por método de pago":
+            columns = ("col0", "col1", "col2", "col3", "col4")
+            self._report_tree.configure(columns=columns)
+
+            # Set headings
+            self._report_tree.heading("col0", text="#")
+            self._report_tree.heading("col1", text="Método de Pago")
+            self._report_tree.heading("col2", text="Operaciones")
+            self._report_tree.heading("col3", text="Monto total")
+            self._report_tree.heading("col4", text="Porcentaje")
+
+            # Set column widths & alignments
+            self._report_tree.column("col0", width=50, minwidth=20, anchor="center")
+            self._report_tree.column("col1", width=200, minwidth=50, stretch=True, anchor="w")
+            self._report_tree.column("col2", width=100, minwidth=30, anchor="center")
+            self._report_tree.column("col3", width=140, minwidth=40, anchor="e")
+            self._report_tree.column("col4", width=100, minwidth=30, anchor="center")
+
+            # Setup sorting
+            column_types = {"col0": "int", "col1": "str", "col2": "int", "col3": "int", "col4": "float"}
+            add_sorting_to_treeview(self._report_tree, list(columns), column_types)
+
+            # Populate data
+            payment_methods = self._report_data.get("payment_methods") or []
+            for idx, item in enumerate(payment_methods, 1):
+                self._report_tree.insert(
+                    "",
+                    "end",
+                    values=(
+                        idx,
+                        item.get("payment_method", "—"),
+                        int(item.get("sale_count", 0)),
+                        f"${item.get('total_amount', 0):,}",
+                        f"{item.get('percentage', 0.0):.1f}%",
+                    ),
+                )
+
+        elif table_type == "Ventas por categoría":
+            columns = ("col0", "col1", "col2", "col3", "col4")
+            self._report_tree.configure(columns=columns)
+
+            # Set headings
+            self._report_tree.heading("col0", text="#")
+            self._report_tree.heading("col1", text="Categoría")
+            self._report_tree.heading("col2", text="Cant. Unidades")
+            self._report_tree.heading("col3", text="Cant. Kg")
+            self._report_tree.heading("col4", text="Monto total")
+
+            # Set column widths & alignments
+            self._report_tree.column("col0", width=50, minwidth=20, anchor="center")
+            self._report_tree.column("col1", width=200, minwidth=50, stretch=True, anchor="w")
+            self._report_tree.column("col2", width=120, minwidth=30, anchor="center")
+            self._report_tree.column("col3", width=120, minwidth=30, anchor="center")
+            self._report_tree.column("col4", width=140, minwidth=40, anchor="e")
+
+            # Setup sorting
+            column_types = {"col0": "int", "col1": "str", "col2": "int", "col3": "float", "col4": "int"}
+            add_sorting_to_treeview(self._report_tree, list(columns), column_types)
+
+            # Populate data
+            sales_by_category = self._report_data.get("sales_by_category") or []
+            for idx, item in enumerate(sales_by_category, 1):
+                qty_unit = item.get("qty_unit", 0)
+                qty_kg = item.get("qty_kg", 0.0)
+                
+                qty_unit_display = str(int(qty_unit))
+                qty_kg_display = f"{qty_kg:.2f}".rstrip('0').rstrip('.') if not float(qty_kg).is_integer() else str(int(qty_kg))
+                
+                self._report_tree.insert(
+                    "",
+                    "end",
+                    values=(
+                        idx,
+                        item.get("category_name", "—"),
+                        qty_unit_display,
+                        qty_kg_display,
+                        f"${item.get('total_amount', 0):,}",
+                    ),
+                )
+
+        elif table_type == "Historial de devoluciones":
+            columns = ("col0", "col1", "col2", "col3", "col4", "col5")
+            self._report_tree.configure(columns=columns)
+
+            # Set headings
+            self._report_tree.heading("col0", text="#")
+            self._report_tree.heading("col1", text="Fecha/Hora")
+            self._report_tree.heading("col2", text="Producto")
+            self._report_tree.heading("col3", text="Cantidad")
+            self._report_tree.heading("col4", text="Reembolso")
+            self._report_tree.heading("col5", text="Motivo")
+
+            # Set column widths & alignments
+            self._report_tree.column("col0", width=50, minwidth=20, anchor="center")
+            self._report_tree.column("col1", width=140, minwidth=40, anchor="center")
+            self._report_tree.column("col2", width=220, minwidth=50, stretch=True, anchor="w")
+            self._report_tree.column("col3", width=90, minwidth=30, anchor="center")
+            self._report_tree.column("col4", width=100, minwidth=30, anchor="e")
+            self._report_tree.column("col5", width=160, minwidth=40, anchor="w")
+
+            # Setup sorting
+            column_types = {"col0": "int", "col1": "str", "col2": "str", "col3": "float", "col4": "int", "col5": "str"}
+            add_sorting_to_treeview(self._report_tree, list(columns), column_types)
+
+            # Populate data
+            returns_history = self._report_data.get("returns_history") or []
+            for idx, item in enumerate(returns_history, 1):
+                qty = item.get("quantity", 0)
+                qty_display = f"{qty:.2f}".rstrip('0').rstrip('.') if not float(qty).is_integer() else str(int(qty))
+                self._report_tree.insert(
+                    "",
+                    "end",
+                    values=(
+                        idx,
+                        item.get("created_at", "—"),
+                        item.get("product_name", "—"),
+                        qty_display,
+                        f"${item.get('refund_amount', 0):,}",
+                        item.get("reason") or "—",
+                    ),
+                )
+
+        self._save_current_widths()
 
