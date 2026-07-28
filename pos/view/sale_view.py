@@ -305,115 +305,216 @@ class SaleView(ctk.CTkFrame):
 
         grid_row = 1
 
-        # --- Single-row methods (cash, transfer) ---
-        for icon, label, method in self.SINGLE_METHODS:
-            display_label = label
-            if self._role == "cajero":
-                if method == "cash":
-                    display_label = "Efectivo/Transferencia"
-                elif method == "transfer":
-                    display_label = "Qr"
-
-            is_selected = method == "cash"
-            method_frame = ctk.CTkFrame(
-                payment_methods_frame,
-                fg_color=selected_bg if is_selected else "transparent",
-                border_width=2,
-                border_color=selected_border if is_selected else unselected_border,
-                corner_radius=10,
-                cursor="hand2",
-            )
-            method_frame._custom_theme_color = "skip"
-            method_frame.grid(row=grid_row, column=0, sticky="ew", pady=1)
-            method_frame.grid_columnconfigure(2, weight=1)
-            self._method_frames[method] = method_frame
-
-            radio_frame = ctk.CTkFrame(method_frame, fg_color="transparent", width=26)
-            radio_frame.grid(row=0, column=0, padx=(8, 2))
-            ctk.CTkRadioButton(
-                radio_frame,
-                text="",
-                variable=self._payment_method_var,
-                value=method,
-                command=lambda m=method: self._on_payment_method_changed(m),
-                width=18,
-                height=18,
-            ).pack(pady=3)
-
-            ctk.CTkLabel(
-                method_frame,
-                text=icon,
-                font=theme.scaled_font(14),
-                anchor="w",
-            ).grid(row=0, column=1, sticky="w", padx=(2, 4), pady=2)
-
-            ctk.CTkLabel(
-                method_frame,
-                text=display_label,
-                font=theme.scaled_font(13, weight="bold" if is_selected else "normal"),
-                anchor="w",
-            ).grid(row=0, column=2, sticky="w", padx=(0, 8), pady=2)
-
-            method_frame.bind("<Button-1>", lambda e, m=method: self._select_payment_method(m))
-            for child in method_frame.winfo_children():
-                child.bind("<Button-1>", lambda e, m=method: self._select_payment_method(m))
-
+        if self._role == "cajero":
+            # --- Cajero Layout ---
+            # 1. Efectivo/Transferencia (cash) & Qr (transfer) side-by-side squares
+            cajero_pair_frame = ctk.CTkFrame(payment_methods_frame, fg_color="transparent")
+            cajero_pair_frame.grid(row=grid_row, column=0, sticky="ew", pady=(0, 2))
+            cajero_pair_frame.grid_columnconfigure(0, weight=2) # Ligeramente menos ancho
+            cajero_pair_frame.grid_columnconfigure(1, weight=5) # Ligeramente más ancho
             grid_row += 1
 
-            # Insert the card group after "cash" row
-            if method == "cash":
-                # --- Card group header ---
-                card_header = ctk.CTkLabel(
-                    payment_methods_frame,
-                    text="💳  Tarjeta",
-                    font=theme.scaled_font(11, weight="bold"),
-                    text_color="#a0a0a0",
-                    anchor="w",
+            cajero_methods = [
+                ("💵", "Efectivo/\nTransf.", "cash"),
+                ("📱", "Qr", "transfer")
+            ]
+
+            for col_idx, (m_icon, m_label, m_method) in enumerate(cajero_methods):
+                is_selected = (m_method == "cash")
+                method_frame = ctk.CTkFrame(
+                    cajero_pair_frame,
+                    fg_color=selected_bg if is_selected else "transparent",
+                    border_width=2,
+                    border_color=selected_border if is_selected else unselected_border,
+                    corner_radius=10,
+                    cursor="hand2",
                 )
-                card_header.grid(row=grid_row, column=0, sticky="w", padx=4, pady=(4, 1))
+                method_frame._custom_theme_color = "skip"
+                padx_val = (0, 3) if col_idx == 0 else (3, 0)
+                method_frame.grid(row=0, column=col_idx, sticky="nsew", padx=padx_val)
+                method_frame.grid_columnconfigure(0, weight=1)
+                method_frame.grid_rowconfigure(0, weight=1)
+                self._method_frames[m_method] = method_frame
+
+                inner = ctk.CTkFrame(method_frame, fg_color="transparent")
+                inner.grid(row=0, column=0, pady=(10, 10))
+
+                ctk.CTkLabel(
+                    inner,
+                    text=m_icon,
+                    font=theme.scaled_font(18),
+                ).pack(pady=(0, 2))
+                ctk.CTkLabel(
+                    inner,
+                    text=m_label,
+                    font=theme.scaled_font(12, weight="bold"),
+                ).pack()
+
+                method_frame.bind("<Button-1>", lambda e, m=m_method: self._select_payment_method(m))
+                for child in method_frame.winfo_children():
+                    child.bind("<Button-1>", lambda e, m=m_method: self._select_payment_method(m))
+                    for grandchild in child.winfo_children():
+                        grandchild.bind("<Button-1>", lambda e, m=m_method: self._select_payment_method(m))
+
+            # 2. Card header and methods below
+            card_header = ctk.CTkLabel(
+                payment_methods_frame,
+                text="💳  Tarjeta",
+                font=theme.scaled_font(11, weight="bold"),
+                text_color="#a0a0a0",
+                anchor="w",
+            )
+            card_header.grid(row=grid_row, column=0, sticky="w", padx=4, pady=(4, 1))
+            grid_row += 1
+
+            card_pair_frame = ctk.CTkFrame(payment_methods_frame, fg_color="transparent")
+            card_pair_frame.grid(row=grid_row, column=0, sticky="ew", pady=(0, 2))
+            card_pair_frame.grid_columnconfigure(0, weight=1)
+            card_pair_frame.grid_columnconfigure(1, weight=1)
+            grid_row += 1
+
+            for col_idx, (card_icon, card_label, card_method) in enumerate(self.CARD_METHODS):
+                card_frame = ctk.CTkFrame(
+                    card_pair_frame,
+                    fg_color="transparent",
+                    border_width=2,
+                    border_color=unselected_border,
+                    corner_radius=10,
+                    cursor="hand2",
+                )
+                card_frame._custom_theme_color = "skip"
+                padx_val = (0, 3) if col_idx == 0 else (3, 0)
+                card_frame.grid(row=0, column=col_idx, sticky="nsew", padx=padx_val)
+                card_frame.grid_columnconfigure(0, weight=1)
+                card_frame.grid_rowconfigure(0, weight=1)
+                self._method_frames[card_method] = card_frame
+
+                inner = ctk.CTkFrame(card_frame, fg_color="transparent")
+                inner.grid(row=0, column=0, pady=(10, 10))
+
+                ctk.CTkLabel(
+                    inner,
+                    text=card_icon,
+                    font=theme.scaled_font(18),
+                ).pack(pady=(0, 2))
+                ctk.CTkLabel(
+                    inner,
+                    text=card_label,
+                    font=theme.scaled_font(12, weight="bold"),
+                ).pack()
+
+                card_frame.bind("<Button-1>", lambda e, m=card_method: self._select_payment_method(m))
+                for child in card_frame.winfo_children():
+                    child.bind("<Button-1>", lambda e, m=card_method: self._select_payment_method(m))
+                    for grandchild in child.winfo_children():
+                        grandchild.bind("<Button-1>", lambda e, m=card_method: self._select_payment_method(m))
+
+        else:
+            # --- Non-Cajero Layout ---
+            # --- Single-row methods (cash, transfer) ---
+            for icon, label, method in self.SINGLE_METHODS:
+                display_label = label
+                is_selected = method == "cash"
+                
+                method_frame = ctk.CTkFrame(
+                    payment_methods_frame,
+                    fg_color=selected_bg if is_selected else "transparent",
+                    border_width=2,
+                    border_color=selected_border if is_selected else unselected_border,
+                    corner_radius=10,
+                    cursor="hand2",
+                )
+                method_frame._custom_theme_color = "skip"
+                method_frame.grid(row=grid_row, column=0, sticky="ew", pady=1)
+                method_frame.grid_columnconfigure(2, weight=1)
+                self._method_frames[method] = method_frame
+
+                radio_frame = ctk.CTkFrame(method_frame, fg_color="transparent", width=26)
+                radio_frame.grid(row=0, column=0, padx=(8, 2))
+                ctk.CTkRadioButton(
+                    radio_frame,
+                    text="",
+                    variable=self._payment_method_var,
+                    value=method,
+                    command=lambda m=method: self._on_payment_method_changed(m),
+                    width=18,
+                    height=18,
+                ).pack(pady=3)
+
+                ctk.CTkLabel(
+                    method_frame,
+                    text=icon,
+                    font=theme.scaled_font(14),
+                    anchor="w",
+                ).grid(row=0, column=1, sticky="w", padx=(2, 4), pady=2)
+
+                ctk.CTkLabel(
+                    method_frame,
+                    text=display_label,
+                    font=theme.scaled_font(13, weight="bold" if is_selected else "normal"),
+                    anchor="w",
+                ).grid(row=0, column=2, sticky="w", padx=(0, 8), pady=2)
+
+                method_frame.bind("<Button-1>", lambda e, m=method: self._select_payment_method(m))
+                for child in method_frame.winfo_children():
+                    child.bind("<Button-1>", lambda e, m=method: self._select_payment_method(m))
+
                 grid_row += 1
 
-                # --- Two card sub-type buttons side by side ---
-                card_pair_frame = ctk.CTkFrame(payment_methods_frame, fg_color="transparent")
-                card_pair_frame.grid(row=grid_row, column=0, sticky="ew", pady=(0, 2))
-                card_pair_frame.grid_columnconfigure(0, weight=1)
-                card_pair_frame.grid_columnconfigure(1, weight=1)
-                grid_row += 1
-
-                for col_idx, (card_icon, card_label, card_method) in enumerate(self.CARD_METHODS):
-                    card_frame = ctk.CTkFrame(
-                        card_pair_frame,
-                        fg_color="transparent",
-                        border_width=2,
-                        border_color=unselected_border,
-                        corner_radius=10,
-                        cursor="hand2",
+                # Insert the card group after "cash" row
+                if method == "cash":
+                    # --- Card group header ---
+                    card_header = ctk.CTkLabel(
+                        payment_methods_frame,
+                        text="💳  Tarjeta",
+                        font=theme.scaled_font(11, weight="bold"),
+                        text_color="#a0a0a0",
+                        anchor="w",
                     )
-                    card_frame._custom_theme_color = "skip"
-                    padx_val = (0, 3) if col_idx == 0 else (3, 0)
-                    card_frame.grid(row=0, column=col_idx, sticky="ew", padx=padx_val)
-                    card_frame.grid_columnconfigure(0, weight=1)
-                    self._method_frames[card_method] = card_frame
+                    card_header.grid(row=grid_row, column=0, sticky="w", padx=4, pady=(4, 1))
+                    grid_row += 1
 
-                    inner = ctk.CTkFrame(card_frame, fg_color="transparent")
-                    inner.grid(row=0, column=0, pady=(6, 6))
+                    # --- Two card sub-type buttons side by side ---
+                    card_pair_frame = ctk.CTkFrame(payment_methods_frame, fg_color="transparent")
+                    card_pair_frame.grid(row=grid_row, column=0, sticky="ew", pady=(0, 2))
+                    card_pair_frame.grid_columnconfigure(0, weight=1)
+                    card_pair_frame.grid_columnconfigure(1, weight=1)
+                    grid_row += 1
 
-                    ctk.CTkLabel(
-                        inner,
-                        text=card_icon,
-                        font=theme.scaled_font(18),
-                    ).pack()
-                    ctk.CTkLabel(
-                        inner,
-                        text=card_label,
-                        font=theme.scaled_font(12, weight="bold"),
-                    ).pack()
+                    for col_idx, (card_icon, card_label, card_method) in enumerate(self.CARD_METHODS):
+                        card_frame = ctk.CTkFrame(
+                            card_pair_frame,
+                            fg_color="transparent",
+                            border_width=2,
+                            border_color=unselected_border,
+                            corner_radius=10,
+                            cursor="hand2",
+                        )
+                        card_frame._custom_theme_color = "skip"
+                        padx_val = (0, 3) if col_idx == 0 else (3, 0)
+                        card_frame.grid(row=0, column=col_idx, sticky="ew", padx=padx_val)
+                        card_frame.grid_columnconfigure(0, weight=1)
+                        self._method_frames[card_method] = card_frame
 
-                    card_frame.bind("<Button-1>", lambda e, m=card_method: self._select_payment_method(m))
-                    for child in card_frame.winfo_children():
-                        child.bind("<Button-1>", lambda e, m=card_method: self._select_payment_method(m))
-                        for grandchild in child.winfo_children():
-                            grandchild.bind("<Button-1>", lambda e, m=card_method: self._select_payment_method(m))
+                        inner = ctk.CTkFrame(card_frame, fg_color="transparent")
+                        inner.grid(row=0, column=0, pady=(6, 6))
+
+                        ctk.CTkLabel(
+                            inner,
+                            text=card_icon,
+                            font=theme.scaled_font(18),
+                        ).pack()
+                        ctk.CTkLabel(
+                            inner,
+                            text=card_label,
+                            font=theme.scaled_font(12, weight="bold"),
+                        ).pack()
+
+                        card_frame.bind("<Button-1>", lambda e, m=card_method: self._select_payment_method(m))
+                        for child in card_frame.winfo_children():
+                            child.bind("<Button-1>", lambda e, m=card_method: self._select_payment_method(m))
+                            for grandchild in child.winfo_children():
+                                grandchild.bind("<Button-1>", lambda e, m=card_method: self._select_payment_method(m))
 
         # --- Amount received ---
         self._amount_frame = ctk.CTkFrame(self._payment_sidebar, fg_color="transparent")
