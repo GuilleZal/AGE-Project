@@ -13,21 +13,272 @@ from pos.service.report_service import ReportService
 class ReportSummaryDialog(CenteredDialog):
     """Modal dialog displaying the summary of income and expenses."""
 
-    def __init__(self, master: tk.Widget, report_data: dict[str, Any], **kwargs) -> None:
+    def __init__(self, master: tk.Widget, report_data: dict[str, Any], role: str = "", **kwargs) -> None:
+        dialog_width = 450 if role == "gerente" else 420
+        dialog_height = 480 if role == "gerente" else 320
         super().__init__(
             master,
-            width=420,
-            height=320,
+            width=dialog_width,
+            height=dialog_height,
             title="Resumen de Egresos e Ingresos",
             resizable=(False, False),
             **kwargs
         )
         self._report_data = report_data
+        self._role = role
 
         # Build UI
         self._build_ui()
 
     def _build_ui(self) -> None:
+        if self._role == "gerente":
+            self._build_gerente_ui()
+        else:
+            self._build_standard_ui()
+
+    def _build_gerente_ui(self) -> None:
+        # Container
+        container = ctk.CTkFrame(self, fg_color="transparent")
+        container.pack(fill="both", expand=True, padx=20, pady=20)
+
+        # Action buttons frame (pinned to the bottom)
+        btn_frame = ctk.CTkFrame(container, fg_color="transparent")
+        btn_frame.pack(fill="x", side="bottom", pady=(10, 0))
+
+        # Export Excel button
+        ctk.CTkButton(
+            btn_frame,
+            text="Exportar Resumen (Excel)",
+            height=35,
+            fg_color="#1f6f3a",
+            hover_color="#18562d",
+            command=self._export_summary_excel,
+        ).pack(side="left", fill="x", expand=True, padx=(0, 5))
+
+        # Close button
+        ctk.CTkButton(
+            btn_frame,
+            text="Cerrar",
+            height=35,
+            fg_color="#3b3b3b",
+            command=self.destroy,
+        ).pack(side="right", padx=(5, 0))
+
+        # Scrollable content frame (fills the top area)
+        scroll_frame = ctk.CTkScrollableFrame(container, fg_color="transparent")
+        scroll_frame.pack(fill="both", expand=True)
+
+        # Title
+        ctk.CTkLabel(
+            scroll_frame,
+            text="Resumen de Ingresos y Egresos",
+            font=theme.scaled_font(18, weight="bold"),
+        ).pack(anchor="w", pady=(0, 2))
+
+        # Subtitle with dates
+        period = self._report_data.get("period") or {}
+        start_display = period.get("start", "").split(" ")[0] if period.get("start") else ""
+        end_display = period.get("end", "").split(" ")[0] if period.get("end") else ""
+
+        ctk.CTkLabel(
+            scroll_frame,
+            text=f"Período: {start_display} hasta {end_display}",
+            font=theme.scaled_font(12),
+            text_color="#888888",
+        ).pack(anchor="w", pady=(0, 15))
+
+        # Metrics frame
+        bg_color = "#1e1e1e" if ctk.get_appearance_mode() == "Dark" else "#f0f0f0"
+        metrics_frame = ctk.CTkFrame(scroll_frame, fg_color=bg_color, corner_radius=8)
+        metrics_frame.pack(fill="both", expand=True, pady=10, ipady=10)
+
+        sales = self._report_data.get("sales") or {}
+        total_sales = sales.get("total", 0)
+
+        expenses = self._report_data.get("expenses") or {}
+        purchases = expenses.get("purchases", 0)
+        shrinkage = expenses.get("shrinkage", 0)
+
+        # Calculate values
+        ganancia_bruta = total_sales - purchases
+        ganancia_neta = ganancia_bruta - shrinkage
+
+        # Grid configuration inside metrics frame
+        metrics_frame.grid_columnconfigure(0, weight=1)
+        metrics_frame.grid_columnconfigure(1, weight=1)
+
+        row_idx = 0
+
+        # Section 1: Ingresos
+        ctk.CTkLabel(
+            metrics_frame,
+            text="1: Ingresos",
+            font=theme.scaled_font(14, weight="bold"),
+        ).grid(row=row_idx, column=0, columnspan=2, sticky="w", padx=15, pady=(10, 2))
+        row_idx += 1
+
+        ctk.CTkLabel(
+            metrics_frame,
+            text="Ventas Totales:",
+            font=theme.scaled_font(13),
+        ).grid(row=row_idx, column=0, sticky="w", padx=25, pady=2)
+
+        ctk.CTkLabel(
+            metrics_frame,
+            text=f"${total_sales:,}",
+            font=theme.scaled_font(13),
+        ).grid(row=row_idx, column=1, sticky="e", padx=15, pady=2)
+        row_idx += 1
+
+        # Section 2: Costo de productos
+        ctk.CTkLabel(
+            metrics_frame,
+            text="2: Costo de productos",
+            font=theme.scaled_font(14, weight="bold"),
+        ).grid(row=row_idx, column=0, columnspan=2, sticky="w", padx=15, pady=(12, 2))
+        row_idx += 1
+
+        ctk.CTkLabel(
+            metrics_frame,
+            text="(-) Proveedores:",
+            font=theme.scaled_font(13),
+        ).grid(row=row_idx, column=0, sticky="w", padx=25, pady=2)
+
+        ctk.CTkLabel(
+            metrics_frame,
+            text=f"${purchases:,}",
+            font=theme.scaled_font(13),
+        ).grid(row=row_idx, column=1, sticky="e", padx=15, pady=2)
+        row_idx += 1
+
+        # Separator line
+        ctk.CTkLabel(
+            metrics_frame,
+            text="----------------------------------------------------------------",
+            font=theme.scaled_font(11),
+            text_color="#555555",
+        ).grid(row=row_idx, column=0, columnspan=2, sticky="ew", padx=15, pady=2)
+        row_idx += 1
+
+        # Ganancia Bruta
+        bruta_color = "#4CAF50" if ganancia_bruta >= 0 else "#f44336"
+        ctk.CTkLabel(
+            metrics_frame,
+            text="(=) Ganancia Bruta:",
+            font=theme.scaled_font(13, weight="bold"),
+        ).grid(row=row_idx, column=0, sticky="w", padx=15, pady=2)
+
+        ctk.CTkLabel(
+            metrics_frame,
+            text=f"${ganancia_bruta:,}",
+            font=theme.scaled_font(13, weight="bold"),
+            text_color=bruta_color,
+        ).grid(row=row_idx, column=1, sticky="e", padx=15, pady=2)
+        row_idx += 1
+
+        # Section 3: Perdidas
+        ctk.CTkLabel(
+            metrics_frame,
+            text="3: Perdidas",
+            font=theme.scaled_font(14, weight="bold"),
+        ).grid(row=row_idx, column=0, columnspan=2, sticky="w", padx=15, pady=(12, 2))
+        row_idx += 1
+
+        ctk.CTkLabel(
+            metrics_frame,
+            text="(-) Productos Vencidos/Rotos:",
+            font=theme.scaled_font(13),
+        ).grid(row=row_idx, column=0, sticky="w", padx=25, pady=2)
+
+        ctk.CTkLabel(
+            metrics_frame,
+            text=f"${shrinkage:,}",
+            font=theme.scaled_font(13),
+        ).grid(row=row_idx, column=1, sticky="e", padx=15, pady=2)
+        row_idx += 1
+
+        # Separator line
+        ctk.CTkLabel(
+            metrics_frame,
+            text="----------------------------------------------------------------",
+            font=theme.scaled_font(11),
+            text_color="#555555",
+        ).grid(row=row_idx, column=0, columnspan=2, sticky="ew", padx=15, pady=2)
+        row_idx += 1
+
+        # Ganancia Neta
+        neta_color = "#4CAF50" if ganancia_neta >= 0 else "#f44336"
+        ctk.CTkLabel(
+            metrics_frame,
+            text="(=) Ganancia Neta:",
+            font=theme.scaled_font(14, weight="bold"),
+        ).grid(row=row_idx, column=0, sticky="w", padx=15, pady=4)
+
+        ctk.CTkLabel(
+            metrics_frame,
+            text=f"${ganancia_neta:,}",
+            font=theme.scaled_font(14, weight="bold"),
+            text_color=neta_color,
+        ).grid(row=row_idx, column=1, sticky="e", padx=15, pady=4)
+        row_idx += 1
+
+    def _export_summary_excel(self) -> None:
+        """Export the summary numbers to an Excel file using the controller."""
+        period = self._report_data.get("period") or {}
+        start_display = period.get("start", "").split(" ")[0] if period.get("start") else ""
+        end_display = period.get("end", "").split(" ")[0] if period.get("end") else ""
+
+        filepath = filedialog.asksaveasfilename(
+            title="Exportar Resumen a Excel",
+            defaultextension=".xlsx",
+            filetypes=[("Excel", "*.xlsx")],
+            initialfile=f"Resumen_Reporte_{start_display}_a_{end_display}" if start_display else "Resumen_Reporte",
+            parent=self,
+        )
+        if not filepath:
+            return
+
+        sales = self._report_data.get("sales") or {}
+        total_sales = sales.get("total", 0)
+
+        expenses = self._report_data.get("expenses") or {}
+        purchases = expenses.get("purchases", 0)
+        shrinkage = expenses.get("shrinkage", 0)
+
+        ganancia_bruta = total_sales - purchases
+        ganancia_neta = ganancia_bruta - shrinkage
+
+        export_data = [
+            {"Concepto": "Ventas Totales", "Monto": f"${total_sales:,}"},
+            {"Concepto": "(-) Proveedores", "Monto": f"${purchases:,}"},
+            {"Concepto": "Ganancia Bruta", "Monto": f"${ganancia_bruta:,}"},
+            {"Concepto": "(-) Productos Vencidos/Rotos", "Monto": f"${shrinkage:,}"},
+            {"Concepto": "Ganancia Neta", "Monto": f"${ganancia_neta:,}"},
+        ]
+
+        controller = getattr(self.master, "_controller", None)
+        if controller is not None:
+            res = controller.export_to_excel(export_data, filepath, start_display, end_display)
+            if res["success"]:
+                messagebox.showinfo(
+                    "Exportación exitosa",
+                    f"Se exportó el resumen a:\n{res['data']}",
+                    parent=self,
+                )
+            else:
+                messagebox.showerror(
+                    "Error de exportación",
+                    f"No se pudo exportar:\n{res['error']}",
+                    parent=self,
+                )
+        else:
+            messagebox.showerror(
+                "Error",
+                "El controlador no está disponible.",
+                parent=self,
+            )
+
+    def _build_standard_ui(self) -> None:
         # Container
         container = ctk.CTkFrame(self, fg_color="transparent")
         container.pack(fill="both", expand=True, padx=20, pady=20)

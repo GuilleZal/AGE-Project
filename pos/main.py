@@ -235,7 +235,7 @@ def _wire_views(conn, app, permissions) -> None:
         report_ctrl = ReportController(conn)
         reports_tab = app.get_tab_frame("Reportes")
         if reports_tab is not None:
-            report_view = ReportView(reports_tab)
+            report_view = ReportView(reports_tab, role=role_val)
             report_view.pack(fill="both", expand=True)
             report_view.set_controller(report_ctrl)
             app.set_view("Reportes", report_view)

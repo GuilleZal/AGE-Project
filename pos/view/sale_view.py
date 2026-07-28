@@ -307,6 +307,13 @@ class SaleView(ctk.CTkFrame):
 
         # --- Single-row methods (cash, transfer) ---
         for icon, label, method in self.SINGLE_METHODS:
+            display_label = label
+            if self._role == "cajero":
+                if method == "cash":
+                    display_label = "Efectivo/Transferencia"
+                elif method == "transfer":
+                    display_label = "Qr"
+
             is_selected = method == "cash"
             method_frame = ctk.CTkFrame(
                 payment_methods_frame,
@@ -342,7 +349,7 @@ class SaleView(ctk.CTkFrame):
 
             ctk.CTkLabel(
                 method_frame,
-                text=label,
+                text=display_label,
                 font=theme.scaled_font(13, weight="bold" if is_selected else "normal"),
                 anchor="w",
             ).grid(row=0, column=2, sticky="w", padx=(0, 8), pady=2)

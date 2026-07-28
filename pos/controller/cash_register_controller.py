@@ -370,10 +370,13 @@ class CashRegisterController:
 
         for m in movements:
             desc = m.description or ""
+            discount_pct = 0.0
             if m.type in ("sale_cash", "sale_card", "sale_debit_card", "sale_credit_card", "sale_transfer"):
                 sale_idx += 1
-                if "Venta #" in desc:
-                    parts = desc.split("Venta #", 1)
+                sale_id = None
+                original_desc = m.description or ""
+                if "Venta #" in original_desc:
+                    parts = original_desc.split("Venta #", 1)
                     number_str = ""
                     suffix = ""
                     for char in parts[1]:
@@ -383,8 +386,23 @@ class CashRegisterController:
                             suffix = parts[1][len(number_str):]
                             break
                     desc = f"{parts[0]}Venta #{sale_idx}{suffix}"
+                    if number_str:
+                        sale_id = int(number_str)
                 else:
                     desc = f"Venta #{sale_idx}"
+
+                if sale_id is not None:
+                    row = self._db.execute(
+                        "SELECT total, discount, surcharge FROM sales WHERE id = ?",
+                        (sale_id,)
+                    ).fetchone()
+                    if row:
+                        total = row["total"]
+                        discount = row["discount"]
+                        surcharge = row["surcharge"]
+                        subtotal = total + discount - surcharge
+                        if discount > 0 and subtotal > 0:
+                            discount_pct = (discount / subtotal) * 100
             
             elif m.type == "return":
                 return_idx += 1
@@ -438,6 +456,7 @@ class CashRegisterController:
                 "amount": m.amount,
                 "description": desc,
                 "created_at": m.created_at,
+                "discount_pct": discount_pct,
             })
         
         return formatted

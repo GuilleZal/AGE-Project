@@ -71,11 +71,13 @@ class ReportView(ctk.CTkFrame):
         self,
         master: tk.Widget,
         callbacks: dict[str, Callable[..., Any]] | None = None,
+        role: str = "",
         **kwargs,
     ) -> None:
         border_color = theme.get_contrast_map()["search_border"]
         super().__init__(master, fg_color="transparent", border_width=2, border_color=border_color, **kwargs)
         callbacks = callbacks or {}
+        self._role = role
 
         self._on_generate: (
             Callable[[str, str], None] | None
@@ -92,24 +94,39 @@ class ReportView(ctk.CTkFrame):
 
         # Cache the last report data for CSV exports
         self._report_data: dict[str, Any] = {}
+        self._generated_start_date: str = ""
+        self._generated_end_date: str = ""
 
         # Theme-aware border color for module separation
         self._border_color = theme.get_contrast_map()["search_border"]
+        self._is_compact = (theme.get_resolution() == "800x600")
 
-        # Configure main grid: 3 rows, 2 columns
+        # Configure main grid: 4 rows, 2 columns
         self.grid_columnconfigure(0, weight=3)
         self.grid_columnconfigure(1, weight=4)
         self.grid_rowconfigure(0, weight=0)   # top bar
-        self.grid_rowconfigure(1, weight=0)   # KPIs
-        self.grid_rowconfigure(2, weight=1)   # data panel
+        self.grid_rowconfigure(1, weight=0)   # report title label (if admin/gerente)
+        self.grid_rowconfigure(2, weight=0)   # KPIs
+        self.grid_rowconfigure(3, weight=1)   # data panel
 
         # --- Row 0: Top bar (period selector + buttons) ---
         self._build_top_bar()
 
-        # --- Row 1: KPI cards ---
+        # --- Row 1: Report Title Label ---
+        self._report_title_label = ctk.CTkLabel(
+            self,
+            text="",
+            font=theme.scaled_font(13, weight="bold"),
+            text_color="#4CAF50",
+        )
+        pady_title = (2, 2) if self._is_compact else (5, 5)
+        self._report_title_label.grid(row=1, column=0, columnspan=2, sticky="w", padx=20, pady=pady_title)
+        self._report_title_label.grid_remove()
+
+        # --- Row 2: KPI cards ---
         self._build_kpi_panel()
 
-        # --- Row 2: Data panel (2 columns) ---
+        # --- Row 3: Data panel (2 columns) ---
         self._build_data_panel()
 
         # Populate initial placeholder table state
@@ -120,39 +137,41 @@ class ReportView(ctk.CTkFrame):
     def _build_top_bar(self) -> None:
         """Build the top bar with period selector and export button."""
         top_bar = ctk.CTkFrame(self, fg_color="transparent", border_width=2, border_color=self._border_color)
-        top_bar.grid(row=0, column=0, columnspan=2, sticky="ew", padx=10, pady=(10, 5))
+        pady_top = (5, 2) if self._is_compact else (10, 5)
+        top_bar.grid(row=0, column=0, columnspan=2, sticky="ew", padx=10, pady=pady_top)
         top_bar.grid_columnconfigure(1, weight=1)  # spacer
 
         # Left side: period selector
         selector_frame = ctk.CTkFrame(top_bar, fg_color="transparent", border_width=0)
-        selector_frame.grid(row=0, column=0, sticky="w", padx=5, pady=8)
+        pady_selector = 4 if self._is_compact else 8
+        selector_frame.grid(row=0, column=0, sticky="w", padx=5, pady=pady_selector)
 
         ctk.CTkLabel(
             selector_frame,
             text="Período:",
             font=theme.scaled_font(14, weight="bold"),
-        ).pack(side="left", padx=(15, 5))
+        ).pack(side="left", padx=(15 if not self._is_compact else 5, 5))
 
         self._period_var = tk.StringVar(value="Hoy")
         self._period_menu = ctk.CTkOptionMenu(
             selector_frame,
             values=self.PERIOD_OPTIONS_ORDER,
             variable=self._period_var,
-            width=140,
+            width=110 if self._is_compact else 140,
             command=self._handle_period_changed,
         )
         self._period_menu.pack(side="left", padx=5)
 
         # Custom date range
         self._custom_frame = ctk.CTkFrame(selector_frame, fg_color="transparent", border_width=0)
-        self._custom_frame.pack(side="left", padx=10)
+        self._custom_frame.pack(side="left", padx=4 if self._is_compact else 10)
 
         ctk.CTkLabel(
             self._custom_frame, text="Desde:", font=theme.scaled_font(12)
-        ).pack(side="left", padx=2)
+        ).pack(side="left", padx=1 if self._is_compact else 2)
         self._start_entry = DateEntry(
             self._custom_frame,
-            width=11,
+            width=9 if self._is_compact else 11,
             background="#2d5a3d",
             foreground="white",
             borderwidth=1,
@@ -165,10 +184,10 @@ class ReportView(ctk.CTkFrame):
 
         ctk.CTkLabel(
             self._custom_frame, text="Hasta:", font=theme.scaled_font(12)
-        ).pack(side="left", padx=(5, 2))
+        ).pack(side="left", padx=(2, 1) if self._is_compact else (5, 2))
         self._end_entry = DateEntry(
             self._custom_frame,
-            width=11,
+            width=9 if self._is_compact else 11,
             background="#2d5a3d",
             foreground="white",
             borderwidth=1,
@@ -186,25 +205,27 @@ class ReportView(ctk.CTkFrame):
         ctk.CTkButton(
             selector_frame,
             text="Generar reporte",
-            width=130,
+            width=110 if self._is_compact else 130,
             command=self._handle_generate,
-        ).pack(side="left", padx=(15, 10))
+        ).pack(side="left", padx=(10, 5) if self._is_compact else (15, 10))
 
         # Right side: view/export summary button
         self._view_resumen_btn = ctk.CTkButton(
             top_bar,
             text="Ver/Exportar resumen",
-            width=200,
-            height=35,
+            width=145 if self._is_compact else 200,
+            height=30 if self._is_compact else 35,
+            font=theme.scaled_font(12, weight="bold") if self._is_compact else theme.scaled_font(13, weight="bold"),
             fg_color="#3b3b3b",
             command=self._handle_view_summary,
         )
-        self._view_resumen_btn.grid(row=0, column=2, sticky="e", padx=(10, 15), pady=8)
+        self._view_resumen_btn.grid(row=0, column=2, sticky="e", padx=(10, 15), pady=pady_selector)
 
     def _build_kpi_panel(self) -> None:
         """Build the KPI cards row with 5 metric cards."""
         kpi_frame = ctk.CTkFrame(self, fg_color="transparent", border_width=2, border_color=self._border_color)
-        kpi_frame.grid(row=1, column=0, columnspan=2, sticky="ew", padx=10, pady=5)
+        pady_kpi = 2 if self._is_compact else 5
+        kpi_frame.grid(row=2, column=0, columnspan=2, sticky="ew", padx=10, pady=pady_kpi)
 
         # Configure 5 equal columns
         for col in range(5):
@@ -212,42 +233,47 @@ class ReportView(ctk.CTkFrame):
 
         self._metric_cards: dict[str, ctk.CTkLabel] = {}
 
+        avg_exp_title = "Monto Promedio por Venta" if getattr(self, "_role", "") == "gerente" else "Gasto Promedio"
         card_defs = [
             ("Ventas Totales", "total_ventas", 0, "$0", "#2b2b2b"),
             ("Operaciones", "operaciones", 1, "0", "#2b2b2b"),
-            ("Gasto Promedio", "gasto_promedio", 2, "$0", "#2b2b2b"),
+            (avg_exp_title, "gasto_promedio", 2, "$0", "#2b2b2b"),
             ("Ganancia Bruta", "ganancia_bruta", 3, "$0", "#2b2b2b"),
             ("Margen Bruto", "margen_bruto", 4, "0%", "#2b2b2b"),
         ]
 
+        pady_card = 4 if self._is_compact else 10
         for label, key, col, default, color in card_defs:
             card = ctk.CTkFrame(
                 kpi_frame,
                 fg_color=color,
                 corner_radius=8,
             )
-            card.grid(row=0, column=col, padx=5, pady=10, sticky="nsew")
+            card.grid(row=0, column=col, padx=5, pady=pady_card, sticky="nsew")
 
+            pady_lbl_top = (4, 1) if self._is_compact else (8, 2)
             ctk.CTkLabel(
                 card,
                 text=label,
                 font=theme.scaled_font(11),
                 text_color="#888",
-            ).pack(pady=(8, 2))
+            ).pack(pady=pady_lbl_top)
 
+            pady_lbl_bottom = (0, 4) if self._is_compact else (0, 8)
             value_lbl = ctk.CTkLabel(
                 card,
                 text=default,
                 font=theme.scaled_font(20, weight="bold"),
             )
-            value_lbl.pack(pady=(0, 8))
+            value_lbl.pack(pady=pady_lbl_bottom)
             self._metric_cards[key] = value_lbl
 
     def _build_data_panel(self) -> None:
         """Build the data panel with a full-width unified table."""
         # Full-width unified table (Top products / Low stock)
         left_frame = ctk.CTkFrame(self, fg_color="transparent", border_width=2, border_color=self._border_color)
-        left_frame.grid(row=2, column=0, columnspan=2, sticky="nsew", padx=10, pady=5)
+        pady_data = 2 if self._is_compact else 5
+        left_frame.grid(row=3, column=0, columnspan=2, sticky="nsew", padx=10, pady=pady_data)
         
         # Blindaje de grilla: Columna 0 (Tabla) se expande, Columna 1 (Scroll Vertical) reserva su espacio fijo
         left_frame.grid_columnconfigure(0, weight=1)
@@ -274,7 +300,7 @@ class ReportView(ctk.CTkFrame):
                 "Historial de devoluciones",
             ],
             variable=self._table_type_var,
-            width=220,
+            width=180 if self._is_compact else 220,
             height=28,
             state="readonly",
             command=self._handle_table_type_changed,
@@ -305,16 +331,31 @@ class ReportView(ctk.CTkFrame):
         )
         self._top_limit_combo.pack(side="left", padx=5)
 
-        # Export button
+        # Export button (CSV)
         self._export_table_btn = ctk.CTkButton(
             self._table_header,
             text="Exportar CSV",
-            width=130,
+            width=100 if self._is_compact else 130,
             height=28,
             fg_color="#3b3b3b",
             command=self._handle_export_table,
         )
-        self._export_table_btn.grid(row=0, column=3, sticky="e", padx=(10, 10), pady=8)
+
+        # Export Excel button
+        self._export_excel_btn = ctk.CTkButton(
+            self._table_header,
+            text="Exportar Excel",
+            width=100 if self._is_compact else 130,
+            height=28,
+            fg_color="#1f6f3a",
+            command=self._handle_export_excel_click,
+        )
+
+        if getattr(self, "_role", "") == "gerente":
+            self._export_excel_btn.grid(row=0, column=3, columnspan=2, sticky="e", padx=(10, 10), pady=8)
+        else:
+            self._export_table_btn.grid(row=0, column=3, sticky="e", padx=(10, 5), pady=8)
+            self._export_excel_btn.grid(row=0, column=4, sticky="e", padx=(5, 10), pady=8)
 
         # Treeview styling
         self._style = ttk.Style(left_frame)
@@ -327,7 +368,7 @@ class ReportView(ctk.CTkFrame):
             columns=self._report_columns,
             show="headings",
             selectmode="none",
-            height=10,
+            height=5 if self._is_compact else 10,
         )
 
         self._report_tree.bind("<B1-Motion>", self._on_resize_motion)
@@ -425,8 +466,20 @@ class ReportView(ctk.CTkFrame):
         if result["success"]:
             data = result["data"]
             self._report_data = data
+            self._generated_start_date = start.split(" ")[0]
+            self._generated_end_date = end.split(" ")[0]
             self.update_report(data)
             self._update_payment_chart(data.get("payment_methods", []))
+
+            # Update title label for admin/gerente
+            if getattr(self, "_role", "") in ("admin", "gerente"):
+                start_date = self._generated_start_date
+                end_date = self._generated_end_date
+                self._report_title_label.configure(text=f"Reporte desde: {start_date} hasta: {end_date}")
+                self._report_title_label.grid()
+            else:
+                self._report_title_label.configure(text="")
+                self._report_title_label.grid_remove()
         else:
             messagebox.showerror("Error", result["error"])
 
@@ -453,8 +506,8 @@ class ReportView(ctk.CTkFrame):
             "Función de exportación de Libro Diario en desarrollo.",
         )
 
-    def _controller_export_top(self) -> None:
-        """Export top products to CSV via file dialog."""
+    def _controller_export_top(self, format_excel: bool = False) -> None:
+        """Export top products to CSV or Excel via file dialog."""
         if not self._report_data:
             messagebox.showwarning(
                 "Sin datos",
@@ -462,22 +515,49 @@ class ReportView(ctk.CTkFrame):
             )
             return
 
+        top_products = self._report_data.get("top_products") or []
+        if not top_products:
+            messagebox.showwarning(
+                "Sin datos",
+                "No hay datos de productos más vendidos para exportar.",
+            )
+            return
+
+        if format_excel:
+            title_text = "Exportar Top Productos"
+            ext = ".xlsx"
+            ftypes = [("Excel", "*.xlsx")]
+        else:
+            title_text = "Exportar Top Productos"
+            ext = ".csv"
+            ftypes = [("CSV", "*.csv")]
+
+        start_date = getattr(self, "_generated_start_date", "")
+        end_date = getattr(self, "_generated_end_date", "")
+        init_file = f"Top_Productos_{start_date}_a_{end_date}" if start_date else "Top_Productos"
+
         filepath = filedialog.asksaveasfilename(
-            title="Exportar Top Productos",
-            defaultextension=".csv",
-            filetypes=[("CSV", "*.csv")],
+            title=title_text,
+            defaultextension=ext,
+            filetypes=ftypes,
+            initialfile=init_file,
         )
         if not filepath:
             return
 
-        # TODO: Implement top products export logic
-        messagebox.showinfo(
-            "Exportación",
-            "Función de exportación de Top Productos en desarrollo.",
-        )
+        export_data = []
+        for idx, item in enumerate(top_products, 1):
+            export_data.append({
+                "Nro": idx,
+                "Producto": item.get("name", "—"),
+                "Cantidad": int(item.get("total_quantity", 0)),
+                "Monto Total": f"${item.get('total_amount', 0):,}",
+            })
 
-    def _controller_export_faltantes(self) -> None:
-        """Export low stock products to CSV via file dialog."""
+        self._execute_export(export_data, filepath, "Top Productos")
+
+    def _controller_export_faltantes(self, format_excel: bool = False) -> None:
+        """Export low stock products to CSV or Excel via file dialog."""
         low_stock = []
         if getattr(self, "_controller", None) is not None:
             result = self._controller.get_low_stock()
@@ -494,10 +574,24 @@ class ReportView(ctk.CTkFrame):
             )
             return
 
+        if format_excel:
+            title_text = "Exportar Productos Bajo Stock"
+            ext = ".xlsx"
+            ftypes = [("Excel", "*.xlsx")]
+        else:
+            title_text = "Exportar Productos Bajo Stock"
+            ext = ".csv"
+            ftypes = [("CSV", "*.csv")]
+
+        start_date = getattr(self, "_generated_start_date", "")
+        end_date = getattr(self, "_generated_end_date", "")
+        init_file = f"Productos_Bajo_Stock_{start_date}_a_{end_date}" if start_date else "Productos_Bajo_Stock"
+
         filepath = filedialog.asksaveasfilename(
-            title="Exportar Productos Bajo Stock",
-            defaultextension=".csv",
-            filetypes=[("CSV", "*.csv")],
+            title=title_text,
+            defaultextension=ext,
+            filetypes=ftypes,
+            initialfile=init_file,
         )
         if not filepath:
             return
@@ -527,23 +621,7 @@ class ReportView(ctk.CTkFrame):
                 "Ubicación": item.get("location") or "—",
             })
 
-        if getattr(self, "_controller", None) is not None:
-            res = self._controller.export_to_csv(export_data, filepath)
-            if res["success"]:
-                messagebox.showinfo(
-                    "Exportación exitosa",
-                    f"Se exportaron los productos bajo stock a:\n{res['data']}",
-                )
-            else:
-                messagebox.showerror(
-                    "Error de exportación",
-                    f"No se pudo exportar:\n{res['error']}",
-                )
-        else:
-            messagebox.showerror(
-                "Error",
-                "El controlador no está disponible.",
-            )
+        self._execute_export(export_data, filepath, "Productos Bajo Stock")
 
     # --------------------------------------------------------------- private ---
     def _on_resize_motion(self, event: Any) -> None:
@@ -699,21 +777,28 @@ class ReportView(ctk.CTkFrame):
             messagebox.showwarning(
                 "Sin datos",
                 "Genere un reporte antes de ver el resumen.",
+                parent=self,
             )
             return
         
-        dialog = ReportSummaryDialog(self, self._report_data)
+        dialog = ReportSummaryDialog(self, self._report_data, role=getattr(self, "_role", ""))
         self.wait_window(dialog)
 
-    def _handle_export_top(self) -> None:
+    def _handle_export_top(self, format_excel: bool = False) -> None:
         """Handle export top products button click."""
         if self._on_export_top is not None:
-            self._on_export_top()
+            try:
+                self._on_export_top(format_excel)
+            except TypeError:
+                self._on_export_top()
 
-    def _handle_export_faltantes(self) -> None:
+    def _handle_export_faltantes(self, format_excel: bool = False) -> None:
         """Handle export low stock button click."""
         if self._on_export_faltantes is not None:
-            self._on_export_faltantes()
+            try:
+                self._on_export_faltantes(format_excel)
+            except TypeError:
+                self._on_export_faltantes()
 
     def _handle_top_limit_changed(self, value: str) -> None:
         """Regenerate report when top limit changes."""
@@ -745,18 +830,54 @@ class ReportView(ctk.CTkFrame):
             return
 
         if table_type == "Top productos más vendidos":
-            self._handle_export_top()
+            self._handle_export_top(format_excel=False)
         elif table_type == "Productos bajo stock":
-            self._handle_export_faltantes()
+            self._handle_export_faltantes(format_excel=False)
         elif table_type == "Ventas por método de pago":
-            self._handle_export_payment_methods()
+            self._handle_export_payment_methods(format_excel=False)
         elif table_type == "Ventas por categoría":
-            self._handle_export_category_sales()
+            self._handle_export_category_sales(format_excel=False)
         elif table_type == "Historial de devoluciones":
-            self._handle_export_returns_history()
+            self._handle_export_returns_history(format_excel=False)
 
-    def _handle_export_payment_methods(self) -> None:
-        """Export payment methods to CSV via file dialog."""
+    def _handle_export_excel_click(self) -> None:
+        """Handle Excel export button click dynamically based on selected table type."""
+        table_type = self._table_selector.get()
+        if table_type == "Seleccionar reporte":
+            messagebox.showwarning(
+                "Seleccione un reporte",
+                "Por favor seleccione un reporte válido antes de exportar.",
+            )
+            return
+
+        if not self._report_data:
+            messagebox.showwarning(
+                "Sin datos",
+                "Genere un reporte antes de exportar.",
+            )
+            return
+
+        # Double check role permission (only for gerente and admin)
+        if getattr(self, "_role", "") not in ("gerente", "admin"):
+            messagebox.showerror(
+                "Error de Permisos",
+                "El rol actual no tiene permitida la función de exportación a Excel.",
+            )
+            return
+
+        if table_type == "Top productos más vendidos":
+            self._handle_export_top(format_excel=True)
+        elif table_type == "Productos bajo stock":
+            self._handle_export_faltantes(format_excel=True)
+        elif table_type == "Ventas por método de pago":
+            self._handle_export_payment_methods(format_excel=True)
+        elif table_type == "Ventas por categoría":
+            self._handle_export_category_sales(format_excel=True)
+        elif table_type == "Historial de devoluciones":
+            self._handle_export_returns_history(format_excel=True)
+
+    def _handle_export_payment_methods(self, format_excel: bool = False) -> None:
+        """Export payment methods to CSV or Excel via file dialog."""
         payment_methods = self._report_data.get("payment_methods") or []
         if not payment_methods:
             messagebox.showwarning(
@@ -765,10 +886,24 @@ class ReportView(ctk.CTkFrame):
             )
             return
 
+        if format_excel:
+            title_text = "Exportar Ventas por Método de Pago"
+            ext = ".xlsx"
+            ftypes = [("Excel", "*.xlsx")]
+        else:
+            title_text = "Exportar Ventas por Método de Pago"
+            ext = ".csv"
+            ftypes = [("CSV", "*.csv")]
+
+        start_date = getattr(self, "_generated_start_date", "")
+        end_date = getattr(self, "_generated_end_date", "")
+        init_file = f"Ventas_Metodo_Pago_{start_date}_a_{end_date}" if start_date else "Ventas_Metodo_Pago"
+
         filepath = filedialog.asksaveasfilename(
-            title="Exportar Ventas por Método de Pago",
-            defaultextension=".csv",
-            filetypes=[("CSV", "*.csv")],
+            title=title_text,
+            defaultextension=ext,
+            filetypes=ftypes,
+            initialfile=init_file,
         )
         if not filepath:
             return
@@ -785,8 +920,8 @@ class ReportView(ctk.CTkFrame):
 
         self._execute_export(export_data, filepath, "Ventas por Método de Pago")
 
-    def _handle_export_category_sales(self) -> None:
-        """Export category sales to CSV via file dialog."""
+    def _handle_export_category_sales(self, format_excel: bool = False) -> None:
+        """Export category sales to CSV or Excel via file dialog."""
         sales_by_category = self._report_data.get("sales_by_category") or []
         if not sales_by_category:
             messagebox.showwarning(
@@ -795,10 +930,24 @@ class ReportView(ctk.CTkFrame):
             )
             return
 
+        if format_excel:
+            title_text = "Exportar Ventas por Categoría"
+            ext = ".xlsx"
+            ftypes = [("Excel", "*.xlsx")]
+        else:
+            title_text = "Exportar Ventas por Categoría"
+            ext = ".csv"
+            ftypes = [("CSV", "*.csv")]
+
+        start_date = getattr(self, "_generated_start_date", "")
+        end_date = getattr(self, "_generated_end_date", "")
+        init_file = f"Ventas_Categoria_{start_date}_a_{end_date}" if start_date else "Ventas_Categoria"
+
         filepath = filedialog.asksaveasfilename(
-            title="Exportar Ventas por Categoría",
-            defaultextension=".csv",
-            filetypes=[("CSV", "*.csv")],
+            title=title_text,
+            defaultextension=ext,
+            filetypes=ftypes,
+            initialfile=init_file,
         )
         if not filepath:
             return
@@ -821,8 +970,8 @@ class ReportView(ctk.CTkFrame):
 
         self._execute_export(export_data, filepath, "Ventas por Categoría")
 
-    def _handle_export_returns_history(self) -> None:
-        """Export returns history to CSV via file dialog."""
+    def _handle_export_returns_history(self, format_excel: bool = False) -> None:
+        """Export returns history to CSV or Excel via file dialog."""
         returns_history = self._report_data.get("returns_history") or []
         if not returns_history:
             messagebox.showwarning(
@@ -831,10 +980,24 @@ class ReportView(ctk.CTkFrame):
             )
             return
 
+        if format_excel:
+            title_text = "Exportar Historial de Devoluciones"
+            ext = ".xlsx"
+            ftypes = [("Excel", "*.xlsx")]
+        else:
+            title_text = "Exportar Historial de Devoluciones"
+            ext = ".csv"
+            ftypes = [("CSV", "*.csv")]
+
+        start_date = getattr(self, "_generated_start_date", "")
+        end_date = getattr(self, "_generated_end_date", "")
+        init_file = f"Historial_Devoluciones_{start_date}_a_{end_date}" if start_date else "Historial_Devoluciones"
+
         filepath = filedialog.asksaveasfilename(
-            title="Exportar Historial de Devoluciones",
-            defaultextension=".csv",
-            filetypes=[("CSV", "*.csv")],
+            title=title_text,
+            defaultextension=ext,
+            filetypes=ftypes,
+            initialfile=init_file,
         )
         if not filepath:
             return
@@ -856,8 +1019,15 @@ class ReportView(ctk.CTkFrame):
 
     def _execute_export(self, export_data: list[dict], filepath: str, title: str) -> None:
         """Helper to run the export logic via the controller."""
+        start_date = getattr(self, "_generated_start_date", "")
+        end_date = getattr(self, "_generated_end_date", "")
+
         if getattr(self, "_controller", None) is not None:
-            res = self._controller.export_to_csv(export_data, filepath)
+            if filepath.lower().endswith(".xlsx"):
+                res = self._controller.export_to_excel(export_data, filepath, start_date, end_date)
+            else:
+                res = self._controller.export_to_csv(export_data, filepath, start_date, end_date)
+            
             if res["success"]:
                 messagebox.showinfo(
                     "Exportación exitosa",

@@ -318,7 +318,7 @@ class ReportService:
     # -------------------------------------------------------------- CSV ----
 
     @staticmethod
-    def export_csv(data: list[dict], filepath: str) -> str:
+    def export_csv(data: list[dict], filepath: str, start_date: str = "", end_date: str = "") -> str:
         """Write *data* (list of dicts) to a semicolon-delimited CSV with BOM.
 
         The UTF-8 BOM ensures Excel (Spanish locale) opens the file correctly.
@@ -327,6 +327,8 @@ class ReportService:
         Args:
             data:     List of homogeneous dicts (all same keys).
             filepath: Destination path for the CSV file.
+            start_date: Start date of the report range.
+            end_date:   End date of the report range.
 
         Returns:
             The *filepath* on success.
@@ -334,11 +336,15 @@ class ReportService:
         Raises:
             OSError: If the file cannot be written.
         """
+        import os
+        import csv
         os.makedirs(os.path.dirname(filepath) or ".", exist_ok=True)
 
         with open(filepath, "w", newline="", encoding="utf-8-sig") as f:
+            if start_date and end_date:
+                f.write(f"Reporte desde: {start_date} hasta: {end_date}\n\n")
+
             if not data:
-                # Write BOM only (empty file with BOM header)
                 return filepath
 
             fieldnames = list(data[0].keys())
@@ -351,4 +357,45 @@ class ReportService:
             writer.writeheader()
             writer.writerows(data)
 
+        return filepath
+
+    @staticmethod
+    def export_excel(data: list[dict], filepath: str, start_date: str = "", end_date: str = "") -> str:
+        """Write *data* (list of dicts) to an Excel (.xlsx) file using openpyxl.
+
+        Args:
+            data:     List of homogeneous dicts (all same keys).
+            filepath: Destination path for the Excel file.
+            start_date: Start date of the report range.
+            end_date:   End date of the report range.
+
+        Returns:
+            The *filepath* on success.
+        """
+        import openpyxl
+        import os
+        os.makedirs(os.path.dirname(filepath) or ".", exist_ok=True)
+
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Reporte"
+
+        row_offset = 1
+        if start_date and end_date:
+            ws.cell(row=1, column=1, value=f"Reporte desde: {start_date} hasta: {end_date}")
+            ws.cell(row=2, column=1, value="")  # spacer row
+            row_offset = 3
+
+        if data:
+            # Write headers
+            headers = list(data[0].keys())
+            for col_idx, h in enumerate(headers, 1):
+                ws.cell(row=row_offset, column=col_idx, value=h)
+
+            # Write rows
+            for row_idx, row in enumerate(data, row_offset + 1):
+                for col_idx, h in enumerate(headers, 1):
+                    ws.cell(row=row_idx, column=col_idx, value=row[h])
+
+        wb.save(filepath)
         return filepath

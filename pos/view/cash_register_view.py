@@ -190,9 +190,7 @@ class CashRegisterView(ctk.CTkFrame):
         ).grid(row=0, column=0, columnspan=2, sticky="w", padx=12, pady=(8, 4))
 
         outflow_rows = [
-            ("Pago a proveedores", "outflow_supplier"),
-            ("Gastos", "outflow_expense"),
-            ("Egresos Total", "outflow_total"),
+            ("Pago a proveedores (Efectivo)", "outflow_supplier"),
         ]
         for idx, (lbl_txt, key) in enumerate(outflow_rows, start=1):
             pady_val = (2, 8) if idx == len(outflow_rows) else (2, 2)
@@ -316,12 +314,19 @@ class CashRegisterView(ctk.CTkFrame):
         ).pack(anchor="w", padx=10, pady=(6, 2))
 
         # Reemplazamos "expense" por "Gasto" para que coincida con la lista
-        self._outflow_type_var = tk.StringVar(value="Gasto")
-        ctk.CTkOptionMenu(
+        outflow_values = ["Gasto", "Pago a proveedor"]
+        default_outflow = "Gasto"
+        if self._role == "cajero":
+            outflow_values = ["Pago a proveedor"]
+            default_outflow = "Pago a proveedor"
+
+        self._outflow_type_var = tk.StringVar(value=default_outflow)
+        self._outflow_menu = ctk.CTkOptionMenu(
             self._outflow_frame,
-            values=["Gasto", "Pago a proveedor"],
+            values=outflow_values,
             variable=self._outflow_type_var,
-        ).pack(fill="x", padx=10, pady=2)
+        )
+        self._outflow_menu.pack(fill="x", padx=10, pady=2)
 
 
         amount_row = ctk.CTkFrame(self._outflow_frame, fg_color="transparent")
@@ -674,12 +679,14 @@ class CashRegisterView(ctk.CTkFrame):
             self._balance_labels["outflow_supplier"].configure(
                 text=f"${bal.get('outflow_supplier', 0):,}"
             )
-            self._balance_labels["outflow_expense"].configure(
-                text=f"${bal.get('outflow_expense', 0):,}"
-            )
-            self._balance_labels["outflow_total"].configure(
-                text=f"${bal.get('outflow_total', 0):,}"
-            )
+            if "outflow_expense" in self._balance_labels:
+                self._balance_labels["outflow_expense"].configure(
+                    text=f"${bal.get('outflow_expense', 0):,}"
+                )
+            if "outflow_total" in self._balance_labels:
+                self._balance_labels["outflow_total"].configure(
+                    text=f"${bal.get('outflow_total', 0):,}"
+                )
             self._balance_labels["expected_cash"].configure(
                 text=f"${bal.get('expected_cash', 0):,}"
             )
@@ -762,7 +769,7 @@ class CashRegisterView(ctk.CTkFrame):
 
     def clear_outflow_form(self) -> None:
         """Reset the outflow form fields."""
-        self._outflow_type_var.set("Gasto")  # Reinicia el selector por defecto
+        self._outflow_type_var.set("Pago a proveedor" if self._role == "cajero" else "Gasto")
         self._outflow_amount_entry.delete(0, "end")
         self._outflow_desc_entry.delete(0, "end")
 
@@ -944,12 +951,14 @@ class CashRegisterView(ctk.CTkFrame):
             self._balance_labels["outflow_supplier"].configure(
                 text=f"${bal.get('outflow_supplier', 0):,}"
             )
-            self._balance_labels["outflow_expense"].configure(
-                text=f"${bal.get('outflow_expense', 0):,}"
-            )
-            self._balance_labels["outflow_total"].configure(
-                text=f"${bal.get('outflow_total', 0):,}"
-            )
+            if "outflow_expense" in self._balance_labels:
+                self._balance_labels["outflow_expense"].configure(
+                    text=f"${bal.get('outflow_expense', 0):,}"
+                )
+            if "outflow_total" in self._balance_labels:
+                self._balance_labels["outflow_total"].configure(
+                    text=f"${bal.get('outflow_total', 0):,}"
+                )
             self._balance_labels["expected_cash"].configure(
                 text=f"${bal.get('expected_cash', 0):,}"
             )
@@ -992,6 +1001,12 @@ class CashRegisterView(ctk.CTkFrame):
         if not result["success"]:
             return
 
+        def format_pct(val: float) -> str:
+            if val.is_integer():
+                return f"{int(val)}%"
+            else:
+                return f"{val:.1f}%"
+
         type_labels = {
             "sale_cash": "Venta (Efectivo)",
             "sale_card": "Venta (Tarjeta)",
@@ -1005,15 +1020,24 @@ class CashRegisterView(ctk.CTkFrame):
         for m in result["data"]:
             type_text = type_labels.get(m["type"], m["type"])
             time_text = _extract_time(m.get("created_at", ""))
+            
+            desc_text = m.get("description") or ""
+            tags = ()
+            if self._role in ("admin", "gerente") and m.get("discount_pct", 0.0) > 0:
+                pct_str = format_pct(m["discount_pct"])
+                desc_text = f"{desc_text} (Descuento {pct_str})"
+                tags = ("discounted",)
+
             self._preview_tree.insert(
                 "",
                 "end",
                 values=(
                     type_text,
                     f"${m['amount']:,}",
-                    m.get("description") or "",
+                    desc_text,
                     time_text,
                 ),
+                tags=tags,
             )
 
 
@@ -1069,6 +1093,7 @@ class CashRegisterView(ctk.CTkFrame):
             background=[("selected", select_bg)],
             foreground=[("selected", fg)],
         )
+        self._preview_tree.tag_configure("discounted", foreground="#2ebb5d")
 
     def _set_balance_defaults(self) -> None:
         """Reset the balance panel labels to default dashes."""
@@ -1096,6 +1121,14 @@ class CashRegisterView(ctk.CTkFrame):
         type_label = self._outflow_type_var.get()
         type_map = {"Gasto": "expense", "Pago a proveedor": "supplier_payment"}
         type_ = type_map.get(type_label, "expense")
+
+        if self._role == "cajero" and type_ == "expense":
+            messagebox.showerror(
+                "Error de Permisos",
+                "El rol de cajero no tiene permitida la función de gastos.",
+                parent=self.winfo_toplevel()
+            )
+            return
 
         raw_amount = self._outflow_amount_entry.get().strip()
         try:

@@ -116,19 +116,36 @@ class ReportController:
 
     # ------------------------------------------------------------------ CSV ----
 
-    def export_to_csv(self, data: list[dict], file_path: str) -> dict:
+    def export_to_csv(self, data: list[dict], file_path: str, start_date: str = "", end_date: str = "") -> dict:
         """Export *data* (list of dicts) to a semicolon-delimited CSV with BOM.
 
         Returns ``{"success": True, "data": file_path, "error": None}``.
         """
         try:
-            result_path = self._report_service.export_csv(data, file_path)
+            result_path = self._report_service.export_csv(data, file_path, start_date, end_date)
             return {"success": True, "data": result_path, "error": None}
         except (OSError, IOError) as e:
             return {
                 "success": False,
                 "data": None,
                 "error": f"Error al escribir CSV: {e}. Verifique permisos de escritura.",
+            }
+        except Exception as e:
+            return {"success": False, "data": None, "error": str(e)}
+
+    def export_to_excel(self, data: list[dict], file_path: str, start_date: str = "", end_date: str = "") -> dict:
+        """Export *data* (list of dicts) to an Excel (.xlsx) file using openpyxl.
+
+        Returns ``{"success": True, "data": file_path, "error": None}``.
+        """
+        try:
+            result_path = self._report_service.export_excel(data, file_path, start_date, end_date)
+            return {"success": True, "data": result_path, "error": None}
+        except (OSError, IOError) as e:
+            return {
+                "success": False,
+                "data": None,
+                "error": f"Error al escribir Excel: {e}. Verifique permisos de escritura.",
             }
         except Exception as e:
             return {"success": False, "data": None, "error": str(e)}
