@@ -150,6 +150,23 @@ class ReportController:
         except Exception as e:
             return {"success": False, "data": None, "error": str(e)}
 
+    def export_to_pdf(self, data: list[dict], file_path: str, start_date: str = "", end_date: str = "") -> dict:
+        """Export *data* (list of dicts) to a PDF (.pdf) file using fpdf2.
+
+        Returns ``{"success": True, "data": file_path, "error": None}``.
+        """
+        try:
+            result_path = self._report_service.export_pdf(data, file_path, start_date, end_date)
+            return {"success": True, "data": result_path, "error": None}
+        except (OSError, IOError) as e:
+            return {
+                "success": False,
+                "data": None,
+                "error": f"Error al escribir PDF: {e}. Verifique permisos de escritura.",
+            }
+        except Exception as e:
+            return {"success": False, "data": None, "error": str(e)}
+
 
 # --------------------------------------------------------------- helpers ---
 

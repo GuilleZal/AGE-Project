@@ -164,10 +164,11 @@ def test_report_summary_dialog_hides_csv_export_for_gerente(session_root):
         return buttons
         
     btns_gerente = find_buttons(dialog_gerente)
-    # Gerente should see "Cerrar" and "Exportar Resumen (Excel)", but no "Exportar Resumen (CSV)"
+    # Gerente should see "Cerrar" and "Exportar (PDF)", but no "Exportar (Excel)" or "Exportar Resumen (CSV)"
     button_texts_gerente = [btn.cget("text") for btn in btns_gerente]
     assert "Cerrar" in button_texts_gerente
-    assert "Exportar Resumen (Excel)" in button_texts_gerente
+    assert "Exportar (PDF)" in button_texts_gerente
+    assert "Exportar (Excel)" not in button_texts_gerente
     assert "Exportar Resumen (CSV)" not in button_texts_gerente
     
     # Dialog for admin
@@ -216,3 +217,61 @@ def test_report_view_uses_cached_dates_on_export(session_root, mocker):
     )
     
     view.destroy()
+
+
+def test_report_summary_dialog_pdf_export_call(session_root, mocker):
+    from pos.view.widgets.report_summary_dialog import ReportSummaryDialog
+    
+    root = session_root
+    report_data = {
+        "period": {"start": "2026-07-01", "end": "2026-07-15"},
+        "sales": {"total": 500},
+        "expenses": {"purchases": 100, "shrinkage": 10}
+    }
+    
+    # Mock filedialog.asksaveasfilename
+    mocker.patch("pos.view.widgets.report_summary_dialog.filedialog.asksaveasfilename", return_value="test.pdf")
+    
+    # Mock messagebox.showinfo
+    mock_showinfo = mocker.patch("pos.view.widgets.report_summary_dialog.messagebox.showinfo")
+    
+    # Mock controller and export_to_pdf
+    mock_controller = mocker.Mock()
+    mock_controller.export_to_pdf.return_value = {"success": True, "data": "test.pdf", "error": None}
+    
+    root._controller = mock_controller
+    
+    dialog = ReportSummaryDialog(root, report_data, role="gerente")
+    dialog._export_summary_pdf()
+    
+    # Assert export_to_pdf was called
+    mock_controller.export_to_pdf.assert_called_once()
+    mock_showinfo.assert_called_once()
+    
+    dialog.destroy()
+
+
+def test_report_view_table_export_buttons_visibility(session_root):
+    from pos.view.report_view import ReportView
+    
+    root = session_root
+    
+    # Gerente view
+    view_gerente = ReportView(root, role="gerente")
+    session_root.update()
+    
+    # Gerente should have CSV button gridded but NOT Excel button
+    assert view_gerente._export_table_btn.grid_info()
+    assert not view_gerente._export_excel_btn.grid_info()
+    
+    view_gerente.destroy()
+    
+    # Admin view
+    view_admin = ReportView(root, role="admin")
+    session_root.update()
+    
+    # Admin should have BOTH CSV and Excel buttons gridded
+    assert view_admin._export_table_btn.grid_info()
+    assert view_admin._export_excel_btn.grid_info()
+    
+    view_admin.destroy()

@@ -399,3 +399,69 @@ class ReportService:
 
         wb.save(filepath)
         return filepath
+
+    @staticmethod
+    def export_pdf(data: list[dict], filepath: str, start_date: str = "", end_date: str = "") -> str:
+        """Write *data* (list of dicts) to a PDF (.pdf) file using fpdf2.
+
+        Args:
+            data:       List of dicts representing key-value pairs (e.g. Concepto and Monto).
+            filepath:   Destination path for the PDF file.
+            start_date: Start date of the report range.
+            end_date:   End date of the report range.
+
+        Returns:
+            The *filepath* on success.
+        """
+        from fpdf import FPDF
+        import os
+        os.makedirs(os.path.dirname(filepath) or ".", exist_ok=True)
+
+        pdf = FPDF()
+        pdf.add_page()
+        pdf.set_margins(20, 20, 20)
+
+        # Title
+        pdf.set_font("Helvetica", "B", 18)
+        pdf.cell(0, 12, "Resumen de Ingresos y Egresos", ln=True, align="L")
+
+        # Period
+        if start_date and end_date:
+            pdf.set_font("Helvetica", "", 12)
+            pdf.set_text_color(100, 100, 100)
+            pdf.cell(0, 8, f"Periodo: {start_date} hasta {end_date}", ln=True, align="L")
+            pdf.set_text_color(0, 0, 0)
+        
+        pdf.ln(10)
+
+        if data:
+            # Draw Table
+            # 1. Header
+            pdf.set_font("Helvetica", "B", 12)
+            pdf.set_fill_color(240, 240, 240)
+            pdf.cell(100, 10, "Concepto", border=1, fill=True)
+            pdf.cell(60, 10, "Monto", border=1, ln=True, align="R", fill=True)
+
+            # 2. Rows
+            pdf.set_font("Helvetica", "", 12)
+            for row in data:
+                concept = row.get("Concepto", "")
+                amount = row.get("Monto", "")
+                
+                # Check for negative amounts to highlight in red
+                is_negative = "-" in amount
+                
+                pdf.cell(100, 10, concept, border=1)
+                
+                if is_negative:
+                    pdf.set_text_color(168, 50, 50) # Red
+                elif concept in ["Ganancia Bruta", "Ganancia Neta"]:
+                    pdf.set_text_color(31, 111, 58) # Green
+                else:
+                    pdf.set_text_color(0, 0, 0) # Black
+                    
+                pdf.cell(60, 10, amount, border=1, ln=True, align="R")
+                pdf.set_text_color(0, 0, 0) # Reset color
+
+        pdf.output(filepath)
+        return filepath

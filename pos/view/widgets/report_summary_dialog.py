@@ -45,14 +45,14 @@ class ReportSummaryDialog(CenteredDialog):
         btn_frame = ctk.CTkFrame(container, fg_color="transparent")
         btn_frame.pack(fill="x", side="bottom", pady=(10, 0))
 
-        # Export Excel button
+        # Export PDF button
         ctk.CTkButton(
             btn_frame,
-            text="Exportar Resumen (Excel)",
+            text="Exportar (PDF)",
             height=35,
-            fg_color="#1f6f3a",
-            hover_color="#18562d",
-            command=self._export_summary_excel,
+            fg_color="#a83232",
+            hover_color="#8c2727",
+            command=self._export_summary_pdf,
         ).pack(side="left", fill="x", expand=True, padx=(0, 5))
 
         # Close button
@@ -259,6 +259,62 @@ class ReportSummaryDialog(CenteredDialog):
         controller = getattr(self.master, "_controller", None)
         if controller is not None:
             res = controller.export_to_excel(export_data, filepath, start_display, end_display)
+            if res["success"]:
+                messagebox.showinfo(
+                    "Exportación exitosa",
+                    f"Se exportó el resumen a:\n{res['data']}",
+                    parent=self,
+                )
+            else:
+                messagebox.showerror(
+                    "Error de exportación",
+                    f"No se pudo exportar:\n{res['error']}",
+                    parent=self,
+                )
+        else:
+            messagebox.showerror(
+                "Error",
+                "El controlador no está disponible.",
+                parent=self,
+            )
+
+    def _export_summary_pdf(self) -> None:
+        """Export the summary numbers to a PDF file using the controller."""
+        period = self._report_data.get("period") or {}
+        start_display = period.get("start", "").split(" ")[0] if period.get("start") else ""
+        end_display = period.get("end", "").split(" ")[0] if period.get("end") else ""
+
+        filepath = filedialog.asksaveasfilename(
+            title="Exportar Resumen a PDF",
+            defaultextension=".pdf",
+            filetypes=[("PDF", "*.pdf")],
+            initialfile=f"Resumen_Reporte_{start_display}_a_{end_display}" if start_display else "Resumen_Reporte",
+            parent=self,
+        )
+        if not filepath:
+            return
+
+        sales = self._report_data.get("sales") or {}
+        total_sales = sales.get("total", 0)
+
+        expenses = self._report_data.get("expenses") or {}
+        purchases = expenses.get("purchases", 0)
+        shrinkage = expenses.get("shrinkage", 0)
+
+        ganancia_bruta = total_sales - purchases
+        ganancia_neta = ganancia_bruta - shrinkage
+
+        export_data = [
+            {"Concepto": "Ventas Totales", "Monto": f"${total_sales:,}"},
+            {"Concepto": "(-) Proveedores", "Monto": f"${purchases:,}"},
+            {"Concepto": "Ganancia Bruta", "Monto": f"${ganancia_bruta:,}"},
+            {"Concepto": "(-) Productos Vencidos/Rotos", "Monto": f"${shrinkage:,}"},
+            {"Concepto": "Ganancia Neta", "Monto": f"${ganancia_neta:,}"},
+        ]
+
+        controller = getattr(self.master, "_controller", None)
+        if controller is not None:
+            res = controller.export_to_pdf(export_data, filepath, start_display, end_display)
             if res["success"]:
                 messagebox.showinfo(
                     "Exportación exitosa",

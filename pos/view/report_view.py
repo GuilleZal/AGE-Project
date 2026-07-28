@@ -352,7 +352,7 @@ class ReportView(ctk.CTkFrame):
         )
 
         if getattr(self, "_role", "") == "gerente":
-            self._export_excel_btn.grid(row=0, column=3, columnspan=2, sticky="e", padx=(10, 10), pady=8)
+            self._export_table_btn.grid(row=0, column=3, columnspan=2, sticky="e", padx=(10, 10), pady=8)
         else:
             self._export_table_btn.grid(row=0, column=3, sticky="e", padx=(10, 5), pady=8)
             self._export_excel_btn.grid(row=0, column=4, sticky="e", padx=(5, 10), pady=8)
