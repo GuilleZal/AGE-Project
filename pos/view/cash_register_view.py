@@ -661,21 +661,34 @@ class CashRegisterView(ctk.CTkFrame):
             self._close_btn.configure(state="normal")
 
             bal = status.get("balance") or {}
-            self._balance_labels["initial"].configure(
-                text=f"${bal.get('opening', 0):,}"
-            )
-            self._balance_labels["inflow_cash"].configure(
-                text=f"${bal.get('inflow_cash', 0):,}"
-            )
-            self._balance_labels["inflow_transfer"].configure(
-                text=f"${bal.get('inflow_transfer', 0):,}"
-            )
-            self._balance_labels["inflow_debit"].configure(
-                text=f"${bal.get('inflow_debit', 0):,}"
-            )
-            self._balance_labels["inflow_credit"].configure(
-                text=f"${bal.get('inflow_credit', 0):,}"
-            )
+            if self._role == "cajero":
+                self._balance_labels["initial"].configure(text="***")
+                self._balance_labels["inflow_cash"].configure(text="***")
+                self._balance_labels["inflow_transfer"].configure(text="***")
+                self._balance_labels["inflow_debit"].configure(text="***")
+                self._balance_labels["inflow_credit"].configure(text="***")
+                self._balance_labels["expected_cash"].configure(text="***")
+            else:
+                self._balance_labels["initial"].configure(
+                    text=f"${bal.get('opening', 0):,}"
+                )
+                self._balance_labels["inflow_cash"].configure(
+                    text=f"${bal.get('inflow_cash', 0):,}"
+                )
+                self._balance_labels["inflow_transfer"].configure(
+                    text=f"${bal.get('inflow_transfer', 0):,}"
+                )
+                self._balance_labels["inflow_debit"].configure(
+                    text=f"${bal.get('inflow_debit', 0):,}"
+                )
+                self._balance_labels["inflow_credit"].configure(
+                    text=f"${bal.get('inflow_credit', 0):,}"
+                )
+                self._balance_labels["expected_cash"].configure(
+                    text=f"${bal.get('expected_cash', 0):,}"
+                )
+
+            # Egresos sí se muestran para que el cajero vea lo que registra
             self._balance_labels["outflow_supplier"].configure(
                 text=f"${bal.get('outflow_supplier', 0):,}"
             )
@@ -687,15 +700,15 @@ class CashRegisterView(ctk.CTkFrame):
                 self._balance_labels["outflow_total"].configure(
                     text=f"${bal.get('outflow_total', 0):,}"
                 )
-            self._balance_labels["expected_cash"].configure(
-                text=f"${bal.get('expected_cash', 0):,}"
-            )
             closing_val = bal.get("closing")
             self._balance_labels["final_cash"].configure(
                 text=f"${closing_val:,}" if closing_val is not None else "—"
             )
             diff_val = bal.get("diff_cash")
-            if diff_val is not None:
+            if self._role == "cajero":
+                self._balance_labels["diff_cash"].configure(text="***", text_color=theme.get_contrast_map()["text"])
+                self._diff_cash_lbl_widget.configure(text="Diferencia efectivo", text_color=theme.get_contrast_map()["text"])
+            elif diff_val is not None:
                 if diff_val > 0:
                     self._balance_labels["diff_cash"].configure(
                         text=f"+ ${diff_val:,}",
@@ -756,13 +769,11 @@ class CashRegisterView(ctk.CTkFrame):
                         r["id"],
                         _extract_date(r.get("opening_time", "—")),
                         _extract_date(r.get("closing_time", "—")),
-                        f"${r.get('opening_amount', 0):,}",
+                        "***",
                         f"${r.get('closing_amount', '—'):,}"
                         if r.get("closing_amount") is not None
                         else "—",
-                        f"${r.get('difference', 0):,}"
-                        if r.get("difference") is not None
-                        else "—",
+                        "***",
                     ),
                 )
 
@@ -1028,12 +1039,16 @@ class CashRegisterView(ctk.CTkFrame):
                 desc_text = f"{desc_text} (Descuento {pct_str})"
                 tags = ("discounted",)
 
+            amount_text = f"${m['amount']:,}"
+            if self._role == "cajero" and m["type"].startswith("sale_"):
+                amount_text = "***"
+
             self._preview_tree.insert(
                 "",
                 "end",
                 values=(
                     type_text,
-                    f"${m['amount']:,}",
+                    amount_text,
                     desc_text,
                     time_text,
                 ),

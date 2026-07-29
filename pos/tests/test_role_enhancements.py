@@ -68,7 +68,7 @@ def test_sale_view_cashier_payment_method_labels(session_root):
     
     labels_cajero = []
     collect_labels(view_cajero, labels_cajero)
-    assert "Efectivo/Transferencia" in labels_cajero
+    assert "Efectivo/\nTransf." in labels_cajero
     assert "Qr" in labels_cajero
     assert "Efectivo" not in labels_cajero
     assert "Transferencia" not in labels_cajero
