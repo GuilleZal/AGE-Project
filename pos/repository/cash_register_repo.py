@@ -44,7 +44,12 @@ class CashRegisterRepo:
     def find_active(self) -> CashRegister | None:
         """Return the currently open register, or ``None``."""
         row = self._db.execute(
-            "SELECT * FROM cash_registers WHERE status = 'open' ORDER BY id DESC LIMIT 1"
+            """SELECT cr.*, u.username, u2.username as closed_by_username 
+               FROM cash_registers cr 
+               LEFT JOIN users u ON cr.user_id = u.id 
+               LEFT JOIN users u2 ON cr.closed_by_user_id = u2.id 
+               WHERE cr.status = 'open' 
+               ORDER BY cr.id DESC LIMIT 1"""
         ).fetchone()
         if row is None:
             return None
@@ -58,6 +63,7 @@ class CashRegisterRepo:
         closing_amount: int,
         difference: int,
         reason: str,
+        closed_by_user_id: int | None = None,
     ) -> CashRegister:
         """Close a register: set ``closing_amount``, ``difference``,
         ``close_reason``, ``status='closed'``, and store ``expected_amount``.
@@ -70,15 +76,22 @@ class CashRegisterRepo:
         cur = self._db.execute(
             """UPDATE cash_registers
                SET closing_amount = ?, closing_time = ?, difference = ?,
-                   close_reason = ?, status = 'closed', expected_amount = ?
-               WHERE id = ?
-               RETURNING *""",
-            (closing_amount, now, difference, reason, expected_amount, register_id),
+                   close_reason = ?, status = 'closed', expected_amount = ?,
+                   closed_by_user_id = ?
+               WHERE id = ?""",
+            (closing_amount, now, difference, reason, expected_amount, closed_by_user_id, register_id),
         )
-        row = cur.fetchone()
-        if row is None:
+        if cur.rowcount == 0:
             raise DataError(f"Caja registradora id={register_id} no encontrada")
-        return self._from_row(row)
+        row = self._db.execute(
+            """SELECT cr.*, u.username, u2.username as closed_by_username
+               FROM cash_registers cr
+               LEFT JOIN users u ON cr.user_id = u.id
+               LEFT JOIN users u2 ON cr.closed_by_user_id = u2.id
+               WHERE cr.id = ?""",
+            (register_id,),
+        )
+        return self._from_row(row.fetchone())
 
     # -------------------------------------------------------------- balance
 
@@ -159,7 +172,10 @@ class CashRegisterRepo:
         Returns:
             List of CashRegister objects matching the date range.
         """
-        query = "SELECT cr.*, u.username FROM cash_registers cr LEFT JOIN users u ON cr.user_id = u.id"
+        query = """SELECT cr.*, u.username, u2.username as closed_by_username 
+                   FROM cash_registers cr 
+                   LEFT JOIN users u ON cr.user_id = u.id 
+                   LEFT JOIN users u2 ON cr.closed_by_user_id = u2.id"""
         params: list = []
         
         if start_date or end_date:
@@ -194,4 +210,6 @@ class CashRegisterRepo:
             status=row["status"],
             user_id=row["user_id"] if "user_id" in row.keys() else None,
             username=row["username"] if "username" in row.keys() else None,
+            closed_by_user_id=row["closed_by_user_id"] if "closed_by_user_id" in row.keys() else None,
+            closed_by_username=row["closed_by_username"] if "closed_by_username" in row.keys() else None,
         )

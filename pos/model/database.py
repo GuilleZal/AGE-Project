@@ -208,6 +208,14 @@ def _run_migrations(conn: sqlite3.Connection) -> None:
         except Exception:
             pass
 
+    # Migration 11: Add closed_by_user_id column to cash_registers table
+    if "closed_by_user_id" not in columns:
+        try:
+            conn.execute("ALTER TABLE cash_registers ADD COLUMN closed_by_user_id INTEGER REFERENCES users(id)")
+            conn.commit()
+        except Exception:
+            pass
+
 
 # ------------------------------------------------------------------ DDL ----
 # NOTE: Currency fields (prices, amounts, totals) use INTEGER to represent
@@ -313,7 +321,8 @@ CREATE TABLE IF NOT EXISTS cash_registers (
     difference      INTEGER,
     close_reason    TEXT,
     status          TEXT NOT NULL DEFAULT 'open' CHECK(status IN ('open','closed')),
-    user_id         INTEGER REFERENCES users(id)
+    user_id         INTEGER REFERENCES users(id),
+    closed_by_user_id INTEGER REFERENCES users(id)
 );
 CREATE INDEX IF NOT EXISTS idx_cash_registers_status ON cash_registers(status);
 CREATE INDEX IF NOT EXISTS idx_cash_registers_time   ON cash_registers(opening_time);

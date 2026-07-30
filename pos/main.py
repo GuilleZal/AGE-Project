@@ -127,22 +127,147 @@ def _create_main_window(conn, login_ctrl, user, permissions):
     
     # MainWindow is a CTk root window (independent from the manager root)
     app = MainWindow(permissions=permissions)
+    
+    # Silence background errors for this window's Tcl interpreter
+    try:
+        app.tk.call("proc", "bgerror", "msg", "")
+    except Exception:
+        pass
+        
     _wire_views(conn, app, permissions)
     app._apply_current_theme()
     
+    def check_active_register() -> bool:
+        role_val = user.role.value if hasattr(user.role, 'value') else user.role
+        if role_val == "cajero":
+            from pos.repository.cash_register_repo import CashRegisterRepo
+            register_repo = CashRegisterRepo(conn)
+            active_reg = register_repo.find_active()
+            if active_reg is not None:
+                from tkinter import messagebox
+                confirm = messagebox.askyesno(
+                    "Turno de caja activo",
+                    "Tienes un turno de caja activo. ¿Seguro que deseas salir del sistema sin realizar el cierre de la caja?",
+                    parent=app
+                )
+                return confirm
+        return True
+
     # Set callbacks - only quit mainloop, don't destroy
     def on_logout():
+        if not check_active_register():
+            return False
         if user.id and user.id > 0:
             login_ctrl.logout(user.id)
         app.quit()
     
     def on_window_close():
+        if not check_active_register():
+            return False
         if user.id and user.id > 0:
             login_ctrl.logout(user.id)
         app.quit()
     
     app.set_logout_callback(on_logout)
     app.set_close_callback(on_window_close)
+    
+    def check_and_handle_open_register():
+        role_val = user.role.value if hasattr(user.role, 'value') else user.role
+        if role_val != "cajero":
+            return
+
+        from pos.repository.cash_register_repo import CashRegisterRepo
+        register_repo = CashRegisterRepo(conn)
+        active_reg = register_repo.find_active()
+
+        # If active register exists and is NOT owned by the current user
+        if active_reg is not None and active_reg.user_id != user.id:
+            from tkinter import messagebox
+            # 1. Warn user that another user's register is open and must be closed
+            messagebox.showwarning(
+                "Caja abierta por otro usuario",
+                f"La caja se encuentra abierta por el usuario '{active_reg.username or 'desconocido'}'. "
+                "Para operar, debe realizar el cierre de esta caja.",
+                parent=app
+            )
+
+            # 2. Show the close dialog
+            from pos.view.cash_register_view import _CloseDialog
+            close_dialog = _CloseDialog(app)
+            app.wait_window(close_dialog)
+            close_result = close_dialog.result
+
+            if close_result is None:
+                # Canceled close -> force logout
+                messagebox.showerror(
+                    "Cierre requerido",
+                    "Debe cerrar la caja del otro usuario para operar. Se cerrará la sesión.",
+                    parent=app
+                )
+                if user.id and user.id > 0:
+                    login_ctrl.logout(user.id)
+                app.quit()
+                return
+
+            # 3. Close the register via controller
+            cash_register_ctrl = app._controllers.get("Caja")
+            if cash_register_ctrl:
+                close_res = cash_register_ctrl.close_register(close_result["amount"], close_result["notes"])
+                if not close_res["success"]:
+                    messagebox.showerror(
+                        "Error al cerrar caja",
+                        f"No se pudo cerrar la caja: {close_res['error']}. Se cerrará la sesión.",
+                        parent=app
+                    )
+                    if user.id and user.id > 0:
+                        login_ctrl.logout(user.id)
+                    app.quit()
+                    return
+
+                # Refresh the CashRegisterView in the UI
+                caja_view = app._views.get("Caja")
+                if caja_view and hasattr(caja_view, "_controller_refresh"):
+                    caja_view._controller_refresh()
+                elif caja_view and hasattr(caja_view, "_refresh_status"):
+                    caja_view._refresh_status()
+                    caja_view._refresh_history()
+
+                # 4. Ask to open new register with same amount
+                monto_cierre = close_result["amount"]
+                open_same = messagebox.askyesno(
+                    "Abrir caja",
+                    f"¿Desea abrir la caja con el mismo monto con el que cerró (${monto_cierre:,})?",
+                    parent=app
+                )
+
+                if open_same:
+                    open_res = cash_register_ctrl.open_register(monto_cierre)
+                    if open_res["success"]:
+                        messagebox.showinfo("Caja abierta", "Caja abierta correctamente.", parent=app)
+                    else:
+                        messagebox.showerror("Error al abrir caja", f"No se pudo abrir la caja: {open_res['error']}", parent=app)
+                else:
+                    # Modify amount -> show open dialog
+                    from pos.view.cash_register_view import _AmountDialog
+                    open_dialog = _AmountDialog(app, title="Abrir caja", prompt="Monto inicial ($):")
+                    app.wait_window(open_dialog)
+                    new_amount = open_dialog.result
+                    if new_amount is not None:
+                        open_res = cash_register_ctrl.open_register(new_amount)
+                        if open_res["success"]:
+                            messagebox.showinfo("Caja abierta", "Caja abierta correctamente.", parent=app)
+                        else:
+                            messagebox.showerror("Error al abrir caja", f"No se pudo abrir la caja: {open_res['error']}", parent=app)
+
+                # Final refresh of status/views in UI
+                caja_view = app._views.get("Caja")
+                if caja_view and hasattr(caja_view, "_controller_refresh"):
+                    caja_view._controller_refresh()
+                elif caja_view and hasattr(caja_view, "_refresh_status"):
+                    caja_view._refresh_status()
+                    caja_view._refresh_history()
+
+    app.after(100, check_and_handle_open_register)
     
     return app
 

@@ -97,6 +97,12 @@ class CashRegisterController:
                     "error": "No hay caja abierta para cerrar",
                 }
 
+            # Find active user_id from session (the person closing it)
+            user_row = self._db.execute(
+                "SELECT user_id FROM sessions WHERE logout_time IS NULL ORDER BY login_time DESC LIMIT 1"
+            ).fetchone()
+            closed_by_user_id = user_row["user_id"] if user_row else None
+
             balance = self._register_repo.get_balance(active.id)
             expected = balance["expected"]
             diff = final_amount - expected
@@ -106,6 +112,7 @@ class CashRegisterController:
                 closing_amount=final_amount,
                 difference=diff,
                 reason=notes.strip(),
+                closed_by_user_id=closed_by_user_id,
             )
             self._db.commit()
             return {
@@ -261,6 +268,8 @@ class CashRegisterController:
                         "opening_amount": active.opening_amount,
                         "opening_time": active.opening_time,
                         "status": active.status,
+                        "user_id": active.user_id,
+                        "username": active.username,
                     },
                     "balance": balance,
                 },
@@ -317,6 +326,9 @@ class CashRegisterController:
                         "close_reason": r.close_reason,
                         "status": r.status,
                         "username": r.username,
+                        "closed_by_username": r.closed_by_username,
+                        "user_id": r.user_id,
+                        "closed_by_user_id": r.closed_by_user_id,
                     }
                     for r in registers
                 ],

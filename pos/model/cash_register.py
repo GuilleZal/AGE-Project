@@ -23,6 +23,8 @@ class CashRegister:
     status: str = "open"
     user_id: int | None = None
     username: str | None = None
+    closed_by_user_id: int | None = None
+    closed_by_username: str | None = None
 
 
 @dataclass

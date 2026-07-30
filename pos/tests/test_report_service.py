@@ -172,6 +172,9 @@ class TestProfitSummary:
 
 class TestTopProducts:
     def test_returns_top_by_quantity(self, db: sqlite3.Connection, sample_products: list[int]):
+        db.execute("UPDATE products SET unit_type = 'Kg' WHERE name LIKE '%x Kg%'")
+        db.commit()
+
         _seed_sales(db, sample_products)
         svc = ReportService(db)
 
@@ -181,6 +184,14 @@ class TestTopProducts:
         # First should be Queso (2.0 kg) or Coca (2) or Six-Pack (2)
         # They all have quantity=2, ordered by total_quantity DESC
         assert result[0]["total_quantity"] >= 1
+
+        # Verify unit_type is retrieved and matches the product unit
+        for item in result:
+            assert "unit_type" in item
+            if "x Kg" in item["name"]:
+                assert item["unit_type"] == "Kg"
+            else:
+                assert item["unit_type"] == "Unidad"
 
     def test_limit_respected(self, db: sqlite3.Connection, sample_products: list[int]):
         _seed_sales(db, sample_products)

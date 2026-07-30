@@ -94,6 +94,24 @@ class TestCloseRegister:
         assert closed.difference == -1000
         assert closed.expected_amount == 10000  # 9000 - (-1000) = 10000
 
+    def test_close_by_different_user(self, db):
+        repo = CashRegisterRepo(db)
+        
+        # Seed two users
+        db.execute("INSERT INTO users (id, username, password, role) VALUES (10, 'cajero_a', 'pass', 'cajero')")
+        db.execute("INSERT INTO users (id, username, password, role) VALUES (11, 'cajero_b', 'pass', 'cajero')")
+        db.commit()
+
+        reg = repo.open_register(10000, user_id=10)
+        closed = repo.close_register(
+            reg.id, closing_amount=15000, difference=500, reason="Sobrante", closed_by_user_id=11
+        )
+        assert closed.status == "closed"
+        assert closed.user_id == 10
+        assert closed.closed_by_user_id == 11
+        assert closed.username == "cajero_a"
+        assert closed.closed_by_username == "cajero_b"
+
 
 class TestGetBalance:
     def test_opening_only(self, db):

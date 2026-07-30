@@ -57,6 +57,7 @@ class CashRegisterView(ctk.CTkFrame):
         callbacks = callbacks or {}
         self._cash_register_mode = cash_register_mode
         self._role = role
+        self._history_registers: dict[int, dict[str, Any]] = {}
 
         self._on_open: Callable[[int], None] | None = callbacks.get(
             "on_open"
@@ -88,15 +89,26 @@ class CashRegisterView(ctk.CTkFrame):
         self._left_frame.grid_columnconfigure(0, weight=1)
 
         # -- status header --
+        self._status_container = ctk.CTkFrame(self._left_frame, fg_color="transparent")
+        self._status_container.grid(row=0, column=0, sticky="ew", padx=15, pady=(5, 2))
+        
         self._status_label = ctk.CTkLabel(
-            self._left_frame,
+            self._status_container,
             text="CAJA CERRADA",
             font=theme.scaled_font(18, weight="bold"),
             text_color="#e74c3c",
+            wraplength=250,
         )
-        self._status_label.grid(
-            row=0, column=0, sticky="ew", padx=15, pady=(5, 2)
+        self._status_label.pack(side="top", fill="x", expand=True)
+
+        self._status_sublabel = ctk.CTkLabel(
+            self._status_container,
+            text="",
+            font=theme.scaled_font(12, weight="normal"),
+            text_color="#95a5a6",
+            wraplength=240,
         )
+        self._status_sublabel.pack(side="top", fill="x", expand=True, pady=(2, 0))
 
         # -- balance panel --
         # -- balance container frame --
@@ -644,12 +656,23 @@ class CashRegisterView(ctk.CTkFrame):
                 } | None,
             }
         """
+        is_gerente_only = self._cash_register_mode == "history_only"
+        
         if not status.get("active"):
             self._status_label.configure(
                 text="CAJA CERRADA", text_color="#e74c3c"
             )
-            self._open_btn.configure(state="normal")
-            self._close_btn.configure(state="disabled")
+            self._status_sublabel.configure(text="")
+            
+            if is_gerente_only:
+                self._open_btn.pack_forget()
+                self._close_btn.pack_forget()
+            else:
+                self._open_btn.pack(side="left", expand=True, fill="x", padx=(8, 4), pady=8)
+                self._close_btn.pack(side="left", expand=True, fill="x", padx=(4, 8), pady=8)
+                self._open_btn.configure(state="normal")
+                self._close_btn.configure(state="disabled")
+                
             self._set_balance_defaults()
             self._clear_preview()
         else:
@@ -657,8 +680,21 @@ class CashRegisterView(ctk.CTkFrame):
                 text=f"CAJA ABIERTA — #{status['register']['id']}",
                 text_color="#2ecc71",
             )
-            self._open_btn.configure(state="disabled")
-            self._close_btn.configure(state="normal")
+            opened_by = status['register'].get("username") or "desconocido"
+            self._status_sublabel.configure(
+                text=f"Abierta por: {opened_by}",
+                text_color="#2ecc71"
+            )
+            
+            if is_gerente_only:
+                self._open_btn.pack_forget()
+                self._close_btn.pack(side="left", expand=True, fill="x", padx=(4, 8), pady=8)
+                self._close_btn.configure(state="normal")
+            else:
+                self._open_btn.pack(side="left", expand=True, fill="x", padx=(8, 4), pady=8)
+                self._close_btn.pack(side="left", expand=True, fill="x", padx=(4, 8), pady=8)
+                self._open_btn.configure(state="disabled")
+                self._close_btn.configure(state="normal")
 
             bal = status.get("balance") or {}
             if self._role == "cajero":
@@ -668,6 +704,7 @@ class CashRegisterView(ctk.CTkFrame):
                 self._balance_labels["inflow_debit"].configure(text="***")
                 self._balance_labels["inflow_credit"].configure(text="***")
                 self._balance_labels["expected_cash"].configure(text="***")
+                self._balance_labels["outflow_supplier"].configure(text="***")
             else:
                 self._balance_labels["initial"].configure(
                     text=f"${bal.get('opening', 0):,}"
@@ -687,11 +724,9 @@ class CashRegisterView(ctk.CTkFrame):
                 self._balance_labels["expected_cash"].configure(
                     text=f"${bal.get('expected_cash', 0):,}"
                 )
-
-            # Egresos sí se muestran para que el cajero vea lo que registra
-            self._balance_labels["outflow_supplier"].configure(
-                text=f"${bal.get('outflow_supplier', 0):,}"
-            )
+                self._balance_labels["outflow_supplier"].configure(
+                    text=f"${bal.get('outflow_supplier', 0):,}"
+                )
             if "outflow_expense" in self._balance_labels:
                 self._balance_labels["outflow_expense"].configure(
                     text=f"${bal.get('outflow_expense', 0):,}"
@@ -741,6 +776,7 @@ class CashRegisterView(ctk.CTkFrame):
 
     def update_history(self, registers: list[dict[str, Any]]) -> None:
         """Refresh the history treeview with *registers*."""
+        self._history_registers = {r["id"]: r for r in registers}
         for child in self._history_tree.get_children():
             self._history_tree.delete(child)
 
@@ -941,65 +977,138 @@ class CashRegisterView(ctk.CTkFrame):
         register_id = int(selection[0])
         self._update_preview(register_id, label=f"Caja #{register_id}")
 
+        selected_register = getattr(self, "_history_registers", {}).get(register_id)
+        if selected_register:
+            status_val = selected_register.get("status")
+            is_gerente_only = self._cash_register_mode == "history_only"
+
+            if status_val == "open":
+                self._status_label.configure(
+                    text=f"CAJA ABIERTA — #{register_id}",
+                    text_color="#2ecc71"
+                )
+                opened_by = selected_register.get("username") or "desconocido"
+                self._status_sublabel.configure(
+                    text=f"Abierta por: {opened_by}",
+                    text_color="#2ecc71"
+                )
+
+                if is_gerente_only:
+                    self._open_btn.pack_forget()
+                    self._close_btn.pack(side="left", expand=True, fill="x", padx=(4, 8), pady=8)
+                    self._close_btn.configure(state="normal")
+                else:
+                    self._open_btn.pack(side="left", expand=True, fill="x", padx=(8, 4), pady=8)
+                    self._close_btn.pack(side="left", expand=True, fill="x", padx=(4, 8), pady=8)
+                    self._open_btn.configure(state="disabled")
+                    self._close_btn.configure(state="normal")
+            else:
+                self._status_label.configure(
+                    text=f"CAJA CERRADA — #{register_id}",
+                    text_color="#e74c3c"
+                )
+                
+                # Check if opened and closed by different users
+                user_id = selected_register.get("user_id")
+                closed_by_user_id = selected_register.get("closed_by_user_id")
+                opened_by = selected_register.get("username") or "desconocido"
+                closed_by = selected_register.get("closed_by_username") or "desconocido"
+                
+                if user_id and closed_by_user_id and user_id != closed_by_user_id:
+                    self._status_sublabel.configure(
+                        text=f"⚠️ Abierta por {opened_by} y cerrada por {closed_by}",
+                        text_color="#e67e22"
+                    )
+                else:
+                    self._status_sublabel.configure(
+                        text=f"Abierta por: {opened_by} | Cerrada por: {closed_by}",
+                        text_color="#95a5a6"
+                    )
+
+                if is_gerente_only:
+                    self._open_btn.pack_forget()
+                    self._close_btn.pack_forget()
+                else:
+                    self._open_btn.pack(side="left", expand=True, fill="x", padx=(8, 4), pady=8)
+                    self._close_btn.pack(side="left", expand=True, fill="x", padx=(4, 8), pady=8)
+                    self._open_btn.configure(state="normal")
+                    self._close_btn.configure(state="disabled")
+
         result = self._controller.get_register_balance(register_id)
         if result["success"]:
             bal = result["data"]
-            self._balance_labels["initial"].configure(
-                text=f"${bal.get('opening', 0):,}"
-            )
-            self._balance_labels["inflow_cash"].configure(
-                text=f"${bal.get('inflow_cash', 0):,}"
-            )
-            self._balance_labels["inflow_transfer"].configure(
-                text=f"${bal.get('inflow_transfer', 0):,}"
-            )
-            self._balance_labels["inflow_debit"].configure(
-                text=f"${bal.get('inflow_debit', 0):,}"
-            )
-            self._balance_labels["inflow_credit"].configure(
-                text=f"${bal.get('inflow_credit', 0):,}"
-            )
-            self._balance_labels["outflow_supplier"].configure(
-                text=f"${bal.get('outflow_supplier', 0):,}"
-            )
-            if "outflow_expense" in self._balance_labels:
-                self._balance_labels["outflow_expense"].configure(
-                    text=f"${bal.get('outflow_expense', 0):,}"
-                )
-            if "outflow_total" in self._balance_labels:
-                self._balance_labels["outflow_total"].configure(
-                    text=f"${bal.get('outflow_total', 0):,}"
-                )
-            self._balance_labels["expected_cash"].configure(
-                text=f"${bal.get('expected_cash', 0):,}"
-            )
-            closing_val = bal.get("closing")
-            self._balance_labels["final_cash"].configure(
-                text=f"${closing_val:,}" if closing_val is not None else "—"
-            )
-            diff_val = bal.get("diff_cash")
-            if diff_val is not None:
-                if diff_val > 0:
-                    self._balance_labels["diff_cash"].configure(
-                        text=f"+ ${diff_val:,}",
-                        text_color="#2ecc71"
-                    )
-                    self._diff_cash_lbl_widget.configure(text="Diferencia efectivo (Sobrante)", text_color="#2ecc71")
-                elif diff_val < 0:
-                    self._balance_labels["diff_cash"].configure(
-                        text=f"- ${abs(diff_val):,}",
-                        text_color="#e74c3c"
-                    )
-                    self._diff_cash_lbl_widget.configure(text="Diferencia efectivo (Faltante)", text_color="#e74c3c")
-                else:
-                    self._balance_labels["diff_cash"].configure(
-                        text="$0",
-                        text_color=theme.get_contrast_map()["text"]
-                    )
-                    self._diff_cash_lbl_widget.configure(text="Diferencia efectivo", text_color=theme.get_contrast_map()["text"])
-            else:
-                self._balance_labels["diff_cash"].configure(text="—", text_color=theme.get_contrast_map()["text"])
+            if self._role == "cajero":
+                self._balance_labels["initial"].configure(text="***")
+                self._balance_labels["inflow_cash"].configure(text="***")
+                self._balance_labels["inflow_transfer"].configure(text="***")
+                self._balance_labels["inflow_debit"].configure(text="***")
+                self._balance_labels["inflow_credit"].configure(text="***")
+                self._balance_labels["expected_cash"].configure(text="***")
+                self._balance_labels["outflow_supplier"].configure(text="***")
+                if "outflow_expense" in self._balance_labels:
+                    self._balance_labels["outflow_expense"].configure(text="***")
+                if "outflow_total" in self._balance_labels:
+                    self._balance_labels["outflow_total"].configure(text="***")
+                self._balance_labels["final_cash"].configure(text="***")
+                self._balance_labels["diff_cash"].configure(text="***", text_color=theme.get_contrast_map()["text"])
                 self._diff_cash_lbl_widget.configure(text="Diferencia efectivo", text_color=theme.get_contrast_map()["text"])
+            else:
+                self._balance_labels["initial"].configure(
+                    text=f"${bal.get('opening', 0):,}"
+                )
+                self._balance_labels["inflow_cash"].configure(
+                    text=f"${bal.get('inflow_cash', 0):,}"
+                )
+                self._balance_labels["inflow_transfer"].configure(
+                    text=f"${bal.get('inflow_transfer', 0):,}"
+                )
+                self._balance_labels["inflow_debit"].configure(
+                    text=f"${bal.get('inflow_debit', 0):,}"
+                )
+                self._balance_labels["inflow_credit"].configure(
+                    text=f"${bal.get('inflow_credit', 0):,}"
+                )
+                self._balance_labels["outflow_supplier"].configure(
+                    text=f"${bal.get('outflow_supplier', 0):,}"
+                )
+                if "outflow_expense" in self._balance_labels:
+                    self._balance_labels["outflow_expense"].configure(
+                        text=f"${bal.get('outflow_expense', 0):,}"
+                    )
+                if "outflow_total" in self._balance_labels:
+                    self._balance_labels["outflow_total"].configure(
+                        text=f"${bal.get('outflow_total', 0):,}"
+                    )
+                self._balance_labels["expected_cash"].configure(
+                    text=f"${bal.get('expected_cash', 0):,}"
+                )
+                closing_val = bal.get("closing")
+                self._balance_labels["final_cash"].configure(
+                    text=f"${closing_val:,}" if closing_val is not None else "—"
+                )
+                diff_val = bal.get("diff_cash")
+                if diff_val is not None:
+                    if diff_val > 0:
+                        self._balance_labels["diff_cash"].configure(
+                            text=f"+ ${diff_val:,}",
+                            text_color="#2ecc71"
+                        )
+                        self._diff_cash_lbl_widget.configure(text="Diferencia efectivo (Sobrante)", text_color="#2ecc71")
+                    elif diff_val < 0:
+                        self._balance_labels["diff_cash"].configure(
+                            text=f"- ${abs(diff_val):,}",
+                            text_color="#e74c3c"
+                        )
+                        self._diff_cash_lbl_widget.configure(text="Diferencia efectivo (Faltante)", text_color="#e74c3c")
+                    else:
+                        self._balance_labels["diff_cash"].configure(
+                            text="$0",
+                            text_color=theme.get_contrast_map()["text"]
+                        )
+                        self._diff_cash_lbl_widget.configure(text="Diferencia efectivo", text_color=theme.get_contrast_map()["text"])
+                else:
+                    self._balance_labels["diff_cash"].configure(text="—", text_color=theme.get_contrast_map()["text"])
+                    self._diff_cash_lbl_widget.configure(text="Diferencia efectivo", text_color=theme.get_contrast_map()["text"])
 
     def _update_preview(self, register_id: int, label: str = "Movimientos") -> None:
         """Populate the movement preview panel for a specific register."""
@@ -1040,7 +1149,7 @@ class CashRegisterView(ctk.CTkFrame):
                 tags = ("discounted",)
 
             amount_text = f"${m['amount']:,}"
-            if self._role == "cajero" and m["type"].startswith("sale_"):
+            if self._role == "cajero" and (m["type"].startswith("sale_") or m["type"] == "supplier_payment"):
                 amount_text = "***"
 
             self._preview_tree.insert(
@@ -1060,9 +1169,8 @@ class CashRegisterView(ctk.CTkFrame):
     def _apply_permission_mode(self, mode: str) -> None:
         """Apply role-based visibility to cash register widgets."""
         if mode == "history_only":
-            # Gerente: hide open/close buttons and outflow form, but keep history and preview
+            # Gerente: hide open button and outflow form, but keep history and preview
             self._open_btn.pack_forget()
-            self._close_btn.pack_forget()
             self._outflow_frame.grid_remove()
             # Keep _preview_frame visible so gerente can see movements of selected register
         elif mode == "restricted":

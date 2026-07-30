@@ -188,13 +188,23 @@ def apply_theme_to_widget(widget, contrast: dict) -> None:
                 if custom_color:
                     widget.configure(fg_color=contrast[custom_color])
                 else:
-                    current_fg = widget.cget("fg_color")
-                    if current_fg != "transparent":
-                        widget.configure(fg_color=contrast["panel"])
+                    if widget_type == "CTkScrollableFrame":
+                        widget.configure(fg_color="transparent")
+                    else:
+                        current_fg = widget.cget("fg_color")
+                        if current_fg != "transparent":
+                            widget.configure(fg_color=contrast["panel"])
+                
+                # Update border color if it has borders
+                try:
+                    if widget.cget("border_width") > 0:
+                        widget.configure(border_color=contrast["search_border"])
+                except:
+                    pass
         except:
             pass
     
-    elif widget_type in ("CTkLabel", "CTkRadioButton"):
+    elif widget_type in ("CTkLabel", "CTkRadioButton", "CTkCheckBox", "CTkSwitch"):
         try:
             custom_color = getattr(widget, "_custom_theme_color", None)
             if custom_color != "skip":

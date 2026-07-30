@@ -547,10 +547,17 @@ class ReportView(ctk.CTkFrame):
 
         export_data = []
         for idx, item in enumerate(top_products, 1):
+            qty = float(item.get("total_quantity", 0.0))
+            unit_type = item.get("unit_type", "Unidad")
+            if unit_type == "Kg":
+                qty_val = f"{qty:.2f} kg"
+            else:
+                qty_val = f"{int(qty)} u."
+
             export_data.append({
                 "Nro": idx,
                 "Producto": item.get("name", "—"),
-                "Cantidad": int(item.get("total_quantity", 0)),
+                "Cantidad": qty_val,
                 "Monto Total": f"${item.get('total_amount', 0):,}",
             })
 
@@ -1088,19 +1095,26 @@ class ReportView(ctk.CTkFrame):
             self._report_tree.column("col3", width=140, minwidth=40, anchor="e")
 
             # Setup sorting
-            column_types = {"col0": "int", "col1": "str", "col2": "int", "col3": "int"}
+            column_types = {"col0": "int", "col1": "str", "col2": "float", "col3": "int"}
             add_sorting_to_treeview(self._report_tree, list(columns), column_types)
 
             # Populate data
             top_products = self._report_data.get("top_products") or []
             for idx, item in enumerate(top_products, 1):
+                qty = float(item.get("total_quantity", 0.0))
+                unit_type = item.get("unit_type", "Unidad")
+                if unit_type == "Kg":
+                    qty_str = f"{qty:.2f} kg"
+                else:
+                    qty_str = f"{int(qty)} u."
+
                 self._report_tree.insert(
                     "",
                     "end",
                     values=(
                         idx,
                         item.get("name", "—"),
-                        int(item.get("total_quantity", 0)),
+                        qty_str,
                         f"${item.get('total_amount', 0):,}",
                     ),
                 )

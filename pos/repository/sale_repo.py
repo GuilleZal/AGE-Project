@@ -79,12 +79,13 @@ class SaleRepo:
 
         Returns:
             List of dicts with keys: ``product_id``, ``name``, ``barcode``,
-            ``total_quantity``, ``total_amount``.
+            ``unit_type``, ``total_quantity``, ``total_amount``.
         """
         rows = self._db.execute(
             """SELECT p.id          AS product_id,
                       p.name        AS name,
                       p.barcode     AS barcode,
+                      p.unit_type   AS unit_type,
                       SUM(si.quantity) AS total_quantity,
                       SUM(si.subtotal) AS total_amount
                FROM sale_items si

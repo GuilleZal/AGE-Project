@@ -302,26 +302,28 @@ class MainWindow(ctk.CTk):
     def _on_logout(self) -> None:
         """Handle logout button click."""
         if self._on_logout_callback:
+            if self._on_logout_callback() is False:
+                return
             try:
                 self.withdraw()
             except Exception:
                 pass
-            self.after(250, self._on_logout_callback)
 
     def _on_window_close(self) -> None:
         """Handle window manager close button."""
-        def execute_close():
-            if self._on_close_callback:
-                self._on_close_callback()
-            try:
-                self.destroy()
-            except Exception:
-                pass
-
+        if self._on_close_callback:
+            if self._on_close_callback() is False:
+                return
         try:
             self.withdraw()
         except Exception:
             pass
+        
+        def execute_close():
+            try:
+                self.destroy()
+            except Exception:
+                pass
         self.after(250, execute_close)
 
     def refresh_all_views(self) -> None:
@@ -615,6 +617,11 @@ class MainWindow(ctk.CTk):
 
     def _on_f4_pressed(self, event: Any = None) -> None:
         """Open or Close the cash register from any view."""
+        if self._permissions:
+            role_val = self._permissions.user.role.value if hasattr(self._permissions.user.role, 'value') else self._permissions.user.role
+            if role_val == "gerente":
+                return
+
         cash_view = self._views.get("Caja")
         if cash_view and hasattr(cash_view, "_controller"):
             try:
