@@ -472,3 +472,77 @@ class CashRegisterController:
             })
         
         return formatted
+
+    def transfer_register(self, final_amount: int, notes: str, new_opener_user_id: int) -> dict:
+        """Atomically closes the active register session (Cajero 1) and opens a new one (Cajero 2)
+        with the same final_amount in a single SQL transaction.
+        
+        If any of the operations fails, it performs a ROLLBACK.
+        """
+        if final_amount < 0:
+            return {
+                "success": False,
+                "data": None,
+                "error": "El monto no puede ser negativo",
+            }
+
+        try:
+            # 1. Find active register
+            active = self._register_repo.find_active()
+            if active is None:
+                return {
+                    "success": False,
+                    "data": None,
+                    "error": "No hay caja abierta para realizar el traspaso",
+                }
+
+            # 2. Get closer (Cajero 2) from the active session
+            user_row = self._db.execute(
+                "SELECT user_id FROM sessions WHERE logout_time IS NULL ORDER BY login_time DESC LIMIT 1"
+            ).fetchone()
+            closed_by_user_id = user_row["user_id"] if user_row else None
+
+            # --- Atomic Transaction ---
+            self._db.execute("BEGIN")
+
+            # 3. Close the active register
+            balance = self._register_repo.get_balance(active.id)
+            expected = balance["expected"]
+            diff = final_amount - expected
+
+            closed = self._register_repo.close_register(
+                register_id=active.id,
+                closing_amount=final_amount,
+                difference=diff,
+                reason=notes.strip(),
+                closed_by_user_id=closed_by_user_id,
+            )
+
+            # 4. Open the new register with the same final_amount
+            new_register = self._register_repo.open_register(
+                opening_amount=final_amount,
+                user_id=new_opener_user_id
+            )
+
+            self._db.execute("COMMIT")
+
+            return {
+                "success": True,
+                "data": {
+                    "closed_register": closed,
+                    "new_register": new_register,
+                },
+                "error": None,
+            }
+
+        except Exception as e:
+            try:
+                self._db.execute("ROLLBACK")
+            except sqlite3.OperationalError:
+                # In case a transaction wasn't active
+                pass
+            return {
+                "success": False,
+                "data": None,
+                "error": str(e),
+            }

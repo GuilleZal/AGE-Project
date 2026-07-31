@@ -74,12 +74,15 @@ class StockService:
                 raise DataError(
                     f"Producto con id={item.product_id} no encontrado"
                 )
-            new_stock = int(product.stock - item.quantity)
+            if product.unit_type == "Kg":
+                new_stock = float(product.stock - item.quantity)
+            else:
+                new_stock = int(product.stock - item.quantity)
             self._repo.update_stock(item.product_id, new_stock)
 
     # --------------------------------------------------------------- restore
 
-    def restore(self, product_id: int, quantity: int) -> None:
+    def restore(self, product_id: int, quantity: int | float) -> None:
         """Increase stock for a single product (e.g. after a return).
 
         Args:
@@ -98,12 +101,20 @@ class StockService:
                 f"Producto con id={product_id} no encontrado"
             )
 
-        self._db.execute(
-            """UPDATE products
-               SET stock = CAST(stock + ? AS INTEGER), updated_at = datetime('now')
-               WHERE id = ?""",
-            (quantity, product_id),
-        )
+        if product.unit_type == "Kg":
+            self._db.execute(
+                """UPDATE products
+                   SET stock = CAST(stock + ? AS REAL), updated_at = datetime('now')
+                   WHERE id = ?""",
+                (quantity, product_id),
+            )
+        else:
+            self._db.execute(
+                """UPDATE products
+                   SET stock = CAST(stock + ? AS INTEGER), updated_at = datetime('now')
+                   WHERE id = ?""",
+                (quantity, product_id),
+            )
 
     # ------------------------------------------------------- low stock ----
 

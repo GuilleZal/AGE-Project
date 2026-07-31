@@ -527,3 +527,134 @@ class TestE2ECrossFlow:
         assert result["success"] is True
         assert result["data"]["expected"] == 5600
         assert result["data"]["diff"] == 0
+
+    def test_blind_arqueo_flow(self, sale_ctrl, cash_ctrl, db):
+        """Flow 1: Iniciar caja, venta, egreso y cierre con arqueo ciego (diferencia)."""
+        # 1. Abrir caja con 10,000
+        cash_ctrl.open_register(10000)
+        
+        # 2. Agregar venta de 4,800
+        db.execute("INSERT INTO products (barcode, name, sale_price, cost_price, stock, unit_type) VALUES ('test_coca', 'Coca-Cola', 800, 400, 20.0, 'Unidad')")
+        db.commit()
+        sale_ctrl.add_by_barcode("test_coca", 6)
+        sale_ctrl.complete_sale("cash", 5000)
+        
+        # 3. Registrar egreso (salida) de 2,000
+        cash_ctrl.register_outflow("expense", 2000, "Pago proveedor")
+        
+        # Saldo esperado: 10,000 + 4,800 - 2,000 = 12,800
+        # 4. Cerrar caja con arqueo fisico de 13,000 (arqueo ciego)
+        result = cash_ctrl.close_register(13000, "Arqueo ciego")
+        
+        assert result["success"] is True
+        assert result["data"]["expected"] == 12800
+        assert result["data"]["actual"] == 13000
+        assert result["data"]["diff"] == 200  # Sobrante
+
+    def test_stock_management_units_and_weight(self, sale_ctrl, db_open):
+        """Flow 2: Descuento exacto de stock para productos unitarios (int) y pesables (float)."""
+        # Registrar productos
+        db_open.execute("INSERT INTO products (barcode, name, sale_price, cost_price, stock, unit_type) VALUES ('unit_prod', 'Refresco', 1000, 500, 10.0, 'Unidad')")
+        db_open.execute("INSERT INTO products (barcode, name, sale_price, cost_price, stock, unit_type) VALUES ('weight_prod', 'Queso', 2000, 1000, 15.5, 'Kg')")
+        db_open.commit()
+        
+        # Venta: 3 de unit_prod, 2.45 de weight_prod
+        sale_ctrl.add_by_barcode("unit_prod", 3)
+        sale_ctrl.add_by_barcode("weight_prod", 2.45)
+        
+        result = sale_ctrl.complete_sale("cash", 10000)
+        assert result["success"] is True
+        
+        # Verificar stocks
+        row_unit = db_open.execute("SELECT stock FROM products WHERE barcode = 'unit_prod'").fetchone()
+        row_weight = db_open.execute("SELECT stock FROM products WHERE barcode = 'weight_prod'").fetchone()
+        
+        assert row_unit["stock"] == 7.0
+        assert row_weight["stock"] == pytest.approx(13.05)
+
+    def test_return_reintegro_vs_merma(self, return_ctrl, db_open):
+        """Flow 3: Devoluciones - el reintegro restaura stock, la merma no restaura stock."""
+        # Registrar producto con stock inicial = 10
+        db_open.execute("INSERT INTO products (id, barcode, name, sale_price, cost_price, stock, unit_type) VALUES (999, 'ret_prod', 'Aceite', 1000, 500, 10.0, 'Unidad')")
+        db_open.commit()
+        
+        # 1. Devolucion con reintegro (Producto en buenas condiciones)
+        result1 = return_ctrl.process_return(product_id=999, quantity=1, reason="Producto en buenas condiciones")
+        assert result1["success"] is True
+        
+        # Debe haber aumentado el stock a 11
+        row = db_open.execute("SELECT stock FROM products WHERE id = 999").fetchone()
+        assert row["stock"] == 11.0
+        
+        # 2. Devolucion con merma (Producto danado / Merma)
+        result2 = return_ctrl.process_return(product_id=999, quantity=1, reason="Producto danado / Merma")
+        assert result2["success"] is True
+        
+        # El stock debe seguir siendo 11.0 (no se restaura)
+        row = db_open.execute("SELECT stock FROM products WHERE id = 999").fetchone()
+        assert row["stock"] == 11.0
+
+    def test_manager_forced_close_multiusuario(self, cash_ctrl, db_open):
+        """Flow 4: Cierre forzoso de caja de cajero por parte de un gerente."""
+        # Crear usuarios
+        db_open.execute("INSERT INTO users (id, username, password, role) VALUES (20, 'cajero_1', 'pass', 'cajero')")
+        db_open.execute("INSERT INTO users (id, username, password, role) VALUES (21, 'gerente_1', 'pass', 'gerente')")
+        # Asociar caja activa a cajero_1
+        db_open.execute("UPDATE cash_registers SET user_id = 20 WHERE status = 'open'")
+        # Simular sesion de gerente_1
+        db_open.execute("INSERT INTO sessions (user_id, login_time, logout_time) VALUES (21, '2026-07-30 09:00:00', NULL)")
+        db_open.commit()
+        
+        # Gerente ejecuta el cierre
+        result = cash_ctrl.close_register(5000, "Cierre forzado gerente")
+        assert result["success"] is True
+        
+        # Validar en base de datos
+        row = db_open.execute("SELECT * FROM cash_registers WHERE id = ?", (result["data"]["register"]["id"],)).fetchone()
+        assert row["status"] == "closed"
+        assert row["user_id"] == 20
+        assert row["closed_by_user_id"] == 21
+
+    def test_traspaso_auditado_transaccional(self, cash_ctrl, db, mocker):
+        """Flow 5: Traspaso transaccional con arqueo ciego y control de fallas (rollback)."""
+        # 1. Crear usuarios Cajero 1 (id=30) y Cajero 2 (id=31)
+        db.execute("INSERT INTO users (id, username, password, role) VALUES (30, 'cajero_1', 'pass', 'cajero')")
+        db.execute("INSERT INTO users (id, username, password, role) VALUES (31, 'cajero_2', 'pass', 'cajero')")
+        db.commit()
+
+        # 2. Abrir caja del Cajero 1 con $10,000
+        db.execute("INSERT INTO cash_registers (opening_amount, opening_time, status, user_id) VALUES (10000, '2026-07-30 08:00:00', 'open', 30)")
+        db.commit()
+
+        # 3. Simular que Cajero 2 intercepta la sesion actual
+        db.execute("INSERT INTO sessions (user_id, login_time, logout_time) VALUES (31, '2026-07-30 09:00:00', NULL)")
+        db.commit()
+
+        # 4. Traspaso transaccional (cierra caja 1 con 10000 y abre caja 2 con 10000)
+        result = cash_ctrl.transfer_register(final_amount=10000, notes="Traspaso de turno", new_opener_user_id=31)
+        assert result["success"] is True
+
+        # Validar consistencia
+        row_closed = db.execute("SELECT * FROM cash_registers WHERE user_id = 30").fetchone()
+        assert row_closed["status"] == "closed"
+        assert row_closed["closed_by_user_id"] == 31
+        assert row_closed["closing_amount"] == 10000
+
+        row_open = db.execute("SELECT * FROM cash_registers WHERE user_id = 31").fetchone()
+        assert row_open["status"] == "open"
+        assert row_open["opening_amount"] == 10000
+
+        # 5. Validar rollback en caso de falla
+        # Simulamos un error al abrir la nueva caja en el repositorio
+        mocker.patch.object(cash_ctrl._register_repo, "open_register", side_effect=Exception("Database error simulation"))
+
+        # Intentamos traspasar de vuelta al Cajero 1 (debe fallar)
+        result_fail = cash_ctrl.transfer_register(final_amount=12000, notes="Traspaso fallido", new_opener_user_id=30)
+        assert result_fail["success"] is False
+        assert "Database error simulation" in result_fail["error"]
+
+        # La base de datos debe permanecer intacta (la caja de Cajero 2 sigue abierta y NO cerrada)
+        row_open_still = db.execute("SELECT * FROM cash_registers WHERE user_id = 31").fetchone()
+        assert row_open_still["status"] == "open"
+        assert row_open_still["closing_amount"] is None
+
