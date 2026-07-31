@@ -352,8 +352,8 @@ class SaleController:
     def get_payment_surcharge_pct(self, method: str) -> dict:
         """Return the fixed surcharge percentage for the given payment method."""
         try:
-            if method == "transfer":
-                pct = self._settings_service.get_transfer_surcharge_pct()
+            if method == "qr":
+                pct = self._settings_service.get_qr_surcharge_pct()
             elif method == "debit_card":
                 pct = self._settings_service.get_debit_surcharge_pct()
             elif method == "credit_card":
@@ -368,7 +368,7 @@ class SaleController:
         """Return current sale settings (surcharges)."""
         try:
             settings = {
-                "transfer_surcharge_pct": self._settings_service.get_transfer_surcharge_pct(),
+                "qr_surcharge_pct": self._settings_service.get_qr_surcharge_pct(),
                 "debit_surcharge_pct": self._settings_service.get_debit_surcharge_pct(),
                 "credit_surcharge_pct": self._settings_service.get_credit_surcharge_pct(),
             }
@@ -376,10 +376,10 @@ class SaleController:
         except Exception as e:
             return {"success": False, "data": None, "error": str(e)}
 
-    def apply_sale_settings(self, transfer_surcharge_pct: float, debit_surcharge_pct: float, credit_surcharge_pct: float) -> dict:
+    def apply_sale_settings(self, qr_surcharge_pct: float, debit_surcharge_pct: float, credit_surcharge_pct: float) -> dict:
         """Apply new sale settings (surcharges)."""
         try:
-            self._settings_service.set_transfer_surcharge_pct(transfer_surcharge_pct)
+            self._settings_service.set_qr_surcharge_pct(qr_surcharge_pct)
             self._settings_service.set_debit_surcharge_pct(debit_surcharge_pct)
             self._settings_service.set_credit_surcharge_pct(credit_surcharge_pct)
             self._db.commit()

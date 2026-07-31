@@ -105,6 +105,13 @@ class TestE2ESaleFlow:
         assert result["success"] is True
         assert result["data"]["sale"]["payment_method"] == "transfer"
 
+    def test_sale_qr_payment(self, sale_ctrl, db_open):
+        """Qr payment — no change, same as card/transfer."""
+        sale_ctrl.add_by_barcode("7790895000997")  # 2500
+        result = sale_ctrl.complete_sale("qr", 0)
+        assert result["success"] is True
+        assert result["data"]["sale"]["payment_method"] == "qr"
+
     def test_sale_deducts_stock(self, sale_ctrl, db_open):
         """After sale, product stock is reduced by the sold quantity."""
         sale_ctrl.add_by_barcode("7790895000782")  # stock = 24

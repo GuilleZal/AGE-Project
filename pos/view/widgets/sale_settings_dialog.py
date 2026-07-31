@@ -24,18 +24,18 @@ class SaleSettingsDialog(CenteredDialog):
         if result["success"]:
             settings = result["data"]
         else:
-            settings = {"transfer_surcharge_pct": 0.0, "debit_surcharge_pct": 0.0, "credit_surcharge_pct": 0.0}
+            settings = {"qr_surcharge_pct": 0.0, "debit_surcharge_pct": 0.0, "credit_surcharge_pct": 0.0}
 
-        # --- transfer surcharge ---
+        # --- Qr surcharge ---
         ctk.CTkLabel(
             self,
-            text="Recargo fijo por Transferencia (%):",
+            text="Recargo fijo por Qr (%):",
             font=theme.scaled_font(14, weight="bold"),
         ).pack(pady=(20, 5))
 
-        self._transfer_entry = ctk.CTkEntry(self, width=150)
-        self._transfer_entry.insert(0, str(settings.get("transfer_surcharge_pct", 0.0)))
-        self._transfer_entry.pack(pady=(0, 10))
+        self._qr_entry = ctk.CTkEntry(self, width=150)
+        self._qr_entry.insert(0, str(settings.get("qr_surcharge_pct", 0.0)))
+        self._qr_entry.pack(pady=(0, 10))
 
         # --- debit surcharge ---
         ctk.CTkLabel(
@@ -88,7 +88,7 @@ class SaleSettingsDialog(CenteredDialog):
             command=self._confirm,
         ).pack(side="left", padx=15)
 
-        self._transfer_entry.focus_set()
+        self._qr_entry.focus_set()
         theme.apply_theme_to_widget(self, theme.get_contrast_map())
 
     @property
@@ -97,15 +97,15 @@ class SaleSettingsDialog(CenteredDialog):
 
     def _confirm(self) -> None:
         try:
-            transfer_surcharge = float(self._transfer_entry.get().strip())
+            qr_surcharge = float(self._qr_entry.get().strip())
         except ValueError:
-            self._error_label.configure(text="El recargo de transferencia debe ser válido")
-            self._transfer_entry.focus_set()
+            self._error_label.configure(text="El recargo de Qr debe ser válido")
+            self._qr_entry.focus_set()
             return
             
-        if transfer_surcharge < 0:
+        if qr_surcharge < 0:
             self._error_label.configure(text="El recargo no puede ser negativo")
-            self._transfer_entry.focus_set()
+            self._qr_entry.focus_set()
             return
 
         try:
@@ -133,7 +133,7 @@ class SaleSettingsDialog(CenteredDialog):
             return
 
         result = self._controller.apply_sale_settings(
-            transfer_surcharge_pct=transfer_surcharge,
+            qr_surcharge_pct=qr_surcharge,
             debit_surcharge_pct=debit_surcharge,
             credit_surcharge_pct=credit_surcharge,
         )

@@ -93,6 +93,8 @@ class SaleService:
                 movement_type = MovementType.SALE_CREDIT_CARD
             elif pm == PaymentMethod.TRANSFER:
                 movement_type = MovementType.SALE_TRANSFER
+            elif pm == PaymentMethod.QR:
+                movement_type = MovementType.SALE_QR
             else:
                 movement_type = None
 

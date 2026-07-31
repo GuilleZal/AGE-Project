@@ -383,7 +383,7 @@ class CashRegisterController:
         for m in movements:
             desc = m.description or ""
             discount_pct = 0.0
-            if m.type in ("sale_cash", "sale_card", "sale_debit_card", "sale_credit_card", "sale_transfer"):
+            if m.type in ("sale_cash", "sale_card", "sale_debit_card", "sale_credit_card", "sale_transfer", "sale_qr"):
                 sale_idx += 1
                 sale_id = None
                 original_desc = m.description or ""

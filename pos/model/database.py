@@ -216,6 +216,57 @@ def _run_migrations(conn: sqlite3.Connection) -> None:
         except Exception:
             pass
 
+    # Migration 12: Add qr and sale_qr to sales and cash_movements check constraints
+    row_sales = conn.execute(
+        "SELECT sql FROM sqlite_master WHERE type='table' AND name='sales'"
+    ).fetchone()
+    if row_sales and "qr" not in row_sales["sql"]:
+        try:
+            conn.execute("DROP TABLE IF EXISTS sales_new")
+            conn.execute("DROP TABLE IF EXISTS cash_movements_new")
+            conn.commit()
+
+            conn.executescript("""
+                PRAGMA foreign_keys=OFF;
+
+                CREATE TABLE sales_new (
+                    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                    total           INTEGER NOT NULL,
+                    discount        INTEGER NOT NULL DEFAULT 0,
+                    surcharge       INTEGER NOT NULL DEFAULT 0,
+                    payment_method  TEXT NOT NULL CHECK(payment_method IN ('cash','card','debit_card','credit_card','transfer','qr')),
+                    cash_register_id INTEGER REFERENCES cash_registers(id),
+                    created_at      TEXT NOT NULL DEFAULT (datetime('now'))
+                );
+                INSERT INTO sales_new (id, total, discount, surcharge, payment_method, cash_register_id, created_at)
+                    SELECT id, total, discount, surcharge, payment_method, cash_register_id, created_at FROM sales;
+                DROP TABLE sales;
+                ALTER TABLE sales_new RENAME TO sales;
+                CREATE INDEX IF NOT EXISTS idx_sales_date    ON sales(created_at);
+                CREATE INDEX IF NOT EXISTS idx_sales_payment ON sales(payment_method);
+
+                CREATE TABLE cash_movements_new (
+                    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                    cash_register_id INTEGER NOT NULL REFERENCES cash_registers(id),
+                    type            TEXT NOT NULL CHECK(type IN ('sale_cash','sale_card','sale_debit_card','sale_credit_card','sale_transfer','sale_qr','return','supplier_payment','expense')),
+                    amount          INTEGER NOT NULL,
+                    description     TEXT,
+                    created_at      TEXT NOT NULL DEFAULT (datetime('now'))
+                );
+                INSERT INTO cash_movements_new SELECT * FROM cash_movements;
+                DROP TABLE cash_movements;
+                ALTER TABLE cash_movements_new RENAME TO cash_movements;
+                CREATE INDEX IF NOT EXISTS idx_cash_movements_register ON cash_movements(cash_register_id);
+                CREATE INDEX IF NOT EXISTS idx_cash_movements_type     ON cash_movements(type);
+                CREATE INDEX IF NOT EXISTS idx_cash_movements_date     ON cash_movements(created_at);
+
+                PRAGMA foreign_keys=ON;
+            """)
+            conn.commit()
+        except Exception:
+            pass
+
+
 
 # ------------------------------------------------------------------ DDL ----
 # NOTE: Currency fields (prices, amounts, totals) use INTEGER to represent
@@ -257,7 +308,7 @@ CREATE TABLE IF NOT EXISTS sales (
     total           INTEGER NOT NULL,
     discount        INTEGER NOT NULL DEFAULT 0,
     surcharge       INTEGER NOT NULL DEFAULT 0,
-    payment_method  TEXT NOT NULL CHECK(payment_method IN ('cash','card','debit_card','credit_card','transfer')),
+    payment_method  TEXT NOT NULL CHECK(payment_method IN ('cash','card','debit_card','credit_card','transfer','qr')),
     cash_register_id INTEGER REFERENCES cash_registers(id),
     created_at      TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -331,7 +382,7 @@ CREATE INDEX IF NOT EXISTS idx_cash_registers_time   ON cash_registers(opening_t
 CREATE TABLE IF NOT EXISTS cash_movements (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
     cash_register_id INTEGER NOT NULL REFERENCES cash_registers(id),
-    type            TEXT NOT NULL CHECK(type IN ('sale_cash','sale_card','sale_debit_card','sale_credit_card','sale_transfer','return','supplier_payment','expense')),
+    type            TEXT NOT NULL CHECK(type IN ('sale_cash','sale_card','sale_debit_card','sale_credit_card','sale_transfer','sale_qr','return','supplier_payment','expense')),
     amount          INTEGER NOT NULL,
     description     TEXT,
     created_at      TEXT NOT NULL DEFAULT (datetime('now'))

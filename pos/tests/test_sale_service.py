@@ -237,3 +237,17 @@ class TestCompleteSaleRollback:
         repo = ProductRepo(db_with_register)
         p = repo.find_by_id(sample_products[0])
         assert p is not None and p.stock == 24.0
+
+    def test_cash_movement_for_qr_payment(self, sale_svc, db_with_register, sample_products):
+        sale = _build_sale(total=1500, payment_method="qr")
+        items = _build_items(sample_products[0])
+
+        result = sale_svc.complete_sale(sale, items, "qr", 1)
+
+        row = db_with_register.execute(
+            "SELECT * FROM cash_movements WHERE cash_register_id = 1"
+        ).fetchone()
+        assert row is not None
+        assert row["type"] == "sale_qr"
+        assert row["amount"] == 1500
+        assert f"Venta #{result.id}" in row["description"]

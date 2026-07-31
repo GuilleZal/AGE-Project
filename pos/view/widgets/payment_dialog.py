@@ -32,6 +32,7 @@ class PaymentDialog(CenteredDialog):
         ("Efectivo", "cash"),
         ("Tarjeta", "card"),
         ("Transferencia", "transfer"),
+        ("Qr", "qr"),
     ]
 
     def __init__(

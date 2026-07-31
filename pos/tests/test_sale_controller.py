@@ -294,3 +294,10 @@ class TestCompleteSale:
         assert result["success"] is True
         assert result["data"]["sale"]["total"] == 7300  # 800 + 2500 + 4000
         assert result["data"]["change"] == 2700
+
+    def test_complete_sale_qr_payment(self, sale_ctrl, db_with_products):
+        sale_ctrl.add_by_barcode("7790895000782")  # 800
+        result = sale_ctrl.complete_sale(payment_method="qr", amount_received=0)
+        assert result["success"] is True
+        assert result["data"]["sale"]["payment_method"] == "qr"
+        assert result["data"]["change"] == 0

@@ -128,10 +128,11 @@ class TestGetBalance:
         mov_repo = CashMovementRepo(db)
 
         reg = reg_repo.open_register(10000)
-        # Inflow: sale_cash, sale_debit_card, sale_credit_card
+        # Inflow: sale_cash, sale_debit_card, sale_credit_card, sale_qr
         mov_repo.create(reg.id, MovementType.SALE_CASH, 3000, "Venta")
         mov_repo.create(reg.id, MovementType.SALE_DEBIT_CARD, 2000, "Venta tarjeta debito")
         mov_repo.create(reg.id, MovementType.SALE_CREDIT_CARD, 1000, "Venta tarjeta credito")
+        mov_repo.create(reg.id, MovementType.SALE_QR, 1500, "Venta qr")
         # Outflow: return
         mov_repo.create(reg.id, MovementType.RETURN, 500, "Devolución")
         # Outflow: expense
@@ -140,13 +141,14 @@ class TestGetBalance:
 
         balance = reg_repo.get_balance(reg.id)
         assert balance["opening"] == 10000
-        assert balance["inflows"] == 6000    # 3000 + 2000 + 1000
+        assert balance["inflows"] == 7500    # 3000 + 2000 + 1000 + 1500
         assert balance["outflows"] == 700    # 500 + 200
-        assert balance["expected"] == 15300  # 10000 + 6000 - 700
+        assert balance["expected"] == 16800  # 10000 + 7500 - 700
         
         # New breakdown assertions
         assert balance["inflow_cash"] == 3000
         assert balance["inflow_transfer"] == 0
+        assert balance["inflow_qr"] == 1500
         assert balance["inflow_debit"] == 2000
         assert balance["inflow_credit"] == 1000
         assert balance["outflow_supplier"] == 0

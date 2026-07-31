@@ -23,6 +23,7 @@ class PaymentMethod(str, Enum):
     DEBIT_CARD = "debit_card"
     CREDIT_CARD = "credit_card"
     TRANSFER = "transfer"
+    QR = "qr"
 
 
 class MovementType(str, Enum):
@@ -33,6 +34,7 @@ class MovementType(str, Enum):
     SALE_DEBIT_CARD = "sale_debit_card"
     SALE_CREDIT_CARD = "sale_credit_card"
     SALE_TRANSFER = "sale_transfer"
+    SALE_QR = "sale_qr"
     RETURN = "return"
     SUPPLIER_PAYMENT = "supplier_payment"
     EXPENSE = "expense"

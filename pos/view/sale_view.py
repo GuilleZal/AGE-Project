@@ -36,6 +36,7 @@ class SaleView(ctk.CTkFrame):
     SINGLE_METHODS: list[tuple[str, str, str]] = [
         ("💵", "Efectivo", "cash"),
         ("🔄", "Transferencia", "transfer"),
+        ("📱", "Qr", "qr"),
     ]
     # Card sub-types shown as a grouped pair
     CARD_METHODS: list[tuple[str, str, str]] = [
@@ -307,16 +308,18 @@ class SaleView(ctk.CTkFrame):
 
         if self._role == "cajero":
             # --- Cajero Layout ---
-            # 1. Efectivo/Transferencia (cash) & Qr (transfer) side-by-side squares
+            # 1. Efectivo (cash), Transferencia (transfer) & Qr (qr) side-by-side squares
             cajero_pair_frame = ctk.CTkFrame(payment_methods_frame, fg_color="transparent")
             cajero_pair_frame.grid(row=grid_row, column=0, sticky="ew", pady=(0, 2))
-            cajero_pair_frame.grid_columnconfigure(0, weight=2) # Ligeramente menos ancho
-            cajero_pair_frame.grid_columnconfigure(1, weight=5) # Ligeramente más ancho
+            cajero_pair_frame.grid_columnconfigure(0, weight=1)
+            cajero_pair_frame.grid_columnconfigure(1, weight=1)
+            cajero_pair_frame.grid_columnconfigure(2, weight=1)
             grid_row += 1
 
             cajero_methods = [
-                ("💵", "Efectivo/\nTransf.", "cash"),
-                ("📱", "Qr", "transfer")
+                ("💵", "Efectivo", "cash"),
+                ("🔄", "Transferencia", "transfer"),
+                ("📱", "Qr", "qr")
             ]
 
             for col_idx, (m_icon, m_label, m_method) in enumerate(cajero_methods):
@@ -330,7 +333,12 @@ class SaleView(ctk.CTkFrame):
                     cursor="hand2",
                 )
                 method_frame._custom_theme_color = "skip"
-                padx_val = (0, 3) if col_idx == 0 else (3, 0)
+                if col_idx == 0:
+                    padx_val = (0, 3)
+                elif col_idx == 1:
+                    padx_val = (3, 3)
+                else:
+                    padx_val = (3, 0)
                 method_frame.grid(row=0, column=col_idx, sticky="nsew", padx=padx_val)
                 method_frame.grid_columnconfigure(0, weight=1)
                 method_frame.grid_rowconfigure(0, weight=1)

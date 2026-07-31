@@ -166,6 +166,7 @@ class CashRegisterView(ctk.CTkFrame):
         inflow_rows = [
             ("Efectivo", "inflow_cash"),
             ("Transferencia", "inflow_transfer"),
+            ("Qr", "inflow_qr"),
             ("Débito", "inflow_debit"),
             ("Crédito", "inflow_credit"),
         ]
@@ -701,6 +702,7 @@ class CashRegisterView(ctk.CTkFrame):
                 self._balance_labels["initial"].configure(text="***")
                 self._balance_labels["inflow_cash"].configure(text="***")
                 self._balance_labels["inflow_transfer"].configure(text="***")
+                self._balance_labels["inflow_qr"].configure(text="***")
                 self._balance_labels["inflow_debit"].configure(text="***")
                 self._balance_labels["inflow_credit"].configure(text="***")
                 self._balance_labels["expected_cash"].configure(text="***")
@@ -714,6 +716,9 @@ class CashRegisterView(ctk.CTkFrame):
                 )
                 self._balance_labels["inflow_transfer"].configure(
                     text=f"${bal.get('inflow_transfer', 0):,}"
+                )
+                self._balance_labels["inflow_qr"].configure(
+                    text=f"${bal.get('inflow_qr', 0):,}"
                 )
                 self._balance_labels["inflow_debit"].configure(
                     text=f"${bal.get('inflow_debit', 0):,}"
@@ -1041,6 +1046,7 @@ class CashRegisterView(ctk.CTkFrame):
                 self._balance_labels["initial"].configure(text="***")
                 self._balance_labels["inflow_cash"].configure(text="***")
                 self._balance_labels["inflow_transfer"].configure(text="***")
+                self._balance_labels["inflow_qr"].configure(text="***")
                 self._balance_labels["inflow_debit"].configure(text="***")
                 self._balance_labels["inflow_credit"].configure(text="***")
                 self._balance_labels["expected_cash"].configure(text="***")
@@ -1061,6 +1067,9 @@ class CashRegisterView(ctk.CTkFrame):
                 )
                 self._balance_labels["inflow_transfer"].configure(
                     text=f"${bal.get('inflow_transfer', 0):,}"
+                )
+                self._balance_labels["inflow_qr"].configure(
+                    text=f"${bal.get('inflow_qr', 0):,}"
                 )
                 self._balance_labels["inflow_debit"].configure(
                     text=f"${bal.get('inflow_debit', 0):,}"
@@ -1133,6 +1142,7 @@ class CashRegisterView(ctk.CTkFrame):
             "sale_debit_card": "Venta (T. Débito)",
             "sale_credit_card": "Venta (T. Crédito)",
             "sale_transfer": "Venta (Transfer.)",
+            "sale_qr": "Venta (Qr)",
             "return": "Devolución",
             "supplier_payment": "Pago prov.",
             "expense": "Gasto",

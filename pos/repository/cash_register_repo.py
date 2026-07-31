@@ -118,6 +118,11 @@ class CashRegisterRepo:
             (register_id,),
         ).fetchone()[0]
 
+        inflow_qr = self._db.execute(
+            "SELECT COALESCE(SUM(amount), 0) FROM cash_movements WHERE cash_register_id = ? AND type = 'sale_qr'",
+            (register_id,),
+        ).fetchone()[0]
+
         inflow_debit = self._db.execute(
             "SELECT COALESCE(SUM(amount), 0) FROM cash_movements WHERE cash_register_id = ? AND type = 'sale_debit_card'",
             (register_id,),
@@ -140,7 +145,7 @@ class CashRegisterRepo:
         ).fetchone()[0]
 
         opening = register["opening_amount"]
-        inflows = inflow_cash + inflow_transfer + inflow_debit + inflow_credit
+        inflows = inflow_cash + inflow_transfer + inflow_qr + inflow_debit + inflow_credit
         outflows = outflow_supplier + outflow_expense
         expected = opening + inflows - outflows
         expected_cash = opening + inflow_cash - outflows
@@ -152,6 +157,7 @@ class CashRegisterRepo:
             "expected": expected,
             "inflow_cash": inflow_cash,
             "inflow_transfer": inflow_transfer,
+            "inflow_qr": inflow_qr,
             "inflow_debit": inflow_debit,
             "inflow_credit": inflow_credit,
             "outflow_supplier": outflow_supplier,

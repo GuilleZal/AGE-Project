@@ -205,6 +205,7 @@ def _format_method(method: str) -> str:
         "cash": "Efectivo",
         "card": "Tarjeta",
         "transfer": "Transferencia",
+        "qr": "Qr",
         "debit_card": "Tarjeta de Débito",
         "credit_card": "Tarjeta de Crédito",
     }

@@ -134,6 +134,7 @@ class ReportService:
         "debit_card": "Tarjeta de Débito",
         "credit_card": "Tarjeta de Crédito",
         "transfer": "Transferencia",
+        "qr": "Qr",
     }
 
     def payment_methods_summary(

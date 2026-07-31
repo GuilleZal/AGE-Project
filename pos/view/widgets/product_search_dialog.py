@@ -94,6 +94,7 @@ class ProductSearchDialog(CenteredDialog):
         self._search_entry.pack(side="left", fill="x", expand=True)
         self._search_entry.bind("<KeyRelease>", self._on_search_changed)
         self._search_entry.focus_set()
+        self.bind("<Map>", lambda e: self._search_entry.focus_set())
 
         # Category filter dropdown (only for cajero)
         if self._role == "cajero":
