@@ -13,7 +13,7 @@ def report_ctrl(db: sqlite3.Connection) -> ReportController:
 def db_with_sales(db: sqlite3.Connection, sample_products: list[int]) -> sqlite3.Connection:
     """Database with sales data for report testing."""
     # Create a cash register and sales
-    db.execute("INSERT INTO cash_registers (opening_amount, opening_time, status) VALUES (5000, '2026-06-13 08:00:00', 'open')")
+    db.execute("INSERT INTO cash_registers (opening_amount, opening_time, status) VALUES (5000, '2026-06-13 08:00:00', 'closed')")
 
     # Sale 1: Coca-Cola (800) + Fernet (2500)
     db.execute("INSERT INTO sales (id, total, payment_method, cash_register_id, created_at) VALUES (1, 3300, 'cash', 1, '2026-06-13 10:00:00')")

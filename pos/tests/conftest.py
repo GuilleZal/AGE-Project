@@ -96,6 +96,23 @@ def open_register(db: sqlite3.Connection) -> int:
     return reg_id
 
 
+# ----------------------------------------------------- CLOSED REGISTER -----
+@pytest.fixture
+def closed_register(db: sqlite3.Connection) -> int:
+    """Insert a closed cash register and return its ID.
+
+    Initial amount: $5000, opening time: 2026-06-13 08:00:00, closing time: 2026-06-13 20:00:00.
+    """
+    cur = db.execute(
+        """INSERT INTO cash_registers (opening_amount, opening_time, closing_amount, closing_time, status)
+           VALUES (5000, '2026-06-13 08:00:00', 6000, '2026-06-13 20:00:00', 'closed')
+           RETURNING id""",
+    )
+    reg_id = cur.fetchone()["id"]
+    db.commit()
+    return reg_id
+
+
 # ------------------------------------------------------------- TKINTER ROOT ---
 @pytest.fixture(scope="session")
 def session_root():

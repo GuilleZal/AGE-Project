@@ -34,12 +34,14 @@ class CashMovementRepo:
                          but stored as positive int by convention — the type signals direction).
             description: Optional note.
         """
+        from datetime import datetime
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         mt = type_.value if isinstance(type_, MovementType) else type_
         cur = self._db.execute(
-            """INSERT INTO cash_movements (cash_register_id, type, amount, description)
-               VALUES (?, ?, ?, ?)
+            """INSERT INTO cash_movements (cash_register_id, type, amount, description, created_at)
+               VALUES (?, ?, ?, ?, ?)
                RETURNING id, created_at""",
-            (register_id, mt, amount, description),
+            (register_id, mt, amount, description, now),
         )
         row = cur.fetchone()
         return CashMovement(

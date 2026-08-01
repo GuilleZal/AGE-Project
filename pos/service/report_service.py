@@ -25,7 +25,6 @@ class ReportService:
         self._product_repo = ProductRepo(db)
 
     # -------------------------------------------------------- sales summary
-
     def sales_summary(
         self, start_date: str, end_date: str
     ) -> dict[str, int | float]:
@@ -40,10 +39,12 @@ class ReportService:
             Division-by-zero safe: ``avg_ticket`` is 0.0 when ``count`` is 0.
         """
         row = self._db.execute(
-            """SELECT COALESCE(SUM(total), 0) AS total,
-                       COUNT(*)              AS count
-               FROM sales
-               WHERE created_at >= ? AND created_at <= ?""",
+            """SELECT COALESCE(SUM(s.total), 0) AS total,
+                       COUNT(s.id)              AS count
+               FROM sales s
+               JOIN cash_registers cr ON s.cash_register_id = cr.id
+               WHERE cr.status = 'closed'
+                 AND s.created_at >= ? AND s.created_at <= ?""",
             (start_date, end_date),
         ).fetchone()
 
@@ -73,11 +74,13 @@ class ReportService:
         """
         row = self._db.execute(
             """SELECT COALESCE(SUM(si.subtotal), 0)       AS revenue,
-                      COALESCE(SUM(si.quantity * p.cost_price), 0) AS cost
+                       COALESCE(SUM(si.quantity * p.cost_price), 0) AS cost
                FROM sale_items si
                JOIN products p ON p.id = si.product_id
                JOIN sales    s ON s.id = si.sale_id
-                WHERE s.created_at >= ? AND s.created_at <= ?""",
+               JOIN cash_registers cr ON s.cash_register_id = cr.id
+               WHERE cr.status = 'closed'
+                 AND s.created_at >= ? AND s.created_at <= ?""",
             (start_date, end_date),
         ).fetchone()
 
@@ -205,7 +208,9 @@ class ReportService:
                 JOIN products p ON p.id = si.product_id
                 LEFT JOIN categories c ON c.id = p.category_id
                 JOIN sales s ON s.id = si.sale_id
-                WHERE s.created_at >= ? AND s.created_at <= ?
+                JOIN cash_registers cr ON s.cash_register_id = cr.id
+                WHERE cr.status = 'closed'
+                  AND s.created_at >= ? AND s.created_at <= ?
                 GROUP BY p.category_id
                 ORDER BY total_amount DESC""",
             (start_date, end_date),
@@ -235,7 +240,9 @@ class ReportService:
                        r.reason
                 FROM returns r
                 JOIN products p ON p.id = r.product_id
-                WHERE r.created_at >= ? AND r.created_at <= ?
+                JOIN cash_registers cr ON r.cash_register_id = cr.id
+                WHERE cr.status = 'closed'
+                  AND r.created_at >= ? AND r.created_at <= ?
                 ORDER BY r.created_at DESC""",
             (start_date, end_date),
         ).fetchall()
@@ -285,28 +292,34 @@ class ReportService:
         """
         # Compras a Proveedores = supplier_payment from cash_movements
         purchases = self._db.execute(
-            """SELECT COALESCE(SUM(amount), 0) AS total
-               FROM cash_movements
-               WHERE type = 'supplier_payment'
-                 AND created_at >= ? AND created_at <= ?""",
+            """SELECT COALESCE(SUM(cm.amount), 0) AS total
+               FROM cash_movements cm
+               JOIN cash_registers cr ON cm.cash_register_id = cr.id
+               WHERE cm.type = 'supplier_payment'
+                 AND cr.status = 'closed'
+                 AND cm.created_at >= ? AND cm.created_at <= ?""",
             (start_date, end_date),
         ).fetchone()
 
         # Gastos Operativos = expense from cash_movements
         operating = self._db.execute(
-            """SELECT COALESCE(SUM(amount), 0) AS total
-               FROM cash_movements
-               WHERE type = 'expense'
-                 AND created_at >= ? AND created_at <= ?""",
+            """SELECT COALESCE(SUM(cm.amount), 0) AS total
+               FROM cash_movements cm
+               JOIN cash_registers cr ON cm.cash_register_id = cr.id
+               WHERE cm.type = 'expense'
+                 AND cr.status = 'closed'
+                 AND cm.created_at >= ? AND cm.created_at <= ?""",
             (start_date, end_date),
         ).fetchone()
 
         # Pérdidas (shrinkage) = returns with reasons other than "Producto en buenas condiciones"
         shrinkage = self._db.execute(
-            """SELECT COALESCE(SUM(refund_amount), 0) AS total
-               FROM returns
-               WHERE (reason IS NULL OR reason != 'Producto en buenas condiciones')
-                 AND created_at >= ? AND created_at <= ?""",
+            """SELECT COALESCE(SUM(r.refund_amount), 0) AS total
+               FROM returns r
+               JOIN cash_registers cr ON r.cash_register_id = cr.id
+               WHERE (r.reason IS NULL OR r.reason != 'Producto en buenas condiciones')
+                 AND cr.status = 'closed'
+                 AND r.created_at >= ? AND r.created_at <= ?""",
             (start_date, end_date),
         ).fetchone()
 

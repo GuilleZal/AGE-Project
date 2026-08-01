@@ -448,6 +448,10 @@ class ReportView(ctk.CTkFrame):
         """Wire the low stock CSV export callback."""
         self._on_export_faltantes = callback
 
+    def refresh_report(self) -> None:
+        """Regenerate the report using the currently selected or generated dates."""
+        self._handle_generate()
+
     # ------------------------------------------------------- controller wire ---
 
     def set_controller(self, controller: Any) -> None:

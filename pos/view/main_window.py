@@ -391,6 +391,7 @@ class MainWindow(ctk.CTk):
         cash_view = self._views.get("Caja")
         return_view = self._views.get("Devoluciones")
         product_view = self._views.get("Productos")
+        report_view = self._views.get("Reportes")
 
         if sale_view is not None and cash_view is not None:
             sale_view._on_sale_completed = cash_view._controller_refresh
@@ -403,6 +404,9 @@ class MainWindow(ctk.CTk):
 
         if product_view is not None:
             self.on_tab_change("Productos", product_view._refresh_products)
+
+        if cash_view is not None and report_view is not None:
+            cash_view._on_register_closed = report_view.refresh_report
 
     def refresh_register_status(self) -> None:
         """Refresh the register status indicator badge at the top of the window."""

@@ -22,10 +22,12 @@ class ReturnRepo:
 
         Returns the same object with ``id`` and ``created_at`` populated.
         """
+        from datetime import datetime
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         cur = self._db.execute(
             """INSERT INTO returns
-               (product_id, quantity, refund_amount, reason, cash_register_id)
-               VALUES (?, ?, ?, ?, ?)
+               (product_id, quantity, refund_amount, reason, cash_register_id, created_at)
+               VALUES (?, ?, ?, ?, ?, ?)
                RETURNING id, created_at""",
             (
                 return_.product_id,
@@ -33,6 +35,7 @@ class ReturnRepo:
                 return_.refund_amount,
                 return_.reason,
                 return_.cash_register_id,
+                now,
             ),
         )
         row = cur.fetchone()

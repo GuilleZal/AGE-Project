@@ -62,17 +62,17 @@ class TestCreateSale:
 
 
 class TestAggregateByPeriod:
-    def test_daily_grouping(self, db, open_register, sample_products):
+    def test_daily_grouping(self, db, closed_register, sample_products):
         """Create two sales on the same day, verify daily aggregation."""
         sale_repo = SaleRepo(db)
         item_repo = SaleItemRepo(db)
 
-        s1 = sale_repo.create(Sale(total=1000, payment_method="cash", cash_register_id=open_register))
+        s1 = sale_repo.create(Sale(total=1000, payment_method="cash", cash_register_id=closed_register))
         item_repo.create_batch(s1.id, [
             SaleItem(product_id=sample_products[0], quantity=1, unit_price=1000, subtotal=1000)
         ])
 
-        s2 = sale_repo.create(Sale(total=500, payment_method="card", cash_register_id=open_register))
+        s2 = sale_repo.create(Sale(total=500, payment_method="card", cash_register_id=closed_register))
         item_repo.create_batch(s2.id, [
             SaleItem(product_id=sample_products[1], quantity=1, unit_price=500, subtotal=500)
         ])
@@ -84,9 +84,9 @@ class TestAggregateByPeriod:
         today_total = sum(r["total_revenue"] for r in result)
         assert today_total == 1500
 
-    def test_monthly_grouping(self, db, open_register):
+    def test_monthly_grouping(self, db, closed_register):
         sale_repo = SaleRepo(db)
-        sale_repo.create(Sale(total=300, payment_method="cash", cash_register_id=open_register))
+        sale_repo.create(Sale(total=300, payment_method="cash", cash_register_id=closed_register))
         db.commit()
 
         result = sale_repo.aggregate_by_period("2020-01-01", "2030-12-31", "month")
@@ -99,19 +99,19 @@ class TestAggregateByPeriod:
 
 
 class TestTopProducts:
-    def test_returns_top_products(self, db, open_register, sample_products):
+    def test_returns_top_products(self, db, closed_register, sample_products):
         sale_repo = SaleRepo(db)
         item_repo = SaleItemRepo(db)
 
         # Sale 1: product 0 (3 units), product 1 (1 unit)
-        s1 = sale_repo.create(Sale(total=4900, payment_method="cash", cash_register_id=open_register))
+        s1 = sale_repo.create(Sale(total=4900, payment_method="cash", cash_register_id=closed_register))
         item_repo.create_batch(s1.id, [
             SaleItem(product_id=sample_products[0], quantity=3, unit_price=800, subtotal=2400),
             SaleItem(product_id=sample_products[1], quantity=1, unit_price=2500, subtotal=2500),
         ])
 
         # Sale 2: product 0 (1 unit)
-        s2 = sale_repo.create(Sale(total=800, payment_method="card", cash_register_id=open_register))
+        s2 = sale_repo.create(Sale(total=800, payment_method="card", cash_register_id=closed_register))
         item_repo.create_batch(s2.id, [
             SaleItem(product_id=sample_products[0], quantity=1, unit_price=800, subtotal=800),
         ])
@@ -126,12 +126,12 @@ class TestTopProducts:
 
 
 class TestTotalByPaymentMethod:
-    def test_breakdown(self, db, open_register, sample_products):
+    def test_breakdown(self, db, closed_register, sample_products):
         sale_repo = SaleRepo(db)
 
-        sale_repo.create(Sale(total=1000, payment_method="cash", cash_register_id=open_register))
-        sale_repo.create(Sale(total=2000, payment_method="cash", cash_register_id=open_register))
-        sale_repo.create(Sale(total=500, payment_method="card", cash_register_id=open_register))
+        sale_repo.create(Sale(total=1000, payment_method="cash", cash_register_id=closed_register))
+        sale_repo.create(Sale(total=2000, payment_method="cash", cash_register_id=closed_register))
+        sale_repo.create(Sale(total=500, payment_method="card", cash_register_id=closed_register))
         db.commit()
 
         result = sale_repo.total_by_payment_method("2020-01-01", "2030-12-31")

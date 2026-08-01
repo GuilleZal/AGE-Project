@@ -270,6 +270,40 @@ def _run_migrations(conn: sqlite3.Connection) -> None:
         except Exception:
             pass
 
+    # Migration 13: Adjust timezone from UTC to local time for existing records
+    try:
+        row_mig = conn.execute("SELECT value FROM settings WHERE key = 'migration_13_timezone_fix'").fetchone()
+    except Exception:
+        row_mig = None
+
+    if row_mig is None:
+        try:
+            import datetime
+            now = datetime.datetime.now()
+            utcnow = datetime.datetime.utcnow()
+            offset_hours = round((now - utcnow).total_seconds() / 3600)
+            
+            if offset_hours != 0:
+                conn.execute(
+                    "UPDATE sales SET created_at = datetime(created_at, ? || ' hours')",
+                    (f"{offset_hours:+d}",)
+                )
+                conn.execute(
+                    "UPDATE cash_movements SET created_at = datetime(created_at, ? || ' hours')",
+                    (f"{offset_hours:+d}",)
+                )
+                conn.execute(
+                    "UPDATE returns SET created_at = datetime(created_at, ? || ' hours')",
+                    (f"{offset_hours:+d}",)
+                )
+            
+            conn.execute(
+                "INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES ('migration_13_timezone_fix', 'done', datetime('now'))"
+            )
+            conn.commit()
+        except Exception:
+            pass
+
 
 
 # ------------------------------------------------------------------ DDL ----
@@ -314,7 +348,7 @@ CREATE TABLE IF NOT EXISTS sales (
     surcharge       INTEGER NOT NULL DEFAULT 0,
     payment_method  TEXT NOT NULL CHECK(payment_method IN ('cash','card','debit_card','credit_card','transfer','qr')),
     cash_register_id INTEGER REFERENCES cash_registers(id),
-    created_at      TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at      TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
 );
 CREATE INDEX IF NOT EXISTS idx_sales_date    ON sales(created_at);
 CREATE INDEX IF NOT EXISTS idx_sales_payment ON sales(payment_method);
@@ -389,7 +423,7 @@ CREATE TABLE IF NOT EXISTS cash_movements (
     type            TEXT NOT NULL CHECK(type IN ('sale_cash','sale_card','sale_debit_card','sale_credit_card','sale_transfer','sale_qr','return','supplier_payment','expense')),
     amount          INTEGER NOT NULL,
     description     TEXT,
-    created_at      TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at      TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
 );
 CREATE INDEX IF NOT EXISTS idx_cash_movements_register ON cash_movements(cash_register_id);
 CREATE INDEX IF NOT EXISTS idx_cash_movements_type     ON cash_movements(type);
@@ -403,7 +437,7 @@ CREATE TABLE IF NOT EXISTS returns (
     refund_amount   INTEGER NOT NULL,
     reason          TEXT,
     cash_register_id INTEGER NOT NULL REFERENCES cash_registers(id),
-    created_at      TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at      TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
 );
 CREATE INDEX IF NOT EXISTS idx_returns_product      ON returns(product_id);
 CREATE INDEX IF NOT EXISTS idx_returns_date         ON returns(created_at);

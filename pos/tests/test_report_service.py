@@ -16,13 +16,20 @@ from pos.service.report_service import ReportService
 # ----------------------------------------------------------------- helpers --
 def _seed_sales(db: sqlite3.Connection, sample_products: list[int]) -> None:
     """Insert a realistic set of sales + sale_items for report tests."""
+    cur_reg = db.execute(
+        """INSERT INTO cash_registers (opening_amount, opening_time, closing_amount, closing_time, status)
+           VALUES (10000, '2026-06-01 08:00:00', 12000, '2026-06-05 20:00:00', 'closed')
+           RETURNING id"""
+    )
+    reg_id = cur_reg.fetchone()["id"]
+
     p1, p2, p3, p4, p5 = sample_products
 
     # Sale 1: cash, 2026-06-01
     cur = db.execute(
-        """INSERT INTO sales (total, payment_method, created_at)
-           VALUES (?, ?, ?) RETURNING id""",
-        (3300, "cash", "2026-06-01 10:00:00"),
+        """INSERT INTO sales (total, payment_method, cash_register_id, created_at)
+           VALUES (?, ?, ?, ?) RETURNING id""",
+        (3300, "cash", reg_id, "2026-06-01 10:00:00"),
     )
     s1 = cur.fetchone()["id"]
     db.executemany(
@@ -35,9 +42,9 @@ def _seed_sales(db: sqlite3.Connection, sample_products: list[int]) -> None:
 
     # Sale 2: card, 2026-06-02
     cur = db.execute(
-        """INSERT INTO sales (total, payment_method, created_at)
-           VALUES (?, ?, ?) RETURNING id""",
-        (4000, "card", "2026-06-02 14:00:00"),
+        """INSERT INTO sales (total, payment_method, cash_register_id, created_at)
+           VALUES (?, ?, ?, ?) RETURNING id""",
+        (4000, "card", reg_id, "2026-06-02 14:00:00"),
     )
     s2 = cur.fetchone()["id"]
     db.executemany(
@@ -49,9 +56,9 @@ def _seed_sales(db: sqlite3.Connection, sample_products: list[int]) -> None:
 
     # Sale 3: cash, 2026-06-03
     cur = db.execute(
-        """INSERT INTO sales (total, payment_method, created_at)
-           VALUES (?, ?, ?) RETURNING id""",
-        (19000, "cash", "2026-06-03 18:00:00"),
+        """INSERT INTO sales (total, payment_method, cash_register_id, created_at)
+           VALUES (?, ?, ?, ?) RETURNING id""",
+        (19000, "cash", reg_id, "2026-06-03 18:00:00"),
     )
     s3 = cur.fetchone()["id"]
     db.executemany(
@@ -63,9 +70,9 @@ def _seed_sales(db: sqlite3.Connection, sample_products: list[int]) -> None:
 
     # Sale 4: transfer, 2026-06-04
     cur = db.execute(
-        """INSERT INTO sales (total, payment_method, created_at)
-           VALUES (?, ?, ?) RETURNING id""",
-        (2500, "transfer", "2026-06-04 09:00:00"),
+        """INSERT INTO sales (total, payment_method, cash_register_id, created_at)
+           VALUES (?, ?, ?, ?) RETURNING id""",
+        (2500, "transfer", reg_id, "2026-06-04 09:00:00"),
     )
     s4 = cur.fetchone()["id"]
     db.executemany(
@@ -77,9 +84,9 @@ def _seed_sales(db: sqlite3.Connection, sample_products: list[int]) -> None:
 
     # Sale 5: cash, 2026-06-05 (low-stock product)
     cur = db.execute(
-        """INSERT INTO sales (total, payment_method, created_at)
-           VALUES (?, ?, ?) RETURNING id""",
-        (3000, "cash", "2026-06-05 12:00:00"),
+        """INSERT INTO sales (total, payment_method, cash_register_id, created_at)
+           VALUES (?, ?, ?, ?) RETURNING id""",
+        (3000, "cash", reg_id, "2026-06-05 12:00:00"),
     )
     s5 = cur.fetchone()["id"]
     db.executemany(
@@ -345,6 +352,7 @@ class TestReturnsHistory:
                VALUES (?, ?, ?, ?, ?, ?)""",
             (p3, 0.5, 4750, "Exceso de peso", open_register, "2026-06-03 15:30:00")
         )
+        db.execute("UPDATE cash_registers SET status = 'closed' WHERE id = ?", (open_register,))
         db.commit()
 
         svc = ReportService(db)
@@ -389,6 +397,7 @@ class TestExpensesSummaryShrinkage:
                VALUES (?, ?, ?, ?, ?, ?)""",
             (p3, 1, 2000, None, open_register, "2026-06-04 15:30:00")
         )
+        db.execute("UPDATE cash_registers SET status = 'closed' WHERE id = ?", (open_register,))
         db.commit()
 
         svc = ReportService(db)

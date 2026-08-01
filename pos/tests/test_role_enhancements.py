@@ -176,7 +176,8 @@ def test_report_summary_dialog_hides_csv_export_for_gerente(session_root):
     btns_admin = find_buttons(dialog_admin)
     button_texts_admin = [btn.cget("text") for btn in btns_admin]
     assert "Cerrar" in button_texts_admin
-    assert "Exportar Resumen (CSV)" in button_texts_admin
+    assert "Exportar (PDF)" in button_texts_admin
+    assert "Exportar Resumen (CSV)" not in button_texts_admin
     
     dialog_gerente.destroy()
     dialog_admin.destroy()

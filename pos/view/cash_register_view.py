@@ -899,6 +899,11 @@ class CashRegisterView(ctk.CTkFrame):
             messagebox.showinfo("Caja cerrada", msg, parent=self.winfo_toplevel())
             self._refresh_status()
             self._refresh_history()
+            if hasattr(self, "_on_register_closed") and self._on_register_closed is not None:
+                try:
+                    self._on_register_closed()
+                except Exception:
+                    pass
         else:
             messagebox.showerror("Error", result["error"], parent=self.winfo_toplevel())
 

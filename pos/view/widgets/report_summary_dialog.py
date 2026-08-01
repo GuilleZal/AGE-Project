@@ -14,8 +14,8 @@ class ReportSummaryDialog(CenteredDialog):
     """Modal dialog displaying the summary of income and expenses."""
 
     def __init__(self, master: tk.Widget, report_data: dict[str, Any], role: str = "", **kwargs) -> None:
-        dialog_width = 450 if role == "gerente" else 420
-        dialog_height = 480 if role == "gerente" else 320
+        dialog_width = 450 if role in ("gerente", "admin") else 420
+        dialog_height = 480 if role in ("gerente", "admin") else 320
         super().__init__(
             master,
             width=dialog_width,
@@ -31,7 +31,7 @@ class ReportSummaryDialog(CenteredDialog):
         self._build_ui()
 
     def _build_ui(self) -> None:
-        if self._role == "gerente":
+        if self._role in ("gerente", "admin"):
             self._build_gerente_ui()
         else:
             self._build_standard_ui()
