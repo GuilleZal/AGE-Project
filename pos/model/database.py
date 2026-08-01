@@ -5,12 +5,16 @@ to create the full 10-table schema plus strategic indexes.
 """
 
 import os
+import sys
 import sqlite3
 
-#: Path relative to the project root (pos/ is one level inside the repo).
-DB_DIR = os.path.join(os.path.dirname(__file__), "..", "data")
-DB_PATH = os.path.join(DB_DIR, "pos.db")
+if getattr(sys, 'frozen', False):
+    BASE_DIR = os.path.dirname(sys.executable)
+else:
+    BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+DB_DIR = os.path.join(BASE_DIR, "data")
+DB_PATH = os.path.join(DB_DIR, "pos.db")
 
 def get_connection(*, db_path: str | None = None) -> sqlite3.Connection:
     """Return a file-based SQLite connection with WAL + FK pragmas.

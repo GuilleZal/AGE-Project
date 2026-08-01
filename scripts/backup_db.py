@@ -4,10 +4,16 @@ import sqlite3
 import zipfile
 from datetime import datetime, timedelta
 
-# Configuración de Rutas Relativas
-PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DB_PATH = os.path.join(PROJECT_ROOT, "pos", "data", "pos.db")
-BACKUPS_DIR = os.path.join(PROJECT_ROOT, "backups")
+import sys
+
+if getattr(sys, 'frozen', False):
+    BASE_DIR = os.path.dirname(sys.executable)
+else:
+    BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+DB_DIR = os.path.join(BASE_DIR, "data")
+DB_PATH = os.path.join(DB_DIR, "pos.db")
+BACKUPS_DIR = os.path.join(BASE_DIR, "backups")
 
 def run_backup():
     print("Iniciando backup exclusivo de la base de datos POS...")

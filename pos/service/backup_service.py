@@ -10,15 +10,16 @@ import zipfile
 from datetime import datetime, timedelta
 
 
-#: Default location for the live database (relative to project root).
-DEFAULT_DB_PATH = os.path.join(
-    os.path.dirname(__file__), "..", "data", "pos.db"
-)
+import sys
 
-#: Default backup output directory.
-DEFAULT_BACKUP_DIR = os.path.join(
-    os.path.dirname(__file__), "..", "data", "backups"
-)
+if getattr(sys, 'frozen', False):
+    BASE_DIR = os.path.dirname(sys.executable)
+else:
+    BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+DB_DIR = os.path.join(BASE_DIR, "data")
+DEFAULT_DB_PATH = os.path.join(DB_DIR, "pos.db")
+DEFAULT_BACKUP_DIR = os.path.join(BASE_DIR, "backups")
 
 
 class BackupService:
