@@ -258,7 +258,7 @@ class ReportSummaryDialog(CenteredDialog):
 
         controller = getattr(self.master, "_controller", None)
         if controller is not None:
-            res = controller.export_to_excel(export_data, filepath, start_display, end_display)
+            res = controller.export_to_excel(export_data, filepath, start_display, end_display, title="Resumen de Ingresos y Egresos")
             if res["success"]:
                 messagebox.showinfo(
                     "Exportación exitosa",
@@ -314,7 +314,7 @@ class ReportSummaryDialog(CenteredDialog):
 
         controller = getattr(self.master, "_controller", None)
         if controller is not None:
-            res = controller.export_to_pdf(export_data, filepath, start_display, end_display)
+            res = controller.export_to_pdf(export_data, filepath, start_display, end_display, title="Resumen de Ingresos y Egresos")
             if res["success"]:
                 messagebox.showinfo(
                     "Exportación exitosa",

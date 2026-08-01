@@ -82,6 +82,9 @@ class ProductView(ctk.CTkFrame):
         self._on_preferences: Callable[[], None] | None = callbacks.get(
             "on_preferences"
         )
+        self._on_export_excel: Callable[[], None] | None = callbacks.get(
+            "on_export_excel"
+        )
 
         self._categories: list[dict[str, Any]] = []
 
@@ -244,6 +247,16 @@ class ProductView(ctk.CTkFrame):
             command=self._handle_preferences,
         ).pack(side="left", padx=3)
 
+        if getattr(self, "_role", "") == "gerente":
+            ctk.CTkButton(
+                row1_frame,
+                text="📤 Exportar Excel",
+                width=140,
+                font=theme.scaled_font(13, weight="bold"),
+                fg_color="#107c41",
+                command=self._handle_export_excel_btn,
+            ).pack(side="left", padx=3)
+
         # --- refresh button ---
         ctk.CTkButton(
             row1_frame,
@@ -396,6 +409,10 @@ class ProductView(ctk.CTkFrame):
         """Wire the preferences callback."""
         self._on_preferences = callback
 
+    def set_on_export_excel(self, callback: Callable[[], None]) -> None:
+        """Wire the Excel export callback."""
+        self._on_export_excel = callback
+
     # ------------------------------------------------------- controller wire ---
 
     def set_controller(self, controller: Any) -> None:
@@ -413,6 +430,7 @@ class ProductView(ctk.CTkFrame):
         self._on_import = self._controller_import
         self._on_search = self._controller_search
         self._on_create_category = self._controller_create_category
+        self._on_export_excel = self._controller_export_excel
 
         # Update search bar callback so live typing hits the controller
         self._search_bar.set_on_search(self._controller_search)
@@ -498,6 +516,24 @@ class ProductView(ctk.CTkFrame):
                 self.wait_window(dialog)
                 self._refresh_products()
                 self._refresh_categories()  # Import may create new categories
+            else:
+                messagebox.showerror("Error", result["error"])
+
+    def _controller_export_excel(self) -> None:
+        """Open file dialog and trigger Excel export via controller."""
+        filepath = filedialog.asksaveasfilename(
+            title="Exportar productos a Excel",
+            defaultextension=".xlsx",
+            filetypes=[("Excel", "*.xlsx")],
+            initialfile="Productos.xlsx",
+        )
+        if filepath:
+            result = self._controller.export_products_to_excel(filepath)
+            if result["success"]:
+                messagebox.showinfo(
+                    "Exportación exitosa",
+                    f"Los productos se exportaron correctamente a:\n{filepath}",
+                )
             else:
                 messagebox.showerror("Error", result["error"])
 
@@ -638,6 +674,10 @@ class ProductView(ctk.CTkFrame):
     def _handle_import(self) -> None:
         if self._on_import is not None:
             self._on_import()
+
+    def _handle_export_excel_btn(self) -> None:
+        if self._on_export_excel is not None:
+            self._on_export_excel()
 
     def _prompt_new_category(self) -> None:
         """Show a small dialog to enter a new category name."""

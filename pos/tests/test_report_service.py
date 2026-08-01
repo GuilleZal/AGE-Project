@@ -270,8 +270,6 @@ class TestPaymentMethodsSummary:
         # Sale 4: transfer ($2500)
         # Sale 5: cash ($3000)
         # Totals: cash = 25300, card = 4000, transfer = 2500. Grand total = 31800.
-        # Counts: cash = 3, card = 1, transfer = 1
-        
         assert len(result) == 3
         # Sorted by total DESC, so first should be cash (Efectivo)
         assert result[0]["payment_method"] == "Efectivo"
@@ -279,7 +277,7 @@ class TestPaymentMethodsSummary:
         assert result[0]["sale_count"] == 3
         assert result[0]["percentage"] == pytest.approx(round((25300/31800)*100, 1))
 
-        assert result[1]["payment_method"] == "Tarjeta"
+        assert result[1]["payment_method"] == "card"
         assert result[1]["total_amount"] == 4000
         assert result[1]["sale_count"] == 1
 

@@ -213,7 +213,8 @@ def test_report_view_uses_cached_dates_on_export(session_root, mocker):
         [{"col": "val"}],
         "test.xlsx",
         "2026-07-01",
-        "2026-07-15"
+        "2026-07-15",
+        title="Title"
     )
     
     view.destroy()
@@ -260,9 +261,9 @@ def test_report_view_table_export_buttons_visibility(session_root):
     view_gerente = ReportView(root, role="gerente")
     session_root.update()
     
-    # Gerente should have CSV button gridded but NOT Excel button
-    assert view_gerente._export_table_btn.grid_info()
-    assert not view_gerente._export_excel_btn.grid_info()
+    # Gerente should have Excel and PDF buttons gridded, but NOT CSV
+    assert not view_gerente._export_table_btn.grid_info()
+    assert view_gerente._export_excel_btn.grid_info()
     
     view_gerente.destroy()
     

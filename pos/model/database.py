@@ -159,7 +159,7 @@ def _run_migrations(conn: sqlite3.Connection) -> None:
                 surcharge       INTEGER NOT NULL DEFAULT 0,
                 payment_method  TEXT NOT NULL CHECK(payment_method IN ('cash','card','debit_card','credit_card','transfer')),
                 cash_register_id INTEGER REFERENCES cash_registers(id),
-                created_at      TEXT NOT NULL DEFAULT (datetime('now'))
+                created_at      TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
             );
             INSERT INTO sales_new (id, total, discount, surcharge, payment_method, cash_register_id, created_at)
                 SELECT id, total,
@@ -180,7 +180,7 @@ def _run_migrations(conn: sqlite3.Connection) -> None:
                 type            TEXT NOT NULL CHECK(type IN ('sale_cash','sale_card','sale_debit_card','sale_credit_card','sale_transfer','return','supplier_payment','expense')),
                 amount          INTEGER NOT NULL,
                 description     TEXT,
-                created_at      TEXT NOT NULL DEFAULT (datetime('now'))
+                created_at      TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
             );
             INSERT INTO cash_movements_new SELECT * FROM cash_movements;
             DROP TABLE cash_movements;

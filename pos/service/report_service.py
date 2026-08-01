@@ -130,7 +130,6 @@ class ReportService:
 
     _PAYMENT_METHOD_LABELS: dict[str, str] = {
         "cash": "Efectivo",
-        "card": "Tarjeta",
         "debit_card": "Tarjeta de Débito",
         "credit_card": "Tarjeta de Crédito",
         "transfer": "Transferencia",
@@ -143,8 +142,8 @@ class ReportService:
         """Return revenue breakdown by payment method for the given period.
 
         Each entry includes the absolute total, operations count and its percentage
-        of total revenue.
-
+        of the grand total.
+        
         Args:
             start_date: ISO-like datetime string (inclusive).
             end_date:   ISO-like datetime string (inclusive).
@@ -155,6 +154,7 @@ class ReportService:
             Sorted by ``total_amount`` DESC.
         """
         raw = self._sale_repo.total_by_payment_method(start_date, end_date)
+        
         grand_total = sum(item["total_amount"] for item in raw)
 
         result: list[dict] = []
@@ -319,7 +319,7 @@ class ReportService:
     # -------------------------------------------------------------- CSV ----
 
     @staticmethod
-    def export_csv(data: list[dict], filepath: str, start_date: str = "", end_date: str = "") -> str:
+    def export_csv(data: list[dict], filepath: str, start_date: str = "", end_date: str = "", title: str = "") -> str:
         """Write *data* (list of dicts) to a semicolon-delimited CSV with BOM.
 
         The UTF-8 BOM ensures Excel (Spanish locale) opens the file correctly.
@@ -330,6 +330,7 @@ class ReportService:
             filepath: Destination path for the CSV file.
             start_date: Start date of the report range.
             end_date:   End date of the report range.
+            title:      Optional title for the report.
 
         Returns:
             The *filepath* on success.
@@ -342,8 +343,12 @@ class ReportService:
         os.makedirs(os.path.dirname(filepath) or ".", exist_ok=True)
 
         with open(filepath, "w", newline="", encoding="utf-8-sig") as f:
+            if title:
+                f.write(f"{title}\n")
             if start_date and end_date:
-                f.write(f"Reporte desde: {start_date} hasta: {end_date}\n\n")
+                f.write(f"Reporte desde: {start_date} hasta: {end_date}\n")
+            if title or (start_date and end_date):
+                f.write("\n")
 
             if not data:
                 return filepath
@@ -361,7 +366,7 @@ class ReportService:
         return filepath
 
     @staticmethod
-    def export_excel(data: list[dict], filepath: str, start_date: str = "", end_date: str = "") -> str:
+    def export_excel(data: list[dict], filepath: str, start_date: str = "", end_date: str = "", title: str = "") -> str:
         """Write *data* (list of dicts) to an Excel (.xlsx) file using openpyxl.
 
         Args:
@@ -369,6 +374,7 @@ class ReportService:
             filepath: Destination path for the Excel file.
             start_date: Start date of the report range.
             end_date:   End date of the report range.
+            title:      Optional title for the report.
 
         Returns:
             The *filepath* on success.
@@ -382,10 +388,15 @@ class ReportService:
         ws.title = "Reporte"
 
         row_offset = 1
+        if title:
+            ws.cell(row=row_offset, column=1, value=title)
+            row_offset += 1
         if start_date and end_date:
-            ws.cell(row=1, column=1, value=f"Reporte desde: {start_date} hasta: {end_date}")
-            ws.cell(row=2, column=1, value="")  # spacer row
-            row_offset = 3
+            ws.cell(row=row_offset, column=1, value=f"Reporte desde: {start_date} hasta: {end_date}")
+            row_offset += 1
+        if title or (start_date and end_date):
+            ws.cell(row=row_offset, column=1, value="")  # spacer row
+            row_offset += 1
 
         if data:
             # Write headers
@@ -402,7 +413,7 @@ class ReportService:
         return filepath
 
     @staticmethod
-    def export_pdf(data: list[dict], filepath: str, start_date: str = "", end_date: str = "") -> str:
+    def export_pdf(data: list[dict], filepath: str, start_date: str = "", end_date: str = "", title: str = "") -> str:
         """Write *data* (list of dicts) to a PDF (.pdf) file using fpdf2.
 
         Args:
@@ -410,6 +421,7 @@ class ReportService:
             filepath:   Destination path for the PDF file.
             start_date: Start date of the report range.
             end_date:   End date of the report range.
+            title:      Optional title for the report.
 
         Returns:
             The *filepath* on success.
@@ -420,11 +432,12 @@ class ReportService:
 
         pdf = FPDF()
         pdf.add_page()
-        pdf.set_margins(20, 20, 20)
+        pdf.set_margins(10, 10, 10)
 
         # Title
+        display_title = title if title else "Reporte"
         pdf.set_font("Helvetica", "B", 18)
-        pdf.cell(0, 12, "Resumen de Ingresos y Egresos", ln=True, align="L")
+        pdf.cell(0, 12, display_title, ln=True, align="L")
 
         # Period
         if start_date and end_date:
@@ -433,35 +446,74 @@ class ReportService:
             pdf.cell(0, 8, f"Periodo: {start_date} hasta {end_date}", ln=True, align="L")
             pdf.set_text_color(0, 0, 0)
         
-        pdf.ln(10)
+        pdf.ln(5)
 
         if data:
-            # Draw Table
+            headers = list(data[0].keys())
+            
+            # Calculate dynamic column widths based on content
+            pdf.set_font("Helvetica", "B", 10)
+            col_widths = []
+            for header in headers:
+                max_w = pdf.get_string_width(str(header)) + 4
+                pdf.set_font("Helvetica", "", 10)
+                for row in data:
+                    val = str(row.get(header, ""))
+                    w = pdf.get_string_width(val) + 4
+                    if w > max_w:
+                        max_w = w
+                col_widths.append(max_w)
+                pdf.set_font("Helvetica", "B", 10)
+                
+            # Scale column widths to fit the page (190mm)
+            usable_width = 190
+            total_w = sum(col_widths)
+            if total_w > 0:
+                scale = usable_width / total_w
+                col_widths = [w * scale for w in col_widths]
+            else:
+                col_widths = [usable_width / len(headers)] * len(headers)
+                
+            def truncate_text(text, max_w):
+                if pdf.get_string_width(text) <= max_w:
+                    return text
+                while len(text) > 0 and pdf.get_string_width(text + "...") > max_w:
+                    text = text[:-1]
+                return text + "..."
+            
             # 1. Header
-            pdf.set_font("Helvetica", "B", 12)
+            pdf.set_font("Helvetica", "B", 10)
             pdf.set_fill_color(240, 240, 240)
-            pdf.cell(100, 10, "Concepto", border=1, fill=True)
-            pdf.cell(60, 10, "Monto", border=1, ln=True, align="R", fill=True)
+            for i, header in enumerate(headers):
+                ln = True if i == len(headers) - 1 else False
+                display_header = truncate_text(str(header), col_widths[i] - 2)
+                pdf.cell(col_widths[i], 10, display_header, border=1, ln=ln, align="C", fill=True)
 
             # 2. Rows
-            pdf.set_font("Helvetica", "", 12)
+            pdf.set_font("Helvetica", "", 10)
             for row in data:
-                concept = row.get("Concepto", "")
-                amount = row.get("Monto", "")
+                # To highlight in Resumen de Ingresos y Egresos specifically
+                concept = str(row.get("Concepto", ""))
                 
-                # Check for negative amounts to highlight in red
-                is_negative = "-" in amount
+                # Check for negative amounts to highlight in red (Requested to be removed by Gerente)
+                # has_negative = any(isinstance(v, str) and "-" in v for v in row.values())
                 
-                pdf.cell(100, 10, concept, border=1)
-                
-                if is_negative:
-                    pdf.set_text_color(168, 50, 50) # Red
-                elif concept in ["Ganancia Bruta", "Ganancia Neta"]:
+                if concept in ["Ganancia Bruta", "Ganancia Neta"]:
                     pdf.set_text_color(31, 111, 58) # Green
                 else:
                     pdf.set_text_color(0, 0, 0) # Black
+                
+                for i, header in enumerate(headers):
+                    # Replace em-dash with hyphen to avoid fpdf2 latin-1 encoding errors
+                    val = str(row.get(header, "")).replace('\u2014', '-')
+                    ln = True if i == len(headers) - 1 else False
                     
-                pdf.cell(60, 10, amount, border=1, ln=True, align="R")
+                    # Try to right align if it looks like a number
+                    align = "R" if (val.startswith("$") or val.replace(".","").replace(",","").replace("-","").isdigit()) else "L"
+                    
+                    display_val = truncate_text(val, col_widths[i] - 2)
+                    pdf.cell(col_widths[i], 10, display_val, border=1, ln=ln, align=align)
+                    
                 pdf.set_text_color(0, 0, 0) # Reset color
 
         pdf.output(filepath)

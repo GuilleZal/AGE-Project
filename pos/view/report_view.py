@@ -351,11 +351,21 @@ class ReportView(ctk.CTkFrame):
             command=self._handle_export_excel_click,
         )
 
-        if getattr(self, "_role", "") == "gerente":
-            self._export_table_btn.grid(row=0, column=3, columnspan=2, sticky="e", padx=(10, 10), pady=8)
-        else:
+        # Export PDF button
+        self._export_pdf_btn = ctk.CTkButton(
+            self._table_header,
+            text="Exportar PDF",
+            width=100 if self._is_compact else 130,
+            height=28,
+            fg_color="#c0392b",
+            command=self._handle_export_pdf_click,
+        )
+
+        if getattr(self, "_role", "") == "admin":
             self._export_table_btn.grid(row=0, column=3, sticky="e", padx=(10, 5), pady=8)
-            self._export_excel_btn.grid(row=0, column=4, sticky="e", padx=(5, 10), pady=8)
+        if getattr(self, "_role", "") in ("gerente", "admin"):
+            self._export_excel_btn.grid(row=0, column=4, sticky="e", padx=(5, 5), pady=8)
+            self._export_pdf_btn.grid(row=0, column=5, sticky="e", padx=(5, 10), pady=8)
 
         # Treeview styling
         self._style = ttk.Style(left_frame)
@@ -506,8 +516,8 @@ class ReportView(ctk.CTkFrame):
             "Función de exportación de Libro Diario en desarrollo.",
         )
 
-    def _controller_export_top(self, format_excel: bool = False) -> None:
-        """Export top products to CSV or Excel via file dialog."""
+    def _controller_export_top(self, export_format: str = "csv") -> None:
+        """Export top products to CSV, Excel or PDF via file dialog."""
         if not self._report_data:
             messagebox.showwarning(
                 "Sin datos",
@@ -523,12 +533,14 @@ class ReportView(ctk.CTkFrame):
             )
             return
 
-        if format_excel:
-            title_text = "Exportar Top Productos"
+        title_text = "Exportar Top Productos"
+        if export_format == "excel":
             ext = ".xlsx"
             ftypes = [("Excel", "*.xlsx")]
+        elif export_format == "pdf":
+            ext = ".pdf"
+            ftypes = [("PDF", "*.pdf")]
         else:
-            title_text = "Exportar Top Productos"
             ext = ".csv"
             ftypes = [("CSV", "*.csv")]
 
@@ -563,8 +575,8 @@ class ReportView(ctk.CTkFrame):
 
         self._execute_export(export_data, filepath, "Top Productos")
 
-    def _controller_export_faltantes(self, format_excel: bool = False) -> None:
-        """Export low stock products to CSV or Excel via file dialog."""
+    def _controller_export_faltantes(self, export_format: str = "csv") -> None:
+        """Export low stock products to CSV, Excel or PDF via file dialog."""
         low_stock = []
         if getattr(self, "_controller", None) is not None:
             result = self._controller.get_low_stock()
@@ -581,12 +593,14 @@ class ReportView(ctk.CTkFrame):
             )
             return
 
-        if format_excel:
-            title_text = "Exportar Productos Bajo Stock"
+        title_text = "Exportar Productos Bajo Stock"
+        if export_format == "excel":
             ext = ".xlsx"
             ftypes = [("Excel", "*.xlsx")]
+        elif export_format == "pdf":
+            ext = ".pdf"
+            ftypes = [("PDF", "*.pdf")]
         else:
-            title_text = "Exportar Productos Bajo Stock"
             ext = ".csv"
             ftypes = [("CSV", "*.csv")]
 
@@ -791,19 +805,19 @@ class ReportView(ctk.CTkFrame):
         dialog = ReportSummaryDialog(self, self._report_data, role=getattr(self, "_role", ""))
         self.wait_window(dialog)
 
-    def _handle_export_top(self, format_excel: bool = False) -> None:
+    def _handle_export_top(self, export_format: str = "csv") -> None:
         """Handle export top products button click."""
         if self._on_export_top is not None:
             try:
-                self._on_export_top(format_excel)
+                self._on_export_top(export_format)
             except TypeError:
                 self._on_export_top()
 
-    def _handle_export_faltantes(self, format_excel: bool = False) -> None:
+    def _handle_export_faltantes(self, export_format: str = "csv") -> None:
         """Handle export low stock button click."""
         if self._on_export_faltantes is not None:
             try:
-                self._on_export_faltantes(format_excel)
+                self._on_export_faltantes(export_format)
             except TypeError:
                 self._on_export_faltantes()
 
@@ -837,15 +851,15 @@ class ReportView(ctk.CTkFrame):
             return
 
         if table_type == "Top productos más vendidos":
-            self._handle_export_top(format_excel=False)
+            self._handle_export_top(export_format="csv")
         elif table_type == "Productos bajo stock":
-            self._handle_export_faltantes(format_excel=False)
+            self._handle_export_faltantes(export_format="csv")
         elif table_type == "Ventas por método de pago":
-            self._handle_export_payment_methods(format_excel=False)
+            self._handle_export_payment_methods(export_format="csv")
         elif table_type == "Ventas por categoría":
-            self._handle_export_category_sales(format_excel=False)
+            self._handle_export_category_sales(export_format="csv")
         elif table_type == "Historial de devoluciones":
-            self._handle_export_returns_history(format_excel=False)
+            self._handle_export_returns_history(export_format="csv")
 
     def _handle_export_excel_click(self) -> None:
         """Handle Excel export button click dynamically based on selected table type."""
@@ -873,18 +887,54 @@ class ReportView(ctk.CTkFrame):
             return
 
         if table_type == "Top productos más vendidos":
-            self._handle_export_top(format_excel=True)
+            self._handle_export_top(export_format="excel")
         elif table_type == "Productos bajo stock":
-            self._handle_export_faltantes(format_excel=True)
+            self._handle_export_faltantes(export_format="excel")
         elif table_type == "Ventas por método de pago":
-            self._handle_export_payment_methods(format_excel=True)
+            self._handle_export_payment_methods(export_format="excel")
         elif table_type == "Ventas por categoría":
-            self._handle_export_category_sales(format_excel=True)
+            self._handle_export_category_sales(export_format="excel")
         elif table_type == "Historial de devoluciones":
-            self._handle_export_returns_history(format_excel=True)
+            self._handle_export_returns_history(export_format="excel")
 
-    def _handle_export_payment_methods(self, format_excel: bool = False) -> None:
-        """Export payment methods to CSV or Excel via file dialog."""
+    def _handle_export_pdf_click(self) -> None:
+        """Handle PDF export button click dynamically based on selected table type."""
+        table_type = self._table_selector.get()
+        if table_type == "Seleccionar reporte":
+            messagebox.showwarning(
+                "Seleccione un reporte",
+                "Por favor seleccione un reporte válido antes de exportar.",
+            )
+            return
+
+        if not self._report_data:
+            messagebox.showwarning(
+                "Sin datos",
+                "Genere un reporte antes de exportar.",
+            )
+            return
+
+        # Double check role permission (only for gerente and admin)
+        if getattr(self, "_role", "") not in ("gerente", "admin"):
+            messagebox.showerror(
+                "Error de Permisos",
+                "El rol actual no tiene permitida la función de exportación a PDF.",
+            )
+            return
+
+        if table_type == "Top productos más vendidos":
+            self._handle_export_top(export_format="pdf")
+        elif table_type == "Productos bajo stock":
+            self._handle_export_faltantes(export_format="pdf")
+        elif table_type == "Ventas por método de pago":
+            self._handle_export_payment_methods(export_format="pdf")
+        elif table_type == "Ventas por categoría":
+            self._handle_export_category_sales(export_format="pdf")
+        elif table_type == "Historial de devoluciones":
+            self._handle_export_returns_history(export_format="pdf")
+
+    def _handle_export_payment_methods(self, export_format: str = "csv") -> None:
+        """Export payment methods to CSV, Excel or PDF via file dialog."""
         payment_methods = self._report_data.get("payment_methods") or []
         if not payment_methods:
             messagebox.showwarning(
@@ -893,12 +943,14 @@ class ReportView(ctk.CTkFrame):
             )
             return
 
-        if format_excel:
-            title_text = "Exportar Ventas por Método de Pago"
+        title_text = "Exportar Ventas por Método de Pago"
+        if export_format == "excel":
             ext = ".xlsx"
             ftypes = [("Excel", "*.xlsx")]
+        elif export_format == "pdf":
+            ext = ".pdf"
+            ftypes = [("PDF", "*.pdf")]
         else:
-            title_text = "Exportar Ventas por Método de Pago"
             ext = ".csv"
             ftypes = [("CSV", "*.csv")]
 
@@ -927,8 +979,8 @@ class ReportView(ctk.CTkFrame):
 
         self._execute_export(export_data, filepath, "Ventas por Método de Pago")
 
-    def _handle_export_category_sales(self, format_excel: bool = False) -> None:
-        """Export category sales to CSV or Excel via file dialog."""
+    def _handle_export_category_sales(self, export_format: str = "csv") -> None:
+        """Export category sales to CSV, Excel or PDF via file dialog."""
         sales_by_category = self._report_data.get("sales_by_category") or []
         if not sales_by_category:
             messagebox.showwarning(
@@ -937,12 +989,14 @@ class ReportView(ctk.CTkFrame):
             )
             return
 
-        if format_excel:
-            title_text = "Exportar Ventas por Categoría"
+        title_text = "Exportar Ventas por Categoría"
+        if export_format == "excel":
             ext = ".xlsx"
             ftypes = [("Excel", "*.xlsx")]
+        elif export_format == "pdf":
+            ext = ".pdf"
+            ftypes = [("PDF", "*.pdf")]
         else:
-            title_text = "Exportar Ventas por Categoría"
             ext = ".csv"
             ftypes = [("CSV", "*.csv")]
 
@@ -977,8 +1031,8 @@ class ReportView(ctk.CTkFrame):
 
         self._execute_export(export_data, filepath, "Ventas por Categoría")
 
-    def _handle_export_returns_history(self, format_excel: bool = False) -> None:
-        """Export returns history to CSV or Excel via file dialog."""
+    def _handle_export_returns_history(self, export_format: str = "csv") -> None:
+        """Export returns history to CSV, Excel or PDF via file dialog."""
         returns_history = self._report_data.get("returns_history") or []
         if not returns_history:
             messagebox.showwarning(
@@ -987,12 +1041,14 @@ class ReportView(ctk.CTkFrame):
             )
             return
 
-        if format_excel:
-            title_text = "Exportar Historial de Devoluciones"
+        title_text = "Exportar Historial de Devoluciones"
+        if export_format == "excel":
             ext = ".xlsx"
             ftypes = [("Excel", "*.xlsx")]
+        elif export_format == "pdf":
+            ext = ".pdf"
+            ftypes = [("PDF", "*.pdf")]
         else:
-            title_text = "Exportar Historial de Devoluciones"
             ext = ".csv"
             ftypes = [("CSV", "*.csv")]
 
@@ -1031,9 +1087,11 @@ class ReportView(ctk.CTkFrame):
 
         if getattr(self, "_controller", None) is not None:
             if filepath.lower().endswith(".xlsx"):
-                res = self._controller.export_to_excel(export_data, filepath, start_date, end_date)
+                res = self._controller.export_to_excel(export_data, filepath, start_date, end_date, title=title)
+            elif filepath.lower().endswith(".pdf"):
+                res = self._controller.export_to_pdf(export_data, filepath, start_date, end_date, title=title)
             else:
-                res = self._controller.export_to_csv(export_data, filepath, start_date, end_date)
+                res = self._controller.export_to_csv(export_data, filepath, start_date, end_date, title=title)
             
             if res["success"]:
                 messagebox.showinfo(

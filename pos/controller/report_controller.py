@@ -116,13 +116,13 @@ class ReportController:
 
     # ------------------------------------------------------------------ CSV ----
 
-    def export_to_csv(self, data: list[dict], file_path: str, start_date: str = "", end_date: str = "") -> dict:
+    def export_to_csv(self, data: list[dict], file_path: str, start_date: str = "", end_date: str = "", title: str = "") -> dict:
         """Export *data* (list of dicts) to a semicolon-delimited CSV with BOM.
 
         Returns ``{"success": True, "data": file_path, "error": None}``.
         """
         try:
-            result_path = self._report_service.export_csv(data, file_path, start_date, end_date)
+            result_path = self._report_service.export_csv(data, file_path, start_date, end_date, title)
             return {"success": True, "data": result_path, "error": None}
         except (OSError, IOError) as e:
             return {
@@ -133,13 +133,13 @@ class ReportController:
         except Exception as e:
             return {"success": False, "data": None, "error": str(e)}
 
-    def export_to_excel(self, data: list[dict], file_path: str, start_date: str = "", end_date: str = "") -> dict:
+    def export_to_excel(self, data: list[dict], file_path: str, start_date: str = "", end_date: str = "", title: str = "") -> dict:
         """Export *data* (list of dicts) to an Excel (.xlsx) file using openpyxl.
 
         Returns ``{"success": True, "data": file_path, "error": None}``.
         """
         try:
-            result_path = self._report_service.export_excel(data, file_path, start_date, end_date)
+            result_path = self._report_service.export_excel(data, file_path, start_date, end_date, title)
             return {"success": True, "data": result_path, "error": None}
         except (OSError, IOError) as e:
             return {
@@ -150,13 +150,13 @@ class ReportController:
         except Exception as e:
             return {"success": False, "data": None, "error": str(e)}
 
-    def export_to_pdf(self, data: list[dict], file_path: str, start_date: str = "", end_date: str = "") -> dict:
+    def export_to_pdf(self, data: list[dict], file_path: str, start_date: str = "", end_date: str = "", title: str = "") -> dict:
         """Export *data* (list of dicts) to a PDF (.pdf) file using fpdf2.
 
         Returns ``{"success": True, "data": file_path, "error": None}``.
         """
         try:
-            result_path = self._report_service.export_pdf(data, file_path, start_date, end_date)
+            result_path = self._report_service.export_pdf(data, file_path, start_date, end_date, title)
             return {"success": True, "data": result_path, "error": None}
         except (OSError, IOError) as e:
             return {

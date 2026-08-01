@@ -276,6 +276,41 @@ class ProductController:
         result = importer.execute_import(file_path)
         return result
 
+    def export_products_to_excel(self, file_path: str) -> dict:
+        """Export all products to an Excel (.xlsx) file.
+        
+        Returns ``{"success": True, "data": file_path, "error": None}``.
+        """
+        try:
+            import openpyxl
+            products = self._product_repo.get_all()
+            cats = {c["id"]: c["name"] for c in self._category_repo.get_all()}
+            
+            wb = openpyxl.Workbook()
+            ws = wb.active
+            ws.title = "Productos"
+            ws.append(["Código", "Nombre", "Categoría", "Precio Costo", "Precio Venta", "Margen %", "Stock", "Unidad"])
+            
+            for p in products:
+                cat_name = cats.get(p.category_id, "")
+                margin = 0.0
+                if p.cost_price > 0:
+                    margin = ((p.sale_price - p.cost_price) / p.cost_price) * 100
+                ws.append([
+                    p.barcode or "",
+                    p.name,
+                    cat_name,
+                    p.cost_price,
+                    p.sale_price,
+                    round(margin, 2),
+                    p.stock,
+                    getattr(p, "unit_type", "Unidad")
+                ])
+            wb.save(file_path)
+            return {"success": True, "data": file_path, "error": None}
+        except Exception as e:
+            return {"success": False, "data": None, "error": f"Error al exportar: {e}"}
+
     def generate_template(self, file_path: str) -> dict:
         """Generate an empty Excel template with the correct column headers.
 
