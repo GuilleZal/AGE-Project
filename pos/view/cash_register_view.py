@@ -326,12 +326,9 @@ class CashRegisterView(ctk.CTkFrame):
             font=theme.scaled_font(14, weight="bold"),
         ).pack(anchor="w", padx=10, pady=(6, 2))
 
-        # Reemplazamos "expense" por "Gasto" para que coincida con la lista
-        outflow_values = ["Gasto", "Pago a proveedor"]
-        default_outflow = "Gasto"
-        if self._role == "cajero":
-            outflow_values = ["Pago a proveedor"]
-            default_outflow = "Pago a proveedor"
+        # Solo dejamos "Pago a proveedor" para el registro manual de egresos
+        outflow_values = ["Pago a proveedor"]
+        default_outflow = "Pago a proveedor"
 
         self._outflow_type_var = tk.StringVar(value=default_outflow)
         self._outflow_menu = ctk.CTkOptionMenu(
@@ -821,7 +818,7 @@ class CashRegisterView(ctk.CTkFrame):
 
     def clear_outflow_form(self) -> None:
         """Reset the outflow form fields."""
-        self._outflow_type_var.set("Pago a proveedor" if self._role == "cajero" else "Gasto")
+        self._outflow_type_var.set("Pago a proveedor")
         self._outflow_amount_entry.delete(0, "end")
         self._outflow_desc_entry.delete(0, "end")
 
