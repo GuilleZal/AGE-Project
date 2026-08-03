@@ -5,7 +5,7 @@ import customtkinter as ctk
 from pos.view import theme
 
 
-class LoginView(ctk.CTkToplevel):
+class LoginView(ctk.CTk):
     """Standalone login window displayed before MainWindow.
 
     Layout (centered, 400x300):
@@ -29,8 +29,15 @@ class LoginView(ctk.CTkToplevel):
     WINDOW_WIDTH = 400
     WINDOW_HEIGHT = 380
 
-    def __init__(self, master=None) -> None:
-        super().__init__(master)
+    def __init__(self) -> None:
+        super().__init__()
+        
+        # Silencia errores residuales de Tcl/Tk (timers de CustomTkinter al cerrar)
+        try:
+            self.tk.call("proc", "bgerror", "msg", "")
+        except Exception:
+            pass
+            
         self.title("Sistema POS - Login")
         self.resizable(False, False)
         self.minsize(self.WINDOW_WIDTH, self.WINDOW_HEIGHT)

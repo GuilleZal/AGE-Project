@@ -53,21 +53,12 @@ def _run_login_loop(conn, login_ctrl) -> None:
     """Show LoginView. On success, launch MainWindow. On logout, loop back."""
     import customtkinter as ctk
     from pos.view.login_view import LoginView
-    
-    # Create a persistent root window that never gets destroyed
-    # This prevents "no default root window" errors when recreating windows
-    _root = ctk.CTk()
-    _root.withdraw()  # Hide it - it's just a Tkinter root anchor
-
-    # Silence Tcl background errors (e.g. pending animation timers firing on destroyed widgets)
-    try:
-        _root.tk.call("proc", "bgerror", "msg", "")
-    except Exception:
-        pass
 
     while True:
-        # Create LoginView as a Toplevel of the persistent root
-        login_view = LoginView(_root)
+        # En Windows 10, tener una ventana Toplevel con un padre oculto
+        # rompe el dibujado. Por lo tanto, LoginView ahora es su propia
+        # ventana raíz (CTk) independiente de MainWindow.
+        login_view = LoginView()
         login_view.set_controller(login_ctrl)
         
         # Track if login was successful
@@ -80,10 +71,13 @@ def _run_login_loop(conn, login_ctrl) -> None:
             user_data = {"user": user, "permissions": permissions}
         
         login_view.set_success_callback(on_login_success)
-
-        # Wait for login window to close (uses wait_window instead of mainloop)
+        
+        # Wait for login window to close
         login_view.grab_set()
-        _root.wait_window(login_view)
+        
+        # Al ser una ventana raíz, mainloop() se detendrá automáticamente
+        # cuando la ventana se destruya (ya sea cerrándola o iniciando sesión).
+        login_view.mainloop()
 
         # If user closed window without logging in, exit
         if not login_success:
