@@ -60,28 +60,16 @@ class CategoryRepo:
     # ----------------------------------------------------------------- delete
 
     def delete(self, category_id: int) -> None:
-        """Delete a category.
-
-        Raises:
-            DataError: If any product is still associated with this category.
-        """
-        count = self._db.execute(
-            "SELECT COUNT(*) AS cnt FROM products WHERE category_id = ?",
-            (category_id,),
-        ).fetchone()["cnt"]
-        if count > 0:
-            raise DataError(
-                "La categoría tiene productos asociados. "
-                "Reasigne los productos antes de eliminar."
-            )
+        """Delete a category and set associated products to 'Sin categoría' (NULL)."""
+        self._db.execute("UPDATE products SET category_id = NULL WHERE category_id = ?", (category_id,))
         self._db.execute("DELETE FROM categories WHERE id = ?", (category_id,))
 
     # -------------------------------------------------------------- queries
 
     def count_products(self, category_id: int) -> int:
-        """Return the number of products belonging to this category."""
+        """Return the number of active products belonging to this category."""
         row = self._db.execute(
-            "SELECT COUNT(*) AS cnt FROM products WHERE category_id = ?",
+            "SELECT COUNT(*) AS cnt FROM products WHERE category_id = ? AND is_active = 1",
             (category_id,),
         ).fetchone()
         return row["cnt"]
@@ -99,6 +87,7 @@ class CategoryRepo:
                LEFT JOIN (
                    SELECT category_id, COUNT(*) AS cnt
                    FROM products
+                   WHERE is_active = 1
                    GROUP BY category_id
                ) p ON p.category_id = c.id
                ORDER BY c.name"""

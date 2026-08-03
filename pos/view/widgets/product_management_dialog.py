@@ -198,17 +198,18 @@ class ProductManagementDialog(CenteredDialog):
         product_count = item["values"][1]
 
         if product_count > 0:
-            messagebox.showwarning(
-                "Categoría en uso",
+            confirm = messagebox.askyesno(
+                "Confirmar eliminación",
                 f'La categoría "{name}" tiene {product_count} producto(s) asignado(s).\n'
-                "Reasigne los productos antes de eliminarla.",
+                f'Si la elimina, esos productos quedarán automáticamente "Sin categoría".\n\n'
+                f'¿Eliminar la categoría "{name}" de todas formas?',
             )
-            return
-
-        confirm = messagebox.askyesno(
-            "Confirmar eliminación",
-            f'¿Eliminar la categoría "{name}"?',
-        )
+        else:
+            confirm = messagebox.askyesno(
+                "Confirmar eliminación",
+                f'¿Eliminar la categoría "{name}"?',
+            )
+            
         if not confirm:
             return
 
