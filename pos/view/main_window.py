@@ -112,6 +112,24 @@ class MainWindow(ctk.CTk):
                 font=("Segoe UI", 10),
             )
         
+        # --- Percentage button for manager ---
+        if permissions is not None:
+            role_val = permissions.user.role.value if hasattr(permissions.user.role, 'value') else permissions.user.role
+            if role_val == "gerente":
+                self._percent_container = ctk.CTkFrame(self, width=32, height=32, fg_color="transparent")
+                self._percent_container.place(x=249, y=15)
+                self._percent_container.pack_propagate(False)
+
+                self._percent_btn = ctk.CTkButton(
+                    self._percent_container,
+                    text="%",
+                    width=32,
+                    height=32,
+                    font=ctk.CTkFont(size=16, weight="bold"),
+                    command=self._show_percentage_calculator,
+                )
+                self._percent_btn.pack(fill="both", expand=True)
+
         # --- User display + logout (top-right area) ---
         self._on_logout_callback: Callable | None = None
         self._on_close_callback: Callable | None = None
@@ -496,6 +514,11 @@ class MainWindow(ctk.CTk):
             )
         finally:
             self._resolution_popup.grab_release()
+
+    def _show_percentage_calculator(self) -> None:
+        """Show percentage calculator dialog for manager."""
+        from pos.view.widgets.percentage_calculator_dialog import PercentageCalculatorDialog
+        PercentageCalculatorDialog(self).wait_window()
 
     def _on_resolution_changed(self, resolution_value: str) -> None:
         """Handle window resolution change."""
