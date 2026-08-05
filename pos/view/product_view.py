@@ -312,8 +312,8 @@ class ProductView(ctk.CTkFrame):
 
             # Calculate margin percentage
             margin_pct = 0.0
-            if cost_price > 0:
-                margin_pct = ((price - cost_price) / cost_price) * 100
+            if price > 0:
+                margin_pct = ((price - cost_price) / price) * 100
 
             # Format stock with warning icon if low and unit
             try:

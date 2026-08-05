@@ -212,6 +212,13 @@ class PreferencesDialog(CenteredDialog):
             self._margin_entry.focus_set()
             return
 
+        if margin >= 100:
+            self._error_label.configure(
+                text="El porcentaje debe ser menor a 100%"
+            )
+            self._margin_entry.focus_set()
+            return
+
         # Get selected categories
         threshold_cat_name = self._threshold_cat_var.get()
         margin_cat_name = self._margin_cat_var.get()

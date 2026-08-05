@@ -22,7 +22,8 @@ def test_initial_margin_populate(session_root):
     
     assert dialog._cost_price_entry.get() == "100"
     assert dialog._sale_price_entry.get() == "150"
-    assert dialog._margin_entry.get() == "50"
+    assert dialog._margin_entry.get() == "33.3"
+    dialog.destroy()
 
 
 def test_change_cost_updates_sale_with_margin(session_root):
@@ -35,8 +36,9 @@ def test_change_cost_updates_sale_with_margin(session_root):
     # Trigger cost change handler
     dialog._on_cost_changed()
     
-    # Cost = 200, Margin = 50% -> Sale = 300
-    assert dialog._sale_price_entry.get() == "300"
+    # Cost = 200, Margin = 50% -> Sale = 200 / 0.5 = 400
+    assert dialog._sale_price_entry.get() == "400"
+    dialog.destroy()
 
 
 def test_change_cost_updates_margin_with_sale(session_root):
@@ -49,8 +51,9 @@ def test_change_cost_updates_margin_with_sale(session_root):
     # Trigger cost change handler
     dialog._on_cost_changed()
     
-    # Cost = 100, Sale = 150 -> Margin = 50%
-    assert dialog._margin_entry.get() == "50"
+    # Cost = 100, Sale = 150 -> Margin = (50/150)*100 = 33.3%
+    assert dialog._margin_entry.get() == "33.3"
+    dialog.destroy()
 
 
 def test_change_margin_updates_sale_with_cost(session_root):
@@ -63,8 +66,9 @@ def test_change_margin_updates_sale_with_cost(session_root):
     # Trigger margin change handler
     dialog._on_margin_changed()
     
-    # Cost = 100, Margin = 25% -> Sale = 125
-    assert dialog._sale_price_entry.get() == "125"
+    # Cost = 100, Margin = 25% -> Sale = 100 / 0.75 = 133
+    assert dialog._sale_price_entry.get() == "133"
+    dialog.destroy()
 
 
 def test_change_margin_updates_cost_with_sale(session_root):
@@ -77,8 +81,9 @@ def test_change_margin_updates_cost_with_sale(session_root):
     # Trigger margin change handler
     dialog._on_margin_changed()
     
-    # Sale = 150, Margin = 50% -> Cost = 100
-    assert dialog._cost_price_entry.get() == "100"
+    # Sale = 150, Margin = 50% -> Cost = 150 * 0.5 = 75
+    assert dialog._cost_price_entry.get() == "75"
+    dialog.destroy()
 
 
 def test_change_sale_updates_margin_with_cost(session_root):
@@ -91,22 +96,24 @@ def test_change_sale_updates_margin_with_cost(session_root):
     # Trigger sale change handler
     dialog._on_sale_changed()
     
-    # Cost = 80, Sale = 100 -> Margin = 25%
-    assert dialog._margin_entry.get() == "25"
+    # Cost = 80, Sale = 100 -> Margin = (20/100)*100 = 20%
+    assert dialog._margin_entry.get() == "20"
+    dialog.destroy()
 
 
 def test_change_sale_updates_cost_with_margin(session_root):
     dialog = ProductFormDialog(session_root, product=None, categories=[])
     
     # Enter margin and sale
-    dialog._margin_entry.insert(0, "100")
+    dialog._margin_entry.insert(0, "50")
     dialog._sale_price_entry.insert(0, "200")
     
     # Trigger sale change handler
     dialog._on_sale_changed()
     
-    # Sale = 200, Margin = 100% -> Cost = 100
+    # Sale = 200, Margin = 50% -> Cost = 200 * 0.5 = 100
     assert dialog._cost_price_entry.get() == "100"
+    dialog.destroy()
 
 
 def test_no_barcode_checkbox_logic(session_root):
@@ -136,4 +143,5 @@ def test_no_barcode_checkbox_logic(session_root):
     assert dialog_edit._no_barcode_var.get() is False
     assert dialog_edit._barcode_entry.cget("state") == "normal"
     assert dialog_edit._barcode_entry.get() == "99999"
-
+    dialog_create.destroy()
+    dialog_edit.destroy()

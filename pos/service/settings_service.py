@@ -130,7 +130,7 @@ class SettingsService:
     def apply_profit_margin(self, margin_pct: float, category_id: int | None = None) -> int:
         """Recalculate products' sale_price based on cost_price and margin.
 
-        Formula: sale_price = cost_price * (1 + margin_pct / 100)
+        Formula: sale_price = cost_price / (1 - margin_pct / 100)
 
         Args:
             margin_pct: New profit margin percentage.
@@ -139,18 +139,21 @@ class SettingsService:
 
         Returns the number of products updated.
         """
-        multiplier = 1 + (margin_pct / 100)
+        if margin_pct >= 100 or margin_pct < 0:
+            raise ValueError("El porcentaje de ganancia debe estar entre 0 y 99.9%")
+
+        divisor = 1 - (margin_pct / 100)
         if category_id is None:
             self._db.execute(
                 """UPDATE products
-                   SET sale_price = CAST(ROUND(cost_price * ?) AS INTEGER)""",
-                (multiplier,),
+                   SET sale_price = CAST(ROUND(cost_price / ?) AS INTEGER)""",
+                (divisor,),
             )
         else:
             self._db.execute(
                 """UPDATE products
-                   SET sale_price = CAST(ROUND(cost_price * ?) AS INTEGER)
+                   SET sale_price = CAST(ROUND(cost_price / ?) AS INTEGER)
                    WHERE category_id = ?""",
-                (multiplier, category_id),
+                (divisor, category_id),
             )
         return self._db.execute("SELECT changes()").fetchone()[0]

@@ -135,8 +135,8 @@ class ProductFormDialog(CenteredDialog):
         if prev.get("cost_price") and prev.get("sale_price"):
             c = prev["cost_price"]
             s = prev["sale_price"]
-            if c > 0:
-                prev_margin = f"{((s - c) / c) * 100:.1f}".rstrip('0').rstrip('.')
+            if s > 0:
+                prev_margin = f"{((s - c) / s) * 100:.1f}".rstrip('0').rstrip('.')
 
         # Cost price + Margin % + Sale price (side by side)
         price_frame = ctk.CTkFrame(body, fg_color="transparent")
@@ -279,18 +279,20 @@ class ProductFormDialog(CenteredDialog):
         if margin_str:
             try:
                 margin = float(margin_str)
-                sale_price = int(cost * (1 + margin / 100))
-                self._sale_price_entry.delete(0, "end")
-                self._sale_price_entry.insert(0, str(sale_price))
+                if margin < 100:
+                    sale_price = int(cost / (1 - margin / 100))
+                    self._sale_price_entry.delete(0, "end")
+                    self._sale_price_entry.insert(0, str(sale_price))
             except ValueError:
                 pass
         # Case 2: If margin is empty but selling price is filled, calculate margin
         elif sale_str:
             try:
                 sale = float(sale_str)
-                margin = ((sale - cost) / cost) * 100
-                self._margin_entry.delete(0, "end")
-                self._margin_entry.insert(0, f"{margin:.1f}".rstrip('0').rstrip('.'))
+                if sale > 0:
+                    margin = ((sale - cost) / sale) * 100
+                    self._margin_entry.delete(0, "end")
+                    self._margin_entry.insert(0, f"{margin:.1f}".rstrip('0').rstrip('.'))
             except ValueError:
                 pass
 
@@ -308,16 +310,17 @@ class ProductFormDialog(CenteredDialog):
         if cost_str:
             try:
                 cost = float(cost_str)
-                sale_price = int(cost * (1 + margin / 100))
-                self._sale_price_entry.delete(0, "end")
-                self._sale_price_entry.insert(0, str(sale_price))
+                if margin < 100:
+                    sale_price = int(cost / (1 - margin / 100))
+                    self._sale_price_entry.delete(0, "end")
+                    self._sale_price_entry.insert(0, str(sale_price))
             except ValueError:
                 pass
         # Case 2: If cost is empty but selling price is filled, calculate cost price
         elif sale_str:
             try:
                 sale = float(sale_str)
-                cost_price = int(sale / (1 + margin / 100))
+                cost_price = int(sale * (1 - margin / 100))
                 self._cost_price_entry.delete(0, "end")
                 self._cost_price_entry.insert(0, str(cost_price))
             except ValueError:
@@ -337,8 +340,8 @@ class ProductFormDialog(CenteredDialog):
         if cost_str:
             try:
                 cost = float(cost_str)
-                if cost > 0:
-                    margin = ((sale - cost) / cost) * 100
+                if sale > 0:
+                    margin = ((sale - cost) / sale) * 100
                     self._margin_entry.delete(0, "end")
                     self._margin_entry.insert(0, f"{margin:.1f}".rstrip('0').rstrip('.'))
             except ValueError:
@@ -347,7 +350,7 @@ class ProductFormDialog(CenteredDialog):
         elif margin_str:
             try:
                 margin = float(margin_str)
-                cost_price = int(sale / (1 + margin / 100))
+                cost_price = int(sale * (1 - margin / 100))
                 self._cost_price_entry.delete(0, "end")
                 self._cost_price_entry.insert(0, str(cost_price))
             except ValueError:

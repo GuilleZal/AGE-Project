@@ -106,9 +106,19 @@ class PercentageCalculatorDialog(CenteredDialog):
             self._preview_label.configure(text="")
             return
 
-        result = amount * (pct / 100)
-        final_total = amount + result
+        if pct < 0:
+            self._preview_label.configure(text="")
+            self._error_label.configure(text="El porcentaje no puede ser negativo")
+            return
+
+        if pct >= 100:
+            self._preview_label.configure(text="")
+            self._error_label.configure(text="El porcentaje debe ser menor a 100%")
+            return
+
+        final_total = amount / (1 - pct / 100)
+        result = final_total - amount
         self._preview_label.configure(
-            text=f"Porcentaje: ${result:,.2f}\nTotal sumado: ${final_total:,.2f}",
+            text=f"Ganancia: ${result:,.2f}\nTotal con ganancia: ${final_total:,.2f}",
             text_color="#2ecc71",
         )

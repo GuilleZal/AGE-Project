@@ -381,6 +381,8 @@ class ProductController:
             if profit_margin_pct is not None:
                 if profit_margin_pct < 0:
                     raise ValueError("El porcentaje de ganancia no puede ser negativo")
+                if profit_margin_pct >= 100:
+                    raise ValueError("El porcentaje de ganancia debe ser menor a 100%")
                 self._settings_service.set_profit_margin_pct(profit_margin_pct)
                 if apply_to_products:
                     products_updated += self._settings_service.apply_profit_margin(
