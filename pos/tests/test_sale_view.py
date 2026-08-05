@@ -211,3 +211,103 @@ def test_sale_view_inactive_product_dialogs(session_root):
     info = SaleInfoDialog(session_root, "Test Info", "Test Info Msg")
     session_root.update()
     info.destroy()
+
+
+def test_sale_view_quantity_shortcuts(session_root):
+    view = SaleView(session_root, role="cajero")
+    session_root.update()
+
+    # Mock controller with a cart containing items
+    class DummyController:
+        def __init__(self):
+            # We have one barcoded item (Coca Cola), one barcodeless unit item (Alfajor), and one Kg item (Queso)
+            self._cart = [
+                {
+                    "product_id": 1,
+                    "barcode": "7790000000001",
+                    "name": "Coca Cola",
+                    "quantity": 2.0,
+                    "unit_price": 500,
+                    "subtotal": 1000,
+                    "unit_type": "Unidad"
+                },
+                {
+                    "product_id": 2,
+                    "barcode": "",
+                    "name": "Alfajor",
+                    "quantity": 1.0,
+                    "unit_price": 400,
+                    "subtotal": 400,
+                    "unit_type": "Unidad"
+                },
+                {
+                    "product_id": 3,
+                    "barcode": "",
+                    "name": "Queso Cremoso",
+                    "quantity": 0.5,
+                    "unit_price": 1000,
+                    "subtotal": 500,
+                    "unit_type": "Kg"
+                }
+            ]
+        def get_cart(self):
+            return {"success": True, "data": {"items": self._cart, "total": 1900}}
+
+    ctrl = DummyController()
+    view.set_controller(ctrl)
+    session_root.update()
+
+    # Wire up the update_qty callback to directly modify self._cart
+    updated_qty = None
+    def mock_update_qty(prod_id, qty):
+        nonlocal updated_qty
+        updated_qty = (prod_id, qty)
+        for item in ctrl._cart:
+            if item["product_id"] == prod_id:
+                item["quantity"] = qty
+
+    view.set_on_update_qty(mock_update_qty)
+
+    # 1. No item selected -> F5/F6 should do nothing
+    view._handle_f5()
+    assert updated_qty is None
+
+    # 2. Select the barcoded item (id 1)
+    view._cart_tree._tree.selection_set("1")
+    session_root.update()
+
+    # 3. Press F6 (increase quantity) -> should increase to 3.0
+    view._handle_f6()
+    assert updated_qty == (1, 3.0)
+
+    # 4. Press F5 (decrease quantity) -> should decrease to 2.0
+    view._handle_f5()
+    assert updated_qty == (1, 2.0)
+
+    # 5. Select the barcodeless unit item (id 2)
+    view._cart_tree._tree.selection_set("2")
+    session_root.update()
+    updated_qty = None
+
+    # 6. Press F6 -> should increase to 2.0
+    view._handle_f6()
+    assert updated_qty == (2, 2.0)
+
+    # 7. Press F5 -> decreases to 1.0
+    view._handle_f5()
+    assert updated_qty == (2, 1.0)
+
+    # 8. Press F5 again -> should remain at 1.0 (limit 1)
+    updated_qty = None
+    view._handle_f5()
+    assert updated_qty == (2, 1.0)
+
+    # 9. Select Kg item (id 3) -> F5/F6 should do nothing because it is a Kg product
+    view._cart_tree._tree.selection_set("3")
+    session_root.update()
+    updated_qty = None
+    view._handle_f6()
+    assert updated_qty is None
+
+    view.destroy()
+

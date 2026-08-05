@@ -118,7 +118,9 @@ def test_product_search_dialog_barcodeless_product_opens_calc(session_root, monk
         sale_price=2100,
         cost_price=1000,
         stock=100.0,
+        unit_type="Kg",
     )
+
 
     # Mock WeightCalculationDialog to simulate user confirming 0.75 Kg
     class MockCalcDialog:
@@ -142,6 +144,43 @@ def test_product_search_dialog_barcodeless_product_opens_calc(session_root, monk
 
     assert dialog.result == p_barcodeless
     assert dialog.selected_quantity == 0.75
+
+
+def test_product_search_dialog_barcodeless_unit_product_does_not_open_calc(session_root, monkeypatch):
+    p_unit = Product(
+        id=11,
+        barcode=None,
+        name="Alfajor sin barra",
+        sale_price=800,
+        cost_price=400,
+        stock=10.0,
+        unit_type="Unidad",
+    )
+
+    called_calc = False
+    class MockCalcDialog:
+        def __init__(self, *args, **kwargs):
+            nonlocal called_calc
+            called_calc = True
+            self.result = 1.0
+
+    monkeypatch.setattr(
+        "pos.view.widgets.weight_calculation_dialog.WeightCalculationDialog",
+        MockCalcDialog,
+    )
+    monkeypatch.setattr("pos.view.widgets.product_search_dialog.CenteredDialog.wait_window", lambda self, win: None)
+
+    dialog = ProductSearchDialog(session_root, products=[p_unit])
+
+    items = dialog._tree.get_children()
+    assert len(items) == 1
+    dialog._tree.selection_set(items[0])
+
+    dialog._on_select()
+
+    assert called_calc is False
+    assert dialog.result == p_unit
+    assert dialog.selected_quantity == 1.0
 
 
 def test_weight_calculation_dialog_cajero_initialization(session_root):

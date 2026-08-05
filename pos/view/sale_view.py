@@ -592,6 +592,14 @@ class SaleView(ctk.CTkFrame):
 
         # --- auto-focus barcode entry whenever the frame is mapped ---
         self.bind("<Map>", lambda _e: self._barcode_entry.focus_set())
+
+        # Bind F5 and F6 to adjust quantity for barcoded items (cajero and admin only)
+        self.bind("<F5>", self._handle_f5)
+        self.bind("<F6>", self._handle_f6)
+        self._barcode_entry.bind("<F5>", self._handle_f5)
+        self._barcode_entry.bind("<F6>", self._handle_f6)
+        self._cart_tree._tree.bind("<F5>", self._handle_f5)
+        self._cart_tree._tree.bind("<F6>", self._handle_f6)
         
     # ---------------------------------------------------------------- public ---
 
@@ -852,12 +860,23 @@ class SaleView(ctk.CTkFrame):
 
     def _update_cart(self) -> None:
         """Refresh cart treeview and total label from controller."""
+        # Save current selection
+        selected = self._cart_tree.get_selected_item()
+        selected_id = selected["product_id"] if selected else None
+
         cart_result = self._controller.get_cart()
         if cart_result["success"]:
             items = cart_result["data"]["items"]
             total = cart_result["data"]["total"]
             self.update_cart(items)
             self.update_total(total)
+
+            # Restore selection if it existed and is still in the cart
+            if selected_id is not None:
+                str_id = str(selected_id)
+                if self._cart_tree._tree.exists(str_id):
+                    self._cart_tree._tree.selection_set(str_id)
+                    self._cart_tree._tree.focus(str_id)
 
     def _clear_cart(self) -> None:
         """Clear the cart via controller and reset UI."""
@@ -1122,6 +1141,45 @@ class SaleView(ctk.CTkFrame):
         # If settings were applied, immediately update the total based on current method
         if dialog.applied:
             self._on_payment_method_changed(self._selected_payment_method)
+
+    def _handle_f5(self, event: tk.Event | None = None) -> str | None:
+        if self._role not in ("cajero", "admin"):
+            return None
+        self._adjust_selected_quantity(-1.0)
+        return "break"
+
+    def _handle_f6(self, event: tk.Event | None = None) -> str | None:
+        if self._role not in ("cajero", "admin"):
+            return None
+        self._adjust_selected_quantity(1.0)
+        return "break"
+
+    def _adjust_selected_quantity(self, delta: float) -> None:
+        selected = self._cart_tree.get_selected_item()
+        if not selected:
+            return
+
+        product_id = selected["product_id"]
+        if not hasattr(self, "_controller") or not self._controller:
+            return
+            
+        cart_item = next((item for item in self._controller._cart if item["product_id"] == product_id), None)
+        if not cart_item:
+            return
+
+        # F5/F6 only works if the product is NOT a Kg product
+        is_kg = cart_item.get("unit_type", "Unidad") == "Kg"
+        if is_kg:
+            return
+
+
+        current_qty = cart_item["quantity"]
+        new_qty = current_qty + delta
+        if new_qty < 1:
+            new_qty = 1.0
+
+        if self._on_update_qty is not None:
+            self._on_update_qty(product_id, new_qty)
 
 
 class SaleErrorDialog(CenteredDialog):

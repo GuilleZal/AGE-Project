@@ -286,9 +286,11 @@ class ProductSearchDialog(CenteredDialog):
         if idx < len(self._visible_products):
             selected_p = self._visible_products[idx]
             has_barcode = bool(selected_p.barcode and selected_p.barcode.strip() and selected_p.barcode != "—")
+            is_kg = getattr(selected_p, "unit_type", "Unidad") == "Kg"
 
-            if not has_barcode and not self._is_return:
+            if not has_barcode and is_kg and not self._is_return:
                 from pos.view.widgets.weight_calculation_dialog import WeightCalculationDialog
+
 
                 calc_dialog = WeightCalculationDialog(
                     self,
