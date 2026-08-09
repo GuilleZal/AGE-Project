@@ -75,7 +75,7 @@ class StockService:
                     f"Producto con id={item.product_id} no encontrado"
                 )
             if product.unit_type == "Kg":
-                new_stock = float(product.stock - item.quantity)
+                new_stock = round(float(product.stock - item.quantity), 3)
             else:
                 new_stock = int(product.stock - item.quantity)
             self._repo.update_stock(item.product_id, new_stock)
@@ -104,7 +104,7 @@ class StockService:
         if product.unit_type == "Kg":
             self._db.execute(
                 """UPDATE products
-                   SET stock = CAST(stock + ? AS REAL), updated_at = datetime('now')
+                   SET stock = round(CAST(stock + ? AS REAL), 3), updated_at = datetime('now')
                    WHERE id = ?""",
                 (quantity, product_id),
             )

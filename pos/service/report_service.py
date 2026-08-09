@@ -116,6 +116,13 @@ class ReportService:
         """
         return self._sale_repo.top_products(start_date, end_date, limit)
 
+    def top_products_by_category(
+        self, start_date: str, end_date: str, category_id: int | None, limit: int = 10
+    ) -> list[dict]:
+        """Return the top *N* products sold in the period filtered by category."""
+        return self._sale_repo.top_products_by_category(start_date, end_date, category_id, limit)
+
+
     # ------------------------------------------------------- low stock ----
 
     def low_stock_products(self) -> list[dict]:
@@ -215,6 +222,47 @@ class ReportService:
                 ORDER BY total_amount DESC""",
             (start_date, end_date),
         ).fetchall()
+        return [dict(r) for r in rows]
+
+    # ---------------------------------------------------- closed registers summary
+
+    def closed_registers_summary(
+        self, start_date: str, end_date: str
+    ) -> list[dict]:
+        """Return summary of closed cash registers in the given period.
+
+        Returns:
+            List of dicts with keys: ``id``, ``opening_time``, ``closing_time``,
+            ``cashier``, ``revenue``, ``profit``, ``sales_count``, ``products_count``,
+            ``difference``.
+        """
+        query = """
+            SELECT cr.id,
+                   cr.opening_time,
+                   cr.closing_time,
+                   u.username AS cashier,
+                   (SELECT COALESCE(SUM(s.total), 0) FROM sales s WHERE s.cash_register_id = cr.id) AS revenue,
+                   (
+                     (SELECT COALESCE(SUM(si.subtotal - si.quantity * p.cost_price), 0)
+                      FROM sale_items si
+                      JOIN sales s ON s.id = si.sale_id
+                      JOIN products p ON p.id = si.product_id
+                      WHERE s.cash_register_id = cr.id)
+                     - (SELECT COALESCE(SUM(r.refund_amount), 0) FROM returns r WHERE r.cash_register_id = cr.id)
+                   ) AS profit,
+                   (SELECT COUNT(s.id) FROM sales s WHERE s.cash_register_id = cr.id) AS sales_count,
+                   (SELECT COALESCE(SUM(si.quantity), 0)
+                    FROM sale_items si
+                    JOIN sales s ON s.id = si.sale_id
+                    WHERE s.cash_register_id = cr.id) AS products_count,
+                   cr.difference
+            FROM cash_registers cr
+            LEFT JOIN users u ON u.id = cr.user_id
+            WHERE cr.status = 'closed'
+              AND cr.closing_time >= ? AND cr.closing_time <= ?
+            ORDER BY cr.closing_time DESC
+        """
+        rows = self._db.execute(query, (start_date, end_date)).fetchall()
         return [dict(r) for r in rows]
 
     # ------------------------------------------------------ returns history
@@ -323,10 +371,28 @@ class ReportService:
             (start_date, end_date),
         ).fetchone()
 
+        # Breakdown of returns: total, broken, expired, good condition
+        returns_breakdown = self._db.execute(
+            """SELECT 
+                   COALESCE(SUM(r.refund_amount), 0) AS total,
+                   COALESCE(SUM(CASE WHEN r.reason = 'Producto Dañado' THEN r.refund_amount ELSE 0 END), 0) AS broken,
+                   COALESCE(SUM(CASE WHEN r.reason = 'Producto Vencido' THEN r.refund_amount ELSE 0 END), 0) AS expired,
+                   COALESCE(SUM(CASE WHEN r.reason = 'Producto en buenas condiciones' THEN r.refund_amount ELSE 0 END), 0) AS good_condition
+               FROM returns r
+               JOIN cash_registers cr ON r.cash_register_id = cr.id
+               WHERE cr.status = 'closed'
+                 AND r.created_at >= ? AND r.created_at <= ?""",
+            (start_date, end_date),
+        ).fetchone()
+
         return {
             "purchases": purchases["total"] or 0,
             "shrinkage": shrinkage["total"] or 0,
             "operating_expenses": operating["total"] or 0,
+            "returns_total": returns_breakdown["total"] or 0,
+            "returns_broken": returns_breakdown["broken"] or 0,
+            "returns_expired": returns_breakdown["expired"] or 0,
+            "returns_good_condition": returns_breakdown["good_condition"] or 0,
         }
 
     # -------------------------------------------------------------- CSV ----
@@ -426,7 +492,7 @@ class ReportService:
         return filepath
 
     @staticmethod
-    def export_pdf(data: list[dict], filepath: str, start_date: str = "", end_date: str = "", title: str = "") -> str:
+    def export_pdf(data: list[dict], filepath: str, start_date: str = "", end_date: str = "", title: str = "", summary_lines: list[str] | None = None) -> str:
         """Write *data* (list of dicts) to a PDF (.pdf) file using fpdf2.
 
         Args:
@@ -435,6 +501,7 @@ class ReportService:
             start_date: Start date of the report range.
             end_date:   End date of the report range.
             title:      Optional title for the report.
+            summary_lines: Optional list of strings to print below the table.
 
         Returns:
             The *filepath* on success.
@@ -511,10 +578,25 @@ class ReportService:
                 # Check for negative amounts to highlight in red (Requested to be removed by Gerente)
                 # has_negative = any(isinstance(v, str) and "-" in v for v in row.values())
                 
+                # Check if there is a negative amount in this row
+                is_negative = False
+                for k, v in row.items():
+                    if k != "Concepto":
+                        val_str = str(v)
+                        if "-" in val_str:
+                            is_negative = True
+                            break
+
                 if concept in ["Ganancia Bruta", "Ganancia Neta"]:
-                    pdf.set_text_color(31, 111, 58) # Green
+                    if is_negative:
+                        pdf.set_text_color(244, 67, 54) # Red (#f44336)
+                    else:
+                        pdf.set_text_color(31, 111, 58) # Green (#1f6f3a)
                 else:
-                    pdf.set_text_color(0, 0, 0) # Black
+                    if is_negative:
+                        pdf.set_text_color(244, 67, 54) # Red
+                    else:
+                        pdf.set_text_color(0, 0, 0) # Black
                 
                 for i, header in enumerate(headers):
                     # Replace em-dash with hyphen to avoid fpdf2 latin-1 encoding errors
@@ -528,6 +610,17 @@ class ReportService:
                     pdf.cell(col_widths[i], 10, display_val, border=1, ln=ln, align=align)
                     
                 pdf.set_text_color(0, 0, 0) # Reset color
+
+            if summary_lines:
+                pdf.ln(10)
+                pdf.set_font("Helvetica", "B", 11)
+                for line in summary_lines:
+                    if "neto de ganancia" in line.lower() or "ganancia neta" in line.lower():
+                        pdf.set_text_color(31, 111, 58) # Green color matching Report
+                    else:
+                        pdf.set_text_color(0, 0, 0)
+                    pdf.cell(0, 8, line, ln=True, align="L")
+                pdf.set_text_color(0, 0, 0)
 
         pdf.output(filepath)
         return filepath

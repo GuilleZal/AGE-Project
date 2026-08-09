@@ -183,7 +183,7 @@ class MainWindow(ctk.CTk):
             
             shortcuts = [
                 ("F1", "Ventas"),
-                ("F2", "Devoluciones"),
+                ("F2", "Buscar"),
                 ("F3", "Caja"),
                 ("F4", "Abrir/Cerrar Caja")
             ]
@@ -622,14 +622,14 @@ class MainWindow(ctk.CTk):
                 pass
 
     def _on_f2_pressed(self, event: Any = None) -> None:
-        """Switch to Devoluciones tab and focus the scan/barcode entry."""
-        if "Devoluciones" in self._tab_frames:
+        """Switch to Ventas tab and open the product search dialog."""
+        if "Ventas" in self._tab_frames:
             try:
-                self._tabview.set("Devoluciones")
+                self._tabview.set("Ventas")
                 self._on_tab_changed()
-                return_view = self._views.get("Devoluciones")
-                if return_view and hasattr(return_view, "focus_barcode"):
-                    return_view.focus_barcode()
+                sale_view = self._views.get("Ventas")
+                if sale_view and hasattr(sale_view, "_handle_search_button"):
+                    sale_view._handle_search_button()
             except Exception:
                 pass
 

@@ -279,3 +279,75 @@ class TestMovementTypes:
                 "INSERT INTO cash_movements (cash_register_id, type, amount) VALUES (?, 'invalid_type', 100)",
                 (reg.id,),
             )
+
+
+class TestGetSoldProducts:
+    def test_returns_correct_products(self, db, open_register):
+        repo = CashRegisterRepo(db)
+        
+        # Insert products
+        db.execute("INSERT INTO products (id, name, sale_price, cost_price, stock, unit_type) VALUES (101, 'Prod A', 100, 50, 10, 'Unidad')")
+        db.execute("INSERT INTO products (id, name, sale_price, cost_price, stock, unit_type) VALUES (102, 'Prod B', 200, 100, 15, 'Kg')")
+        
+        # Insert sales and items associated with this register
+        db.execute("INSERT INTO sales (id, total, payment_method, cash_register_id) VALUES (201, 500, 'cash', ?)", (open_register,))
+        db.execute("INSERT INTO sale_items (sale_id, product_id, quantity, unit_price, subtotal) VALUES (201, 101, 3, 100, 300)")
+        db.execute("INSERT INTO sale_items (sale_id, product_id, quantity, unit_price, subtotal) VALUES (201, 102, 1.0, 200, 200)")
+        
+        db.execute("INSERT INTO sales (id, total, payment_method, cash_register_id) VALUES (202, 300, 'card', ?)", (open_register,))
+        db.execute("INSERT INTO sale_items (sale_id, product_id, quantity, unit_price, subtotal) VALUES (202, 101, 3, 100, 300)")
+        
+        # Insert a return associated with this register
+        db.execute("INSERT INTO returns (product_id, quantity, refund_amount, reason, cash_register_id) VALUES (101, 1, 100, 'vencido', ?)", (open_register,))
+        
+        # Insert a supplier payment cash movement
+        db.execute(
+            "INSERT INTO cash_movements (cash_register_id, type, amount, description) VALUES (?, 'supplier_payment', 150, 'Pago a Supplier X')",
+            (open_register,)
+        )
+        db.commit()
+        
+        res = repo.get_sold_products(open_register)
+        assert res["opening_time"] != ""
+        products = res["products"]
+        assert len(products) == 5
+        
+        assert products[0]["sale_num"] == "Venta #1"
+        assert products[0]["name"] == "Prod A"
+        assert products[0]["quantity"] == 3
+        assert products[0]["unit_price"] == 100
+        assert products[0]["subtotal"] == 300
+        assert products[0]["payment_method"] == "cash"
+        assert products[0]["cost_price"] == 50
+        
+        assert products[1]["sale_num"] == "Venta #1"
+        assert products[1]["name"] == "Prod B"
+        assert products[1]["quantity"] == 1.0
+        assert products[1]["unit_price"] == 200
+        assert products[1]["subtotal"] == 200
+        assert products[1]["cost_price"] == 100
+        
+        assert products[2]["sale_num"] == "Venta #2"
+        assert products[2]["name"] == "Prod A"
+        assert products[2]["quantity"] == 3
+        assert products[2]["unit_price"] == 100
+        assert products[2]["subtotal"] == 300
+        assert products[2]["payment_method"] == "card"
+        assert products[2]["cost_price"] == 50
+
+        # The return is sorted chronologically
+        assert products[3]["sale_num"] == "Devolución"
+        assert products[3]["name"] == "Prod A"
+        assert products[3]["quantity"] == -1
+        assert products[3]["subtotal"] == -100
+        assert products[3]["payment_method"] == "-"
+        assert products[3]["cost_price"] == 50
+
+        # The supplier payment is sorted chronologically at the end
+        assert products[4]["sale_num"] == "Pago Proveedor"
+        assert products[4]["name"] == "Pago a Supplier X"
+        assert products[4]["quantity"] == 0.0
+        assert products[4]["unit_price"] == 0
+        assert products[4]["subtotal"] == -150
+        assert products[4]["payment_method"] == "cash"
+        assert products[4]["cost_price"] == 0

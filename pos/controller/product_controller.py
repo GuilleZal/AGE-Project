@@ -91,6 +91,8 @@ class ProductController:
                 val = float(data["stock"])
                 if val < 0:
                     raise ValueError("El stock no puede ser negativo")
+                if data.get("unit_type", existing.unit_type) == "Kg":
+                    val = round(val, 3)
                 existing.stock = val
             if "unit_type" in data:
                 existing.unit_type = data["unit_type"]

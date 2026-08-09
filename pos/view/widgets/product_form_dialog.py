@@ -406,7 +406,7 @@ class ProductFormDialog(CenteredDialog):
                 # Only accept integers
                 stock = float(int(stock_raw))
             else:
-                stock = float(stock_raw)
+                stock = round(float(stock_raw), 3)
         except ValueError:
             self._error_label.configure(text=f"Cantidad inválida (debe ser {'entero' if unit_type == 'Unidad' else 'número'})")
             self._stock_entry.focus_set()

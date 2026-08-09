@@ -247,6 +247,16 @@ class ProductView(ctk.CTkFrame):
             command=self._handle_preferences,
         ).pack(side="left", padx=3)
 
+        if getattr(self, "_role", "") in ("admin", "gerente"):
+            ctk.CTkButton(
+                row1_frame,
+                text="📊 Valorizar Stock",
+                width=140,
+                font=theme.scaled_font(13, weight="bold"),
+                fg_color="#1f538d",
+                command=self._handle_stock_valuation,
+            ).pack(side="left", padx=3)
+
         if getattr(self, "_role", "") == "gerente":
             ctk.CTkButton(
                 row1_frame,
@@ -678,6 +688,60 @@ class ProductView(ctk.CTkFrame):
     def _handle_export_excel_btn(self) -> None:
         if self._on_export_excel is not None:
             self._on_export_excel()
+
+    def _handle_stock_valuation(self) -> None:
+        """Calculate and display stock valuation metrics (cost, sales, profit) for active products with positive stock."""
+        if not hasattr(self, "_controller") or self._controller is None:
+            messagebox.showerror("Error", "Controller no disponible", parent=self)
+            return
+
+        result = self._controller.list_products()
+        if not result["success"]:
+            messagebox.showerror("Error", result["error"], parent=self)
+            return
+
+        products = result["data"]
+        
+        total_cost = 0.0
+        total_sales = 0.0
+        
+        for p in products:
+            if isinstance(p, dict):
+                stock_val = p.get("stock", 0.0)
+                cost_price = p.get("cost_price", 0)
+                sale_price = p.get("sale_price", 0)
+            else:
+                stock_val = getattr(p, "stock", 0.0)
+                cost_price = getattr(p, "cost_price", 0)
+                sale_price = getattr(p, "sale_price", 0)
+
+            if stock_val is None:
+                stock_val = 0.0
+            else:
+                try:
+                    stock_val = float(stock_val)
+                except ValueError:
+                    stock_val = 0.0
+
+            if cost_price is None:
+                cost_price = 0
+            if sale_price is None:
+                sale_price = 0
+
+            if stock_val > 0:
+                total_cost += cost_price * stock_val
+                total_sales += sale_price * stock_val
+                
+        gross_profit = total_sales - total_cost
+
+        from pos.view.widgets.stock_valuation_dialog import StockValuationDialog
+        dialog = StockValuationDialog(
+            self,
+            total_cost=total_cost,
+            total_sales=total_sales,
+            gross_profit=gross_profit
+        )
+        self.wait_window(dialog)
 
     def _prompt_new_category(self) -> None:
         """Show a small dialog to enter a new category name."""

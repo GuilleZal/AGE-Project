@@ -157,7 +157,11 @@ class ReceiptPreview(CenteredDialog):
                 is_kg = unit_type.lower() in ("kg", "weight_kg")
                 qty = item.get("quantity", 1.0)
                 if is_kg:
-                    qty_str = f"{float(qty)} Kg"
+                    # Format to 3 decimal places without trailing zeros
+                    formatted_qty = f"{float(qty):.3f}".rstrip("0").rstrip(".")
+                    if not formatted_qty or formatted_qty == "":
+                        formatted_qty = "0"
+                    qty_str = f"{formatted_qty} Kg"
                 else:
                     qty_str = f"{int(qty)} u."
 

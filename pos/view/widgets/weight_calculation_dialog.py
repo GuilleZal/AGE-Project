@@ -47,6 +47,7 @@ class WeightCalculationDialog(CenteredDialog):
         self._role = role
         self._result: float | None = None
         self._updating = False
+        self._exact_weight: float | None = None
 
         # --- Header section ---
         title_text = f"Ingresar Peso o Monto - {product_name}"
@@ -195,6 +196,8 @@ class WeightCalculationDialog(CenteredDialog):
         if self._updating:
             return
 
+        self._exact_weight = None
+
         raw = self._peso_entry.get().strip().replace(",", ".")
         self._error_label.configure(text="")
 
@@ -232,6 +235,7 @@ class WeightCalculationDialog(CenteredDialog):
         if not raw:
             self._updating = True
             self._peso_entry.delete(0, tk.END)
+            self._exact_weight = None
             self._updating = False
             return
 
@@ -239,6 +243,7 @@ class WeightCalculationDialog(CenteredDialog):
             monto = float(raw)
             if monto >= 0 and self._sale_price > 0:
                 weight = monto / self._sale_price
+                self._exact_weight = weight
                 # Format to 3 decimal places without trailing zeros
                 weight_str = f"{weight:.3f}".rstrip("0").rstrip(".")
                 if not weight_str or weight_str == "":
@@ -248,10 +253,15 @@ class WeightCalculationDialog(CenteredDialog):
                 self._peso_entry.insert(0, weight_str)
                 self._updating = False
         except ValueError:
-            pass
+            self._exact_weight = None
 
     def _confirm(self) -> None:
         """Validate input and set result weight in Kg."""
+        if self._exact_weight is not None:
+            self._result = self._exact_weight
+            self.destroy()
+            return
+
         raw = self._peso_entry.get().strip().replace(",", ".")
         if not raw:
             self._error_label.configure(text="Ingrese un peso válido")

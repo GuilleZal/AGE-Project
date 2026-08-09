@@ -57,7 +57,9 @@ class CashRegisterView(ctk.CTkFrame):
         callbacks = callbacks or {}
         self._cash_register_mode = cash_register_mode
         self._role = role
+        is_admin_or_gerente = role in ("admin", "gerente")
         self._history_registers: dict[int, dict[str, Any]] = {}
+        self._previewed_register_id: int | None = None
 
         self._on_open: Callable[[int], None] | None = callbacks.get(
             "on_open"
@@ -412,7 +414,7 @@ class CashRegisterView(ctk.CTkFrame):
 
         self._preview_tree.column("tipo", width=140, minwidth=140, anchor="w")
         self._preview_tree.column("monto", width=110, minwidth=110, anchor="e")
-        self._preview_tree.column("descripcion", width=300, minwidth=300, anchor="w")
+        self._preview_tree.column("descripcion", width=140, minwidth=140, anchor="w")
         self._preview_tree.column("hora", width=100, minwidth=100, anchor="center")
         
         # Cargamos solo la funcionalidad de ordenamiento (Eliminamos la carga de anchos guardados)
@@ -448,13 +450,25 @@ class CashRegisterView(ctk.CTkFrame):
         self._preview_tree.grid(row=1, column=0, sticky="nsew", padx=(10, 0), pady=(0, 0))
         self._preview_vscroll.grid(row=1, column=1, sticky="ns", padx=(0, 10), pady=(0, 0))
         self._preview_hscroll.grid(row=2, column=0, sticky="ew", padx=(10, 0), pady=(0, 10))
+
+        if is_admin_or_gerente:
+            self._view_sold_products_btn = ctk.CTkButton(
+                self._preview_frame,
+                text="🛒 Ver detalle",
+                font=theme.scaled_font(13, weight="bold"),
+                command=self._handle_view_sold_products,
+            )
+            self._view_sold_products_btn.grid(
+                row=3, column=0, columnspan=2, sticky="ew", padx=10, pady=(5, 10)
+            )
+            self._view_sold_products_btn.configure(state="disabled")
         
         # -- history treeview (below preview) --
         self._history_frame = ctk.CTkFrame(self._right_frame, fg_color="transparent", border_width=2, border_color=border_color)
         self._history_frame.grid(
             row=1, column=0, sticky="nsew", padx=10, pady=(0, 5)
         )
-        self._history_frame.grid_rowconfigure(2, weight=1)
+        self._history_frame.grid_rowconfigure(2, weight=1, minsize=120)
         self._history_frame.grid_columnconfigure(0, weight=1)
 
         # Title for history section
@@ -467,20 +481,22 @@ class CashRegisterView(ctk.CTkFrame):
         # Date filter row
         filter_frame = ctk.CTkFrame(self._history_frame, fg_color="transparent")
         filter_frame.grid(row=1, column=0, sticky="ew", padx=5, pady=(0, 5), columnspan=2)
-        
-        # Le damos peso a la columna central para separar los botones a la derecha
+        filter_frame.grid_columnconfigure(0, weight=1)
         filter_frame.grid_columnconfigure(1, weight=1)
+        filter_frame.grid_columnconfigure(2, weight=1)
+        filter_frame.grid_columnconfigure(3, weight=1)
 
-        # --- Fila 0: Desde + Calendario + Botón Filtrar ---
+        # Fila 0: Desde [Date] Hasta [Date]
         ctk.CTkLabel(
             filter_frame,
             text="Desde:",
             font=theme.scaled_font(12),
-        ).grid(row=0, column=0, sticky="w", padx=(5, 3), pady=(0, 2))
+            anchor="e",
+        ).grid(row=0, column=0, sticky="e", padx=(0, 5), pady=2)
 
         self._start_date_entry = DateEntry(
             filter_frame,
-            width=10, # Ancho en caracteres ajustado
+            width=10,
             background="#2d5a3d",
             foreground="white",
             borderwidth=1,
@@ -489,28 +505,18 @@ class CashRegisterView(ctk.CTkFrame):
             date_pattern="yyyy-mm-dd",
             locale="es_AR",
         )
-        self._start_date_entry.grid(row=0, column=1, sticky="w", padx=(0, 10), pady=(0, 2)) # sticky="w" evita que se estire
+        self._start_date_entry.grid(row=0, column=1, sticky="w", padx=(0, 10), pady=2)
 
-        ctk.CTkButton(
-            filter_frame,
-            text="Filtrar",
-            width=80,
-            height=26,
-            fg_color="#1f538d",
-            font=theme.scaled_font(11, weight="bold"),
-            command=self._apply_date_filter,
-        ).grid(row=0, column=2, sticky="e", padx=(0, 3), pady=(0, 2)) # sticky="e" ancla a la derecha
-
-        # --- Fila 1: Hasta + Calendario + Botón Limpiar ---
         ctk.CTkLabel(
             filter_frame,
             text="Hasta:",
             font=theme.scaled_font(12),
-        ).grid(row=1, column=0, sticky="w", padx=(5, 3), pady=(2, 0))
+            anchor="e",
+        ).grid(row=0, column=2, sticky="e", padx=(0, 5), pady=2)
 
         self._end_date_entry = DateEntry(
             filter_frame,
-            width=10, # Ancho en caracteres ajustado
+            width=10,
             background="#2d5a3d",
             foreground="white",
             borderwidth=1,
@@ -519,17 +525,31 @@ class CashRegisterView(ctk.CTkFrame):
             date_pattern="yyyy-mm-dd",
             locale="es_AR",
         )
-        self._end_date_entry.grid(row=1, column=1, sticky="w", padx=(0, 10), pady=(2, 0)) # sticky="w" evita que se estire
+        self._end_date_entry.grid(row=0, column=3, sticky="w", padx=(0, 10), pady=2)
+
+        # Fila 1: Botones Limpiar y Filtrar (derecha)
+        buttons_subframe = ctk.CTkFrame(filter_frame, fg_color="transparent")
+        buttons_subframe.grid(row=1, column=0, columnspan=4, sticky="e", pady=(5, 2), padx=(0, 10))
 
         ctk.CTkButton(
-            filter_frame,
+            buttons_subframe,
             text="Limpiar",
             width=80,
             height=26,
             fg_color="#505050",
             font=theme.scaled_font(11, weight="bold"),
             command=self._clear_date_filter,
-        ).grid(row=1, column=2, sticky="e", padx=(0, 3), pady=(2, 0)) # sticky="e" ancla a la derecha
+        ).pack(side="left", padx=5)
+
+        ctk.CTkButton(
+            buttons_subframe,
+            text="Filtrar",
+            width=80,
+            height=26,
+            fg_color="#1f538d",
+            font=theme.scaled_font(11, weight="bold"),
+            command=self._apply_date_filter,
+        ).pack(side="left", padx=5)
 
 
         # Check if the role is admin or gerente
@@ -960,9 +980,48 @@ class CashRegisterView(ctk.CTkFrame):
 
     def _clear_preview(self) -> None:
         """Clear the movement preview panel."""
+        self._previewed_register_id = None
+        if hasattr(self, "_view_sold_products_btn"):
+            self._view_sold_products_btn.configure(state="disabled")
         self._preview_label.configure(text="Movimientos")
         for child in self._preview_tree.get_children():
             self._preview_tree.delete(child)
+
+    def _handle_view_sold_products(self) -> None:
+        """Open the sold products dialog for the currently previewed register."""
+        if not hasattr(self, "_previewed_register_id") or self._previewed_register_id is None:
+            return
+        
+        register_id = self._previewed_register_id
+        result = self._controller.get_sold_products(register_id)
+        if not result["success"]:
+            from tkinter import messagebox
+            messagebox.showerror("Error", result.get("error", "Error desconocido"))
+            return
+        
+        sold_data = result["data"]
+        from pos.view.widgets.sold_products_dialog import SoldProductsDialog
+        dialog = SoldProductsDialog(
+            self,
+            register_id=register_id,
+            products=sold_data["products"],
+            opening_time=sold_data["opening_time"],
+            closing_time=sold_data["closing_time"],
+            role=self._role,
+            controller=self._controller,
+            on_update=self._refresh_after_detail_update,
+        )
+        self.wait_window(dialog)
+
+    def _refresh_after_detail_update(self) -> None:
+        """Refresh active register stats, history table, and movements preview after a detail modification."""
+        if self._on_refresh is not None:
+            self._on_refresh()
+        else:
+            self._refresh_status()
+            self._refresh_history()
+        if self._previewed_register_id is not None:
+            self._update_preview(self._previewed_register_id)
 
     def _auto_preview_active_register(self) -> None:
         """Show movements for the active register in the preview panel, or clear if closed."""
@@ -1123,6 +1182,9 @@ class CashRegisterView(ctk.CTkFrame):
 
     def _update_preview(self, register_id: int, label: str = "Movimientos") -> None:
         """Populate the movement preview panel for a specific register."""
+        self._previewed_register_id = register_id
+        if hasattr(self, "_view_sold_products_btn"):
+            self._view_sold_products_btn.configure(state="normal")
         self._preview_label.configure(text=label)
         # Clear existing items
         for child in self._preview_tree.get_children():

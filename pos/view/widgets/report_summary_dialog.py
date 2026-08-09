@@ -14,8 +14,8 @@ class ReportSummaryDialog(CenteredDialog):
     """Modal dialog displaying the summary of income and expenses."""
 
     def __init__(self, master: tk.Widget, report_data: dict[str, Any], role: str = "", **kwargs) -> None:
-        dialog_width = 450 if role in ("gerente", "admin") else 420
-        dialog_height = 480 if role in ("gerente", "admin") else 320
+        dialog_width = 620 if role in ("gerente", "admin") else 480
+        dialog_height = 540 if role in ("gerente", "admin") else 320
         super().__init__(
             master,
             width=dialog_width,
@@ -95,13 +95,20 @@ class ReportSummaryDialog(CenteredDialog):
         sales = self._report_data.get("sales") or {}
         total_sales = sales.get("total", 0)
 
+        profit_data = self._report_data.get("profit") or {}
+        cost = profit_data.get("cost", 0)
+
         expenses = self._report_data.get("expenses") or {}
         purchases = expenses.get("purchases", 0)
-        shrinkage = expenses.get("shrinkage", 0)
+        operating = expenses.get("operating_expenses", 0)
+        returns_total = expenses.get("returns_total", 0)
+        returns_broken = expenses.get("returns_broken", 0)
+        returns_expired = expenses.get("returns_expired", 0)
+        returns_good_condition = expenses.get("returns_good_condition", 0)
 
         # Calculate values
-        ganancia_bruta = total_sales - purchases
-        ganancia_neta = ganancia_bruta - shrinkage
+        ganancia_bruta = total_sales - cost
+        ganancia_neta = ganancia_bruta - returns_total
 
         # Grid configuration inside metrics frame
         metrics_frame.grid_columnconfigure(0, weight=1)
@@ -125,28 +132,28 @@ class ReportSummaryDialog(CenteredDialog):
 
         ctk.CTkLabel(
             metrics_frame,
-            text=f"${total_sales:,}",
+            text=f"${float(total_sales):,.2f}",
             font=theme.scaled_font(13),
         ).grid(row=row_idx, column=1, sticky="e", padx=15, pady=2)
         row_idx += 1
 
-        # Section 2: Costo de productos
+        # Section 2: Costo de Mercadería Vendida
         ctk.CTkLabel(
             metrics_frame,
-            text="2: Costo de productos",
+            text="2: Costo de Mercadería Vendida",
             font=theme.scaled_font(14, weight="bold"),
         ).grid(row=row_idx, column=0, columnspan=2, sticky="w", padx=15, pady=(12, 2))
         row_idx += 1
 
         ctk.CTkLabel(
             metrics_frame,
-            text="(-) Proveedores:",
+            text="(-) Costo de Mercadería Vendida:",
             font=theme.scaled_font(13),
         ).grid(row=row_idx, column=0, sticky="w", padx=25, pady=2)
 
         ctk.CTkLabel(
             metrics_frame,
-            text=f"${purchases:,}",
+            text=f"${float(cost):,.2f}",
             font=theme.scaled_font(13),
         ).grid(row=row_idx, column=1, sticky="e", padx=15, pady=2)
         row_idx += 1
@@ -154,7 +161,7 @@ class ReportSummaryDialog(CenteredDialog):
         # Separator line
         ctk.CTkLabel(
             metrics_frame,
-            text="----------------------------------------------------------------",
+            text="--------------------------------------------------------------------------------",
             font=theme.scaled_font(11),
             text_color="#555555",
         ).grid(row=row_idx, column=0, columnspan=2, sticky="ew", padx=15, pady=2)
@@ -170,7 +177,7 @@ class ReportSummaryDialog(CenteredDialog):
 
         ctk.CTkLabel(
             metrics_frame,
-            text=f"${ganancia_bruta:,}",
+            text=f"${int(float(ganancia_bruta)):,}",
             font=theme.scaled_font(13, weight="bold"),
             text_color=bruta_color,
         ).grid(row=row_idx, column=1, sticky="e", padx=15, pady=2)
@@ -184,23 +191,72 @@ class ReportSummaryDialog(CenteredDialog):
         ).grid(row=row_idx, column=0, columnspan=2, sticky="w", padx=15, pady=(12, 2))
         row_idx += 1
 
+        # Devoluciones
         ctk.CTkLabel(
             metrics_frame,
-            text="(-) Productos Vencidos/Rotos:",
-            font=theme.scaled_font(13),
+            text="(-) Devoluciones Totales:",
+            font=theme.scaled_font(13, weight="bold"),
         ).grid(row=row_idx, column=0, sticky="w", padx=25, pady=2)
 
         ctk.CTkLabel(
             metrics_frame,
-            text=f"${shrinkage:,}",
-            font=theme.scaled_font(13),
+            text=f"${float(returns_total):,.2f}",
+            font=theme.scaled_font(13, weight="bold"),
         ).grid(row=row_idx, column=1, sticky="e", padx=15, pady=2)
+        row_idx += 1
+
+        # Sub-item 1: Rotos
+        ctk.CTkLabel(
+            metrics_frame,
+            text="   Rotos:",
+            font=theme.scaled_font(12),
+            text_color="#888888",
+        ).grid(row=row_idx, column=0, sticky="w", padx=25, pady=1)
+
+        ctk.CTkLabel(
+            metrics_frame,
+            text=f"${float(returns_broken):,.2f}",
+            font=theme.scaled_font(12),
+            text_color="#888888",
+        ).grid(row=row_idx, column=1, sticky="e", padx=15, pady=1)
+        row_idx += 1
+
+        # Sub-item 2: Vencidos
+        ctk.CTkLabel(
+            metrics_frame,
+            text="   Vencidos:",
+            font=theme.scaled_font(12),
+            text_color="#888888",
+        ).grid(row=row_idx, column=0, sticky="w", padx=25, pady=1)
+
+        ctk.CTkLabel(
+            metrics_frame,
+            text=f"${float(returns_expired):,.2f}",
+            font=theme.scaled_font(12),
+            text_color="#888888",
+        ).grid(row=row_idx, column=1, sticky="e", padx=15, pady=1)
+        row_idx += 1
+
+        # Sub-item 3: En buen estado
+        ctk.CTkLabel(
+            metrics_frame,
+            text="   En buen estado:",
+            font=theme.scaled_font(12),
+            text_color="#888888",
+        ).grid(row=row_idx, column=0, sticky="w", padx=25, pady=1)
+
+        ctk.CTkLabel(
+            metrics_frame,
+            text=f"${float(returns_good_condition):,.2f}",
+            font=theme.scaled_font(12),
+            text_color="#888888",
+        ).grid(row=row_idx, column=1, sticky="e", padx=15, pady=1)
         row_idx += 1
 
         # Separator line
         ctk.CTkLabel(
             metrics_frame,
-            text="----------------------------------------------------------------",
+            text="--------------------------------------------------------------------------------",
             font=theme.scaled_font(11),
             text_color="#555555",
         ).grid(row=row_idx, column=0, columnspan=2, sticky="ew", padx=15, pady=2)
@@ -216,7 +272,7 @@ class ReportSummaryDialog(CenteredDialog):
 
         ctk.CTkLabel(
             metrics_frame,
-            text=f"${ganancia_neta:,}",
+            text=f"${int(float(ganancia_neta)):,}",
             font=theme.scaled_font(14, weight="bold"),
             text_color=neta_color,
         ).grid(row=row_idx, column=1, sticky="e", padx=15, pady=4)
@@ -241,19 +297,29 @@ class ReportSummaryDialog(CenteredDialog):
         sales = self._report_data.get("sales") or {}
         total_sales = sales.get("total", 0)
 
+        profit_data = self._report_data.get("profit") or {}
+        cost = profit_data.get("cost", 0)
+
         expenses = self._report_data.get("expenses") or {}
         purchases = expenses.get("purchases", 0)
-        shrinkage = expenses.get("shrinkage", 0)
+        operating = expenses.get("operating_expenses", 0)
+        returns_total = expenses.get("returns_total", 0)
+        returns_broken = expenses.get("returns_broken", 0)
+        returns_expired = expenses.get("returns_expired", 0)
+        returns_good_condition = expenses.get("returns_good_condition", 0)
 
-        ganancia_bruta = total_sales - purchases
-        ganancia_neta = ganancia_bruta - shrinkage
+        ganancia_bruta = total_sales - cost
+        ganancia_neta = ganancia_bruta - returns_total
 
         export_data = [
             {"Concepto": "Ventas Totales", "Monto": f"${total_sales:,}"},
-            {"Concepto": "(-) Proveedores", "Monto": f"${purchases:,}"},
-            {"Concepto": "Ganancia Bruta", "Monto": f"${ganancia_bruta:,}"},
-            {"Concepto": "(-) Productos Vencidos/Rotos", "Monto": f"${shrinkage:,}"},
-            {"Concepto": "Ganancia Neta", "Monto": f"${ganancia_neta:,}"},
+            {"Concepto": "(-) Costo de Mercadería Vendida", "Monto": f"${cost:,}"},
+            {"Concepto": "Ganancia Bruta", "Monto": f"${int(float(ganancia_bruta)):,}"},
+            {"Concepto": "(-) Devoluciones Totales", "Monto": f"${returns_total:,}"},
+            {"Concepto": "   Rotos", "Monto": f"${returns_broken:,}"},
+            {"Concepto": "   Vencidos", "Monto": f"${returns_expired:,}"},
+            {"Concepto": "   En buen estado", "Monto": f"${returns_good_condition:,}"},
+            {"Concepto": "Ganancia Neta", "Monto": f"${int(float(ganancia_neta)):,}"},
         ]
 
         controller = getattr(self.master, "_controller", None)
@@ -297,19 +363,29 @@ class ReportSummaryDialog(CenteredDialog):
         sales = self._report_data.get("sales") or {}
         total_sales = sales.get("total", 0)
 
+        profit_data = self._report_data.get("profit") or {}
+        cost = profit_data.get("cost", 0)
+
         expenses = self._report_data.get("expenses") or {}
         purchases = expenses.get("purchases", 0)
-        shrinkage = expenses.get("shrinkage", 0)
+        operating = expenses.get("operating_expenses", 0)
+        returns_total = expenses.get("returns_total", 0)
+        returns_broken = expenses.get("returns_broken", 0)
+        returns_expired = expenses.get("returns_expired", 0)
+        returns_good_condition = expenses.get("returns_good_condition", 0)
 
-        ganancia_bruta = total_sales - purchases
-        ganancia_neta = ganancia_bruta - shrinkage
+        ganancia_bruta = total_sales - cost
+        ganancia_neta = ganancia_bruta - returns_total
 
         export_data = [
             {"Concepto": "Ventas Totales", "Monto": f"${total_sales:,}"},
-            {"Concepto": "(-) Proveedores", "Monto": f"${purchases:,}"},
-            {"Concepto": "Ganancia Bruta", "Monto": f"${ganancia_bruta:,}"},
-            {"Concepto": "(-) Productos Vencidos/Rotos", "Monto": f"${shrinkage:,}"},
-            {"Concepto": "Ganancia Neta", "Monto": f"${ganancia_neta:,}"},
+            {"Concepto": "(-) Costo de Mercadería Vendida", "Monto": f"${cost:,}"},
+            {"Concepto": "Ganancia Bruta", "Monto": f"${int(float(ganancia_bruta)):,}"},
+            {"Concepto": "(-) Devoluciones Totales", "Monto": f"${returns_total:,}"},
+            {"Concepto": "   Rotos", "Monto": f"${returns_broken:,}"},
+            {"Concepto": "   Vencidos", "Monto": f"${returns_expired:,}"},
+            {"Concepto": "   En buen estado", "Monto": f"${returns_good_condition:,}"},
+            {"Concepto": "Ganancia Neta", "Monto": f"${int(float(ganancia_neta)):,}"},
         ]
 
         controller = getattr(self.master, "_controller", None)

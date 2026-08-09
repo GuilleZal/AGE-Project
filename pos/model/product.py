@@ -33,3 +33,7 @@ class Product:
     is_active: bool = True
     created_at: str | None = None
     updated_at: str | None = None
+
+    def __post_init__(self) -> None:
+        if self.unit_type == "Kg" and self.stock is not None:
+            self.stock = round(float(self.stock), 3)

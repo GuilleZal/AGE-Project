@@ -405,3 +405,44 @@ class TestExpensesSummaryShrinkage:
 
         # shrinkage should be 800 + 2000 = 2800
         assert result["shrinkage"] == 2800
+
+
+class TestExpensesSummaryReturnsBreakdown:
+    def test_expenses_summary_returns_breakdown(self, db: sqlite3.Connection, sample_products: list[int], open_register: int):
+        p1, p2, p3, p4, p5 = sample_products
+        # Returns:
+        # 1. Producto Dañado (broken) -> $800
+        # 2. Producto en buenas condiciones (good condition) -> $1500
+        # 3. Producto Vencido (expired) -> $2000
+        # 4. Another return with Producto Dañado -> $500
+        db.execute(
+            """INSERT INTO returns (product_id, quantity, refund_amount, reason, cash_register_id, created_at)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (p1, 1, 800, "Producto Dañado", open_register, "2026-06-02 11:00:00")
+        )
+        db.execute(
+            """INSERT INTO returns (product_id, quantity, refund_amount, reason, cash_register_id, created_at)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (p2, 1, 1500, "Producto en buenas condiciones", open_register, "2026-06-03 12:00:00")
+        )
+        db.execute(
+            """INSERT INTO returns (product_id, quantity, refund_amount, reason, cash_register_id, created_at)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (p3, 1, 2000, "Producto Vencido", open_register, "2026-06-04 15:30:00")
+        )
+        db.execute(
+            """INSERT INTO returns (product_id, quantity, refund_amount, reason, cash_register_id, created_at)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (p4, 1, 500, "Producto Dañado", open_register, "2026-06-04 16:30:00")
+        )
+        db.execute("UPDATE cash_registers SET status = 'closed' WHERE id = ?", (open_register,))
+        db.commit()
+
+        svc = ReportService(db)
+        result = svc.expenses_summary("2026-06-01 00:00:00", "2026-06-05 23:59:59")
+
+        assert result["returns_total"] == 800 + 1500 + 2000 + 500
+        assert result["returns_broken"] == 800 + 500
+        assert result["returns_expired"] == 2000
+        assert result["returns_good_condition"] == 1500
+

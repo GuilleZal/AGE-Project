@@ -280,3 +280,67 @@ class TestMovementDescriptionFormatting:
         # Check Returns: should be numbered #1 and #2, and display quantities
         assert movements[2]["description"] == "Devolución #1 — 3 u. Coca-Cola 1.5L"
         assert movements[3]["description"] == "Devolución #2 — 1.5 Kg Queso Kg"
+
+
+class TestUpdateSoldProductQuantity:
+    """Modifying sold and returned product quantities as an administrator."""
+
+    def test_update_sale_quantity_success(self, cash_ctrl, db):
+        # Setup product, register, sale, sale item, cash movement
+        db.execute("INSERT INTO products (id, barcode, name, sale_price, cost_price, stock, unit_type) VALUES (10, '123', 'Prod A', 100, 50, 10, 'Unidad')")
+        cash_ctrl.open_register(5000)
+        db.execute("INSERT INTO sales (id, total, payment_method, cash_register_id) VALUES (1, 300, 'cash', 1)")
+        db.execute("INSERT INTO sale_items (sale_id, product_id, quantity, unit_price, subtotal) VALUES (1, 10, 3.0, 100, 300)")
+        db.execute("INSERT INTO cash_movements (cash_register_id, type, amount, description) VALUES (1, 'sale_cash', 300, 'Venta #1')")
+        db.commit()
+
+        # Update quantity from 3 to 5
+        item = {"sale_id": 1, "product_id": 10}
+        res = cash_ctrl.update_sold_product_quantity(1, item, 5.0)
+        assert res["success"] is True
+
+        # Assert DB values updated correctly
+        # 1. sale_items quantity and subtotal
+        row_item = db.execute("SELECT quantity, subtotal FROM sale_items WHERE sale_id = 1 AND product_id = 10").fetchone()
+        assert row_item["quantity"] == 5.0
+        assert row_item["subtotal"] == 500
+
+        # 2. sales total
+        row_sale = db.execute("SELECT total FROM sales WHERE id = 1").fetchone()
+        assert row_sale["total"] == 500
+
+        # 3. cash movement amount
+        row_mv = db.execute("SELECT amount FROM cash_movements WHERE cash_register_id = 1 AND description = 'Venta #1'").fetchone()
+        assert row_mv["amount"] == 500
+
+        # 4. stock adjusted: old stock 10, difference old_qty(3) - new_qty(5) = -2, so new stock = 10 - 2 = 8
+        row_prod = db.execute("SELECT stock FROM products WHERE id = 10").fetchone()
+        assert row_prod["stock"] == 8.0
+
+    def test_update_return_quantity_success(self, cash_ctrl, db):
+        # Setup product, register, return, cash movement
+        db.execute("INSERT INTO products (id, barcode, name, sale_price, cost_price, stock, unit_type) VALUES (20, '456', 'Prod B', 200, 100, 5, 'Unidad')")
+        cash_ctrl.open_register(5000)
+        db.execute(
+            "INSERT INTO returns (id, product_id, quantity, refund_amount, cash_register_id, reason) "
+            "VALUES (1, 20, 2.0, 400, 1, 'Producto en buenas condiciones')"
+        )
+        db.execute("INSERT INTO cash_movements (cash_register_id, type, amount, description) VALUES (1, 'return', 400, 'Devolución #1 — Prod B')")
+        db.commit()
+
+        # Update quantity from 2 to 1
+        item = {"return_id": 1, "product_id": 20}
+        res = cash_ctrl.update_sold_product_quantity(1, item, 1.0)
+        assert res["success"] is True
+
+        # Assert DB values
+        row_ret = db.execute("SELECT quantity, refund_amount FROM returns WHERE id = 1").fetchone()
+        assert row_ret["quantity"] == 1.0
+        assert row_ret["refund_amount"] == 200
+
+        row_mv = db.execute("SELECT amount FROM cash_movements WHERE cash_register_id = 1 AND description = 'Devolución #1 — Prod B'").fetchone()
+        assert row_mv["amount"] == 200
+
+        # stock adjusted: old stock 5, diff new_qty(1) - old_qty(2) = -1, so new stock = 5 - 1 = 4 (since it was returned in good condition)
+        row_prod = db.execute("SELECT stock FROM products WHERE id = 20").fetchone()
+        assert row_prod["stock"] == 4.0

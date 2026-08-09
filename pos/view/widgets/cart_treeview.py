@@ -114,14 +114,19 @@ class CartTreeview(ctk.CTkFrame):
 
         for item in items:
             qty_val = item["quantity"]
-            if self._role == "cajero":
-                unit_type = item.get("unit_type", "Unidad")
-                if unit_type == "Kg":
-                    qty_str = f"{float(qty_val)} Kg"
-                else:
-                    qty_str = f"{int(qty_val)} u."
+            unit_type = item.get("unit_type", "Unidad")
+            is_kg = unit_type.lower() in ("kg", "weight_kg")
+            if is_kg:
+                # Format to 3 decimal places without trailing zeros
+                formatted_qty = f"{float(qty_val):.3f}".rstrip("0").rstrip(".")
+                if not formatted_qty or formatted_qty == "":
+                    formatted_qty = "0"
+                qty_str = f"{formatted_qty} Kg"
             else:
-                qty_str = int(qty_val)
+                if self._role == "cajero":
+                    qty_str = f"{int(qty_val)} u."
+                else:
+                    qty_str = int(qty_val)
 
             self._tree.insert(
                 "",

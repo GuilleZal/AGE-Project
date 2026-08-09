@@ -43,13 +43,12 @@ class ReportController:
             sales_by_category = self._report_service.sales_by_category(start_date, end_date)
             returns_history = self._report_service.returns_history(start_date, end_date)
             expenses = self._report_service.expenses_summary(start_date, end_date)
+            closed_registers = self._report_service.closed_registers_summary(start_date, end_date)
 
             # Calculate net profit
             net_profit = (
                 profit["profit"]
-                - expenses["purchases"]
-                - expenses["shrinkage"]
-                - expenses["operating_expenses"]
+                - expenses["returns_total"]
             )
             expenses["net_profit"] = net_profit
 
@@ -65,6 +64,7 @@ class ReportController:
                     "sales_by_category": sales_by_category,
                     "returns_history": returns_history,
                     "expenses": expenses,
+                    "closed_registers": closed_registers,
                 },
                 "error": None,
             }
@@ -113,6 +113,35 @@ class ReportController:
             return {"success": True, "data": low_stock, "error": None}
         except POSException as e:
             return {"success": False, "data": None, "error": str(e)}
+
+    def get_categories(self) -> dict:
+        """Return all categories with their product count.
+
+        Returns ``{"success": True, "data": list[dict], "error": None}``.
+        """
+        try:
+            from pos.repository.category_repo import CategoryRepo
+            categories = CategoryRepo(self._db).get_all()
+            return {"success": True, "data": categories, "error": None}
+        except POSException as e:
+            return {"success": False, "data": [], "error": str(e)}
+
+    def get_top_products_by_category(
+        self, start_date: str, end_date: str, category_id: int | None, limit: int = 10
+    ) -> dict:
+        """Return the top *N* products sold in a category in the given period.
+
+        Returns ``{"success": True, "data": list[dict], "error": None}``.
+        """
+        try:
+            _validate_dates(start_date, end_date)
+            top = self._report_service.top_products_by_category(start_date, end_date, category_id, limit)
+            return {"success": True, "data": top, "error": None}
+        except POSException as e:
+            return {"success": False, "data": [], "error": str(e)}
+        except ValueError as e:
+            return {"success": False, "data": [], "error": str(e)}
+
 
     # ------------------------------------------------------------------ CSV ----
 

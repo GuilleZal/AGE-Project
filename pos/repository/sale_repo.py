@@ -105,6 +105,43 @@ class SaleRepo:
         ).fetchall()
         return [dict(r) for r in rows]
 
+    def top_products_by_category(
+        self, start_date: str, end_date: str, category_id: int | list[int] | None, limit: int = 10
+    ) -> list[dict]:
+        """Return the top *N* products sold in the given period, filtered by category."""
+        if category_id is None:
+            where_clause = "AND p.category_id IS NULL"
+            params = (start_date, end_date, limit)
+        elif isinstance(category_id, (list, tuple)):
+            if not category_id:
+                return []
+            placeholders = ", ".join("?" for _ in category_id)
+            where_clause = f"AND p.category_id IN ({placeholders})"
+            params = (start_date, end_date) + tuple(category_id) + (limit,)
+        else:
+            where_clause = "AND p.category_id = ?"
+            params = (start_date, end_date, category_id, limit)
+
+        query = f"""SELECT p.id          AS product_id,
+                           p.name        AS name,
+                           p.barcode     AS barcode,
+                           p.unit_type   AS unit_type,
+                           SUM(si.quantity) AS total_quantity,
+                           SUM(si.subtotal) AS total_amount
+                    FROM sale_items si
+                    JOIN products p ON p.id = si.product_id
+                    JOIN sales    s ON s.id = si.sale_id
+                    JOIN cash_registers cr ON s.cash_register_id = cr.id
+                    WHERE cr.status = 'closed'
+                      AND s.created_at >= ? AND s.created_at <= ?
+                      {where_clause}
+                    GROUP BY p.id
+                    ORDER BY total_quantity DESC
+                    LIMIT ?"""
+        rows = self._db.execute(query, params).fetchall()
+        return [dict(r) for r in rows]
+
+
     # ---------------------------------------------------- payment breakdown
 
     def total_by_payment_method(

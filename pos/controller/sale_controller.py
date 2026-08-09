@@ -504,7 +504,7 @@ class SaleController:
         for item in self._cart:
             if item["product_id"] == product.id:
                 item["quantity"] += quantity
-                item["subtotal"] = int(item["unit_price"] * item["quantity"])
+                item["subtotal"] = int(round(item["unit_price"] * item["quantity"]))
                 return {"success": True, "data": item, "error": None}
 
         entry = {
@@ -513,7 +513,7 @@ class SaleController:
             "name": product.name,
             "quantity": quantity,
             "unit_price": product.sale_price,
-            "subtotal": int(product.sale_price * quantity),
+            "subtotal": int(round(product.sale_price * quantity)),
             "unit_type": product.unit_type,
         }
         self._cart.append(entry)

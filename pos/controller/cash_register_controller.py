@@ -374,6 +374,16 @@ class CashRegisterController:
         except POSException as e:
             return {"success": False, "data": None, "error": str(e)}
 
+    def get_sold_products(self, register_id: int) -> dict:
+        """Return the products sold in a specific cash register session."""
+        try:
+            products = self._register_repo.get_sold_products(register_id)
+            return {"success": True, "data": products, "error": None}
+        except POSException as e:
+            return {"success": False, "data": None, "error": str(e)}
+        except Exception as e:
+            return {"success": False, "data": None, "error": f"Error al obtener productos vendidos: {e}"}
+
     def _format_movements_for_display(self, movements: list) -> list[dict]:
         """Format movements for display in the cash register view, dynamically numbering sales and returns per session."""
         formatted = []
@@ -546,3 +556,135 @@ class CashRegisterController:
                 "data": None,
                 "error": str(e),
             }
+
+    def update_sold_product_quantity(self, register_id: int, item: dict, new_qty: float) -> dict:
+        """Update a sale item's quantity or a return item's quantity in a register session transactionally."""
+        try:
+            is_sale = "sale_id" in item
+            is_return = "return_id" in item
+            
+            if not is_sale and not is_return:
+                return {"success": False, "error": "No se puede editar este tipo de fila."}
+                
+            product_id = item["product_id"]
+            
+            # Read product to verify stock type
+            prod = self._db.execute("SELECT name, unit_type, sale_price FROM products WHERE id = ?", (product_id,)).fetchone()
+            if not prod:
+                return {"success": False, "error": "Producto no encontrado."}
+                
+            unit_type = prod["unit_type"]
+            sale_price = prod["sale_price"]
+            
+            # Validate numeric quantity
+            if unit_type == "Unidad":
+                if not float(new_qty).is_integer():
+                    return {"success": False, "error": f"El producto '{prod['name']}' se vende por unidad. Ingrese un número entero."}
+                new_qty = float(int(new_qty))
+            
+            if new_qty <= 0:
+                return {"success": False, "error": "La cantidad debe ser mayor a cero."}
+                
+            self._db.execute("BEGIN")
+            
+            if is_sale:
+                sale_id = item["sale_id"]
+                # Get old quantity to adjust stock
+                old_row = self._db.execute(
+                    "SELECT quantity, unit_price FROM sale_items WHERE sale_id = ? AND product_id = ?",
+                    (sale_id, product_id)
+                ).fetchone()
+                if not old_row:
+                    raise ValueError("Elemento de venta no encontrado.")
+                old_qty = old_row["quantity"]
+                unit_price = old_row["unit_price"]
+                
+                # Calculate new subtotal
+                new_subtotal = int(round(unit_price * new_qty))
+                
+                # Update sale_items
+                self._db.execute(
+                    "UPDATE sale_items SET quantity = ?, subtotal = ? WHERE sale_id = ? AND product_id = ?",
+                    (new_qty, new_subtotal, sale_id, product_id)
+                )
+                
+                # Recalculate parent sale total
+                sale_meta = self._db.execute(
+                    "SELECT discount, surcharge FROM sales WHERE id = ?", (sale_id,)
+                ).fetchone()
+                discount = sale_meta["discount"] if sale_meta else 0
+                surcharge = sale_meta["surcharge"] if sale_meta else 0
+                
+                items_sum = self._db.execute(
+                    "SELECT SUM(subtotal) FROM sale_items WHERE sale_id = ?", (sale_id,)
+                ).fetchone()[0] or 0
+                
+                new_sale_total = items_sum - discount + surcharge
+                self._db.execute("UPDATE sales SET total = ? WHERE id = ?", (new_sale_total, sale_id))
+                
+                # Update corresponding cash movement amount
+                self._db.execute(
+                    "UPDATE cash_movements SET amount = ? WHERE cash_register_id = ? AND description = ?",
+                    (new_sale_total, register_id, f"Venta #{sale_id}")
+                )
+                
+                # Adjust product stock: new sale means more stock is deducted,
+                # so difference = old_qty - new_qty. We add difference to stock!
+                if unit_type == "Kg":
+                    stock_diff = round(old_qty - new_qty, 3)
+                    self._db.execute("UPDATE products SET stock = round(stock + ?, 3) WHERE id = ?", (stock_diff, product_id))
+                else:
+                    stock_diff = old_qty - new_qty
+                    self._db.execute("UPDATE products SET stock = stock + ? WHERE id = ?", (stock_diff, product_id))
+                
+            elif is_return:
+                return_id = item["return_id"]
+                # Get old quantity to adjust stock
+                old_row = self._db.execute(
+                    "SELECT quantity, refund_amount, reason FROM returns WHERE id = ?",
+                    (return_id,)
+                ).fetchone()
+                if not old_row:
+                    raise ValueError("Registro de devolución no encontrado.")
+                old_qty = old_row["quantity"]
+                old_refund = old_row["refund_amount"]
+                reason = old_row["reason"]
+                
+                # Use the pre-established sale price from the products catalog
+                unit_price = sale_price
+                
+                # Calculate new refund amount using the product catalog's sale price
+                new_refund = int(round(unit_price * new_qty))
+                
+                # Update returns table
+                self._db.execute(
+                    "UPDATE returns SET quantity = ?, refund_amount = ? WHERE id = ?",
+                    (new_qty, new_refund, return_id)
+                )
+                
+                # Update corresponding cash movement amount
+                self._db.execute(
+                    "UPDATE cash_movements SET amount = ? WHERE cash_register_id = ? AND description = ?",
+                    (new_refund, register_id, f"Devolución #{return_id} — {prod['name']}")
+                )
+                
+                # Adjust product stock ONLY if the return reason is "Producto en buenas condiciones" (good condition)
+                if reason == "Producto en buenas condiciones":
+                    # For return: stock is restored by quantity.
+                    # difference = new_qty - old_qty. We add difference to stock!
+                    if unit_type == "Kg":
+                        stock_diff = round(new_qty - old_qty, 3)
+                        self._db.execute("UPDATE products SET stock = round(stock + ?, 3) WHERE id = ?", (stock_diff, product_id))
+                    else:
+                        stock_diff = new_qty - old_qty
+                        self._db.execute("UPDATE products SET stock = stock + ? WHERE id = ?", (stock_diff, product_id))
+            
+            self._db.execute("COMMIT")
+            return {"success": True, "error": None}
+            
+        except Exception as e:
+            try:
+                self._db.execute("ROLLBACK")
+            except sqlite3.OperationalError:
+                pass
+            return {"success": False, "error": str(e)}
